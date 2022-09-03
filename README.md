@@ -1,3 +1,3 @@
-# Sc-pipeline
+# Cellula
 
-A modular Nextflow pipeline for single-cell data analysis.
+A collection of script for semi-automatic, seamingless single-cell analysis (soon a modular Nextflow pipeline).

@@ -72,7 +72,7 @@ covariate = args.covariate
 if not args.skip:
 
     # Code. To be fixed...
-    sys.path.append('/Users/IEO5505/Desktop/pipeline/code/') # Path to pipeline code in docker image
+    sys.path.append('//Users/IEO5505/Desktop/pipeline/code/Cellula/') # Path to pipeline code in docker image
     from _plotting import *
     from _utils import *
     from _pp import *

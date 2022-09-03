@@ -34,7 +34,7 @@ import matplotlib.patches as mpatches
 import seaborn as sns
 
 # To fix
-sys.path.append('/Users/IEO5505/Desktop/pipeline/code/') # Path to pipeline code in docker image
+sys.path.append('/Users/IEO5505/Desktop/pipeline/code/Cellula/') # Path to pipeline code in docker image
 from _pp import *
 from _integration import *
 

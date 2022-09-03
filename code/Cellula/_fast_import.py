@@ -13,7 +13,7 @@ n = 10
 chosen = '15_NN_30_PCs_0.4'
 
 import sys
-sys.path.append('/Users/IEO5505/Desktop/pipeline/code/') # Path to pipeline code in docker image
+sys.path.append('/Users/IEO5505/Desktop/pipeline/code/Cellula/') # Path to pipeline code in docker image
 from _plotting import *
 from _utils import *
 from _pp import *

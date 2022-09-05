@@ -1,3 +1,3 @@
 # Cellula
 
-A collection of script for semi-automatic, seamingless single-cell analysis (soon a modular Nextflow pipeline).
+A collection of script for semi-automatic, seamless single-cell analysis (soon a modular Nextflow pipeline).

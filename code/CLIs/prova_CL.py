@@ -12,8 +12,8 @@ import argparse
 
 # Create the parser
 my_parser = argparse.ArgumentParser(
-    prog='4_clustering',
-    description='''Leiden clustering. Starts from a preprocessed adata with pre-computed kNN graph(s).'''
+    prog='5_clustering_diagnostics',
+    description='''Leiden clustering diagnostics. 3 main steps: cell QC (by cluster); cluster separation; markers overlap.'''
 )
 
 # Add arguments
@@ -34,20 +34,20 @@ my_parser.add_argument(
     help='The pipeline step to run. Default: 0.'
 )
 
-# Upper resolution
+# Chosen 
 my_parser.add_argument( 
-    '--range', 
+    '--chosen', 
     type=str,
-    default='0.1:2.0',
-    help='Resolution range to perform clustering with. Default: 0.1-2.0.'
+    default=None,
+    help='The clustering solution to choose. Default: None.'
 )
 
-# n clusterign solutions to evalutate
+# Remove cell subsets
 my_parser.add_argument( 
-    '--n', 
-    type=int,
-    default=10,
-    help='Number of resolutions to perform clustering with. Default: 10.'
+    '--remove', 
+    type=str,
+    default=None,
+    help='The cell subset to remove. Default: None.'
 )
 
 # Skip
@@ -62,8 +62,8 @@ args = my_parser.parse_args()
 
 path_main = args.path_main
 step = f'step_{args.step}'
-range_ = [ float(x) for x in args.range.split(':') ]
-n = args.n
+chosen = args.chosen
+remove = args.remove
 
 ########################################################################
 
@@ -91,72 +91,65 @@ if not args.skip:
     path_runs = path_main + '/runs/'
     path_viz = path_main + '/results_and_plots/vizualization/clustering/'
 
-    # Create step_{i} clustering folders. Overwrite, if they have already been created
-    to_make = [ (path_results, step), (path_viz, step) ]
-    for x, y in to_make:
-        make_folder(x, y, overwrite=True)
-
     # Update paths
     path_runs += f'/{step}/'
     path_results += f'/{step}/' 
+    path_viz += f'/{step}/' 
+
+    # Check if clustering has already been performed 
+    if not os.path.exists(path_results + 'clustering_solutions.csv'):
+        print('Run clustering first!')
+        sys.exit()
 
     #-----------------------------------------------------------------#
 
     # Set logger 
-    logger = set_logger(path_runs, 'logs_4_clustering.txt')
+    mode = 'a' if chosen is not None else 'w'
+    logger = set_logger(path_runs, 'logs_5_integration_diagnostics.txt', mode=mode)
 
 ########################################################################
 
-# clustering
-def clustering():
+# clustering_diagnostics
+def clustering_diagnostics():
 
-    T = Timer()
-    T.start()
+    print('Main clustering diagnostic script')
 
-    logger.info('Begin clustering...')
+    if chosen is not None:
+        
+        print('Clustering diagnostic script: QC plot')
 
-    # Load adata
-    adata = sc.read(path_data + 'preprocessed.h5ad')
-    
-    # Define resolution range
-    resolution_range = np.linspace(range_[0], range_[1], n)
+    if chosen is not None:
 
-    # Here we go
-    for kNN in adata.obsp.keys():
+       print('Clustering diagnostic script: Concordance among solution heatmaps')
 
-        t = Timer()
-        t.start()
-        logger.info(f'Begin partitioning {kNN} graph...')
+    if chosen is not None:
 
-        for r in resolution_range:
-            r = round(r, 2)
-            key_to_add = '_'.join(kNN.split('_')[:-1] + [str(r)])
-            sc.tl.leiden(
-                adata, 
-                obsp=kNN,
-                key_added=key_to_add,
-                resolution=r, 
-                random_state=1234
-            )
-
-        logger.info(f'Finished partitioning {kNN} graph in total {t.stop()} s.')
-
-    # Save clustered data
-    adata.obs.loc[
-        :, 
-        [ x for x in adata.obs.columns if re.search('_PCs_', x)] 
-    ].to_csv(path_results + 'clustering_solutions.csv')
-
-    #-----------------------------------------------------------------#
-
-    # Write final exec time
-    logger.info(f'Execution was completed successfully in total {T.stop()} s.')
+        print('Clustering diagnostic script: Markers overlaps')
 
 #######################################################################
 
-# Run program
+# Choose solution 
+def choose_solution():
+
+    print(f'Choose solution {chosen}')
+
+#######################################################################
+
+# Choose solution 
+def remove_partition():
+
+    print(f'Remove partition {remove}')
+
+#######################################################################
+
+# Run program(s)
 if __name__ == "__main__":
     if not args.skip:
-        clustering()
+        clustering_diagnostics()
+        if chosen is not None:
+            choose_solution()
+        if remove is not None:
+            remove_partition()
+        
 
 #######################################################################

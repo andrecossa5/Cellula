@@ -13,7 +13,7 @@ import argparse
 # Create the parser
 my_parser = argparse.ArgumentParser(
     prog='3_integration_diagnostics',
-    description='''Evaluation metrics to choose one (batch-corrected) representation for downstream analysis. 
+    description='''Evaluation metrics to choose one (potentially batch-corrected) representation for downstream analysis. 
                 Metrics and code were borrowed from the scib paper (Luecken et. al 2022).'''
 )
 
@@ -75,12 +75,12 @@ my_parser.add_argument(
     help='Delete all integration folders. Default: False.'
 )
 
-# Choose
+# Chosen
 my_parser.add_argument(
-    '--choose', 
+    '--chosen', 
     type=str,
-    default = None,
-    help='The integrated run to choose. Default: None'
+    default=None,
+    help='The preprocessing option to choose. Default: None. Example: red_s:original.'
 )
 
 # Skip
@@ -100,7 +100,7 @@ k = args.k
 covariate = args.covariate
 resolution = args.resolution
 delete = args.delete
-choose = args.choose
+chosen = args.chosen
 
 ########################################################################
 
@@ -145,10 +145,8 @@ if not args.skip:
     #-----------------------------------------------------------------#
     
     # Set logger 
-    if choose is not None:
-        logger = set_logger(path_runs, 'logs_3_integration_diagnostics.txt', mode='a')
-    else:
-        logger = set_logger(path_runs, 'logs_3_integration_diagnostics.txt', mode='w')
+    mode = 'a' if chosen is not None else 'w'
+    logger = set_logger(path_runs, 'logs_3_integration_diagnostics.txt', mode=mode)
 
 ########################################################################
 
@@ -170,8 +168,8 @@ def integration_diagnostics():
     # Add integration results
     GE_spaces = fill_from_integration_dirs(GE_spaces, path_results)
 
-    # Instantiate the int_evaluator class
-    I = int_evaluator(GE_spaces)
+    # Instantiate the Int_evaluator class
+    I = Int_evaluator(GE_spaces)
     logger.info(f'Int_evaluator initialized: {t.stop()} s.')
 
     # Free disk memory and clean integration folders (if requested)
@@ -188,26 +186,26 @@ def integration_diagnostics():
 
     # Batch removal metrics
     t.start()
-    I.compute_kBET(covariate=covariate)
-    I.compute_graph_connectivity(labels=None) # Add ground truth labels, if provided
-    I.compute_entropy_bb(covariate=covariate)
+    for m in I.batch_metrics:
+        I.compute_metric(m, covariate=covariate)
     logger.info(f'Batch removal metrics calculations: {t.stop()} s.')
 
     # Bio conservation metrics
-    t.start() 
-    I.compute_kNN_retention_perc() 
-    I.compute_ARI(labels=None, resolution=resolution) # Add ground truth labels, if provided
-    I.compute_NMI(labels=None, resolution=resolution) # Add ground truth labels, if provided
+    t.start()
+    for m in I.bio_metrics:
+        I.compute_metric(m, covariate=covariate, resolution=resolution)
     logger.info(f'Biological conservation metrics calculations: {t.stop()} s.')
 
-    # Methods ranking
+    # Integration runs evaluation
     t.start()
-    summary_df, rankings_df = I.rank_methods(path_results)
+    df, df_summary, df_rankings, top_3 = I.evaluate_runs(path_results, by='cumulative_score')
     logger.info(f'Methods ranking: {t.stop()} s.')
+    logger.info(f'Top 3 integration options are: {top_3[0]}, {top_3[1]} and {top_3[2]}')
 
     # Plotting and saving outputs
     t.start()
-    I.viz_results(summary_df, rankings_df, path_viz, figsize=(8,5))
+    fig = I.viz_results(df, df_summary, df_rankings, feature='score', by='ranking', figsize=(8,5))
+    fig.savefig(path_viz + 'integration_diagnostics.pdf')
     logger.info(f'Plotting and saving: {t.stop()} s.')
     
     #-----------------------------------------------------------------#
@@ -224,31 +222,27 @@ def choose_preprocessing_option():
     T.start()
 
     # Data loading and preparation
-    logger.info(f'Choose preprocessing option: {choose}')
+    pp, chosen_int = chosen.split(':') 
+    logger.info('Choose preprocessing option: ' + '|'.join([pp, chosen_int]))
     
     # Understand which integration output needs to be picked up
-    pp, chosen_int = choose.split('|')
-    path_chosen_int = path_results + f'/{chosen_int}/{chosen_int}.txt'
-
+    path_chosen = path_data + 'GE_spaces.txt' if chosen_int == 'original' else path_results + f'/{chosen_int}/{chosen_int}.txt'
     # Check if the chosen integration output is available
-    if not os.path.exists(path_chosen_int):
+    if not os.path.exists(path_chosen):
         print('Run this integration method first!')
         sys.exit()
 
-    # Pick the chosen integration output
-    with open(path_chosen_int, 'rb') as f:
-        int_out = pickle.load(f) 
+    # Pick the chosen pp output
+    with open(path_chosen, 'rb') as f:
+        pp_out = pickle.load(f) 
     
-    # Assemble properly
-    if chosen_int != 'scVI':
-        g = int_out[pp]
-    else:
-        g = int_out
-    # Compute kNNs
+    # Assemble adata
+    g = pp_out[pp] if chosen_int != 'scVI' else pp_out
+    only_int = True if chosen_int != 'original' else False
     for k in [ 15, 30, 50, 100 ]:
-        g.compute_kNNs(k=k, n_pcs=30, key=None, only_index=False, only_int=True)
-    # Format into the final pre-processed adata
+        g.compute_kNNs(k=k, n_pcs=30, key=None, only_index=False, only_int=only_int)
     adata = GE_space_to_adata(g, chosen_int)
+
     # Save
     adata.write(path_data + 'preprocessed.h5ad')
 
@@ -265,9 +259,10 @@ def choose_preprocessing_option():
 # Run program(s)
 if __name__ == "__main__":
     if not args.skip:
-        if choose is None:
+        if chosen is None:
             integration_diagnostics()
         else:
             choose_preprocessing_option()
 
 #######################################################################
+

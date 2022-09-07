@@ -35,6 +35,8 @@ import seaborn as sns
 
 # To fix
 sys.path.append('/Users/IEO5505/Desktop/pipeline/code/Cellula/') # Path to pipeline code in docker image
+from _utils import *
+from _plotting import *
 from _pp import *
 
 ########################################################################
@@ -276,19 +278,6 @@ def custom_ARI(g1, g2):
 ##
 
 
-def rescale(x):
-    '''
-    Max/min rescaling.
-    '''    
-    if np.min(x) != np.max(x):
-        return (x - np.min(x)) / (np.max(x) - np.min(x))
-    else:
-        return x
-
-
-##
-
-
 ########################################################################
 
 
@@ -346,7 +335,7 @@ def fill_from_integration_dirs(GE_spaces, path_results):
 ##
 
 
-class int_evaluator:
+class Int_evaluator:
     '''
     A class to hold, evaluate and select the appropriate GE_space after pp and integration.
     '''
@@ -357,6 +346,8 @@ class int_evaluator:
         self.GE_spaces = GE_spaces
         self.batch_removal_scores = {}
         self.bio_conservation_scores = {}
+        self.batch_metrics = ['kBET', 'entropy_bb', 'graph_conn']
+        self.bio_metrics = ['kNN_retention_perc', 'NMI', 'ARI']
 
     ##
 
@@ -395,357 +386,169 @@ class int_evaluator:
     
     ##
 
-    def compute_kBET(self, key=None, covariate='seq_run'):
+    def get_kNNs(self, g, key=None, metric=None, metric_type=None):
         '''
-        Compute the kBET metric on the original and integrated kNNs. 
+        Get neede kNNs for metrics computation.
         '''
-        # Add dict['kBET'] to batch_removal_scores
-        self.batch_removal_scores['kBET'] = {}
+        if metric_type == 'batch': 
+            kNN_feature = 'indices' if metric != 'graph_conn' else 'connectivities'
+            d = {
+                **{ 'original' : g.original_kNNs[key][kNN_feature] },
+                **{ m : g.integrated_kNNs[m][key][kNN_feature] for m in g.int_methods } 
+            }
+
+            return d
+
+        else:
+            kNN_feature = 'indices' if metric == 'kNN_retention_perc' else 'connectivities'
+            original_kNN = g.original_kNNs[key][kNN_feature] 
+            integrated = { m : g.integrated_kNNs[m][key][kNN_feature] for m in g.int_methods }
+            
+            return original_kNN, integrated
+
+    ## 
+
+    def compute_batch(self, g, kNN, batch, pp=None, int_method=None, key=None, metric=None, labels=None):
+        '''
+        Compute one  of the available batch correction metrics.
+        '''
+        if metric == 'kBET':
+            score = kbet(kNN, batch)[2]
+        elif metric == 'graph_conn':
+            score = graph_conn(g.matrix, kNN, labels=labels)
+        elif metric == 'entropy_bb':
+            score = entropy_bb(kNN, batch)
+        
+        # Add to batch_removal_scores[metric]
+        if score is not None:
+            metrics_key = '|'.join([pp, int_method, key])
+            self.batch_removal_scores[metric][metrics_key] = round(score, 3)
+
+    ##
+
+    def compute_bio(self, g, original_kNN, integrated_kNN, pp=None, int_method=None, key=None, resolution=0.2, metric=None, labels=None):
+        '''
+        Compute one  of the available bio conservation metrics.
+        '''
+        if metric == 'kNN_retention_perc':
+            score = kNN_retention_perc(original_kNN, integrated_kNN)
+        else:
+            # Check if ground truth is provided and compute original and integrated labels 
+            if labels is None:
+                g1 = leiden_from_kNN(g.matrix, original_kNN, resolution=resolution)
+            else:
+                g1 = labels
+            g2 = leiden_from_kNN(g.matrix, integrated_kNN, resolution=resolution)
+            # Score metrics
+            if metric == 'ARI':
+                score = custom_ARI(g1, g2)
+            elif metric == 'NMI':
+                score = normalized_mutual_info_score(g1, g2, average_method='arithmetic')
+
+        # Add to bio_conservation_scores[metric]
+        if score is not None:
+            metrics_key = '|'.join([pp, int_method, key])
+            self.bio_conservation_scores[metric][metrics_key] = round(score, 3)
+
+    ##
+
+    def compute_metric(self, metric=None, key=None, covariate='seq_run', labels=None, resolution=0.2):
+        '''
+        Compute one of the available metrics.
+        '''
+        
+        # Check metric_type Add dict[metric] to the appropriate scores attribute
+        if metric in self.batch_metrics:
+            metric_type = 'batch'
+            self.batch_removal_scores[metric] = {}
+        elif metric in self.bio_metrics:
+            metric_type = 'bio'
+            self.bio_conservation_scores[metric] = {}
+        else:
+            raise Exception('Unknown metric. Specify one among known batch and bio metrics')
 
         # Retrieve kNNs keys for kBET computiation
         keys = self.get_keys(key=key)
 
-        # Loop over GE_spaces and their kNNs...
+        # Loop over GE_spaces and extract the data needed for metric computation
         for pp, g in self.GE_spaces.items():
             for key in keys:
 
-                # Collect kNNs
-                batch = g.matrix.obs[covariate]
-                d = {
-                        **{ 'original' : g.original_kNNs[key]['indices'] },
-                        **{ m : g.integrated_kNNs[m][key]['indices'] for m in g.int_methods }
-                }
+                batch = g.matrix.obs[covariate] # Batch labels
 
-                # Loop over d indeces and calculate kBET
-                for int_method, index in d.items():
-                    score = kbet(index, batch)[2]
+                # Batch metrics
+                if metric_type == 'batch': 
+                    d = self.get_kNNs(g, key=key, metric=metric, metric_type=metric_type)
 
-                    # Add to metrics
-                    metrics_key = '|'.join([pp, int_method, key])
-                    self.batch_removal_scores['kBET'][metrics_key] = round(score, 3)
-                    
-                    # Collect garbage
-                    gc.collect()
-
-    ##
-
-    def compute_graph_connectivity(self, key=None, labels=None):
-        '''
-        Compute the graph connectivity metric on the original and integrated kNNs. 
-        If a labels vector is provided, use this instead of coarse leiden clustering labels.
-        '''
-        # Add dict['graph_connectivity'] to batch_removal_scores
-        self.batch_removal_scores['graph_conn'] = {}
-
-        # Retrieve kNNs keys for graph_conn computiation
-        keys = self.get_keys(key=key)
-
-        # Loop over GE_spaces and their kNNs...
-        for pp, g in self.GE_spaces.items():
-            for key in keys:
-
-                # Collect kNNs
-                d = {
-                        **{ 'original' : g.original_kNNs[key]['connectivities'] },
-                        **{ m : g.integrated_kNNs[m][key]['connectivities'] for m in g.int_methods }
-                }
-
-                # Loop over d connectivities and calculate graph_conn
-                for int_method, conn in d.items():
-                    score = graph_conn(g.matrix, conn, labels=labels)
-
-                    # Add to metrics
-                    metrics_key = '|'.join([pp, int_method, key])
-                    self.batch_removal_scores['graph_conn'][metrics_key] = round(score, 3)
-
-                    # Collect garbage
-                    gc.collect()
-
-    ##
-
-    def compute_entropy_bb(self, key=None, covariate='seq_run'):
-        '''
-        Compute the entropy of batch correction on the original and integrated kNNs. 
-        '''
-        # Add dict['entropy_bb'] to batch_removal_scores
-        self.batch_removal_scores['entropy_bb'] = {}
-
-        # Retrieve kNNs keys for entropy_bb computation
-        keys = self.get_keys(key=key)
-
-        # Loop over GE_spaces and their kNNs...
-        for pp, g in self.GE_spaces.items():
-            for key in keys:
-
-                # Collect kNNs
-                batch = g.matrix.obs[covariate]
-                d = {
-                        **{ 'original' : g.original_kNNs[key]['indices'] },
-                        **{ m : g.integrated_kNNs[m][key]['indices'] for m in g.int_methods }
-                }
-
-                # Loop over d indeces and calculate entropy_bb
-                for int_method, index in d.items():
-                    score = entropy_bb(index, batch)
-
-                    # Add to metrics
-                    metrics_key = '|'.join([pp, int_method, key])
-                    self.batch_removal_scores['entropy_bb'][metrics_key] = round(score, 3)
-
-                    # Collect garbage
-                    gc.collect()
-
-    ##
-
-    def compute_graph_iLISI(self):
-        '''
-        Compute iLISI. # todo: upgrade to graph iLISI as in scIB (2022).
-        '''
-    
-    ##
-
-    def compute_kNN_retention_perc(self, key=None):
-        '''
-        Compute the median fraction of each cells neighbors which is retained after integration.
-        '''
-        # Add dict['kNN_retention_perc'] to batch_removal_scores
-        self.bio_conservation_scores['kNN_retention_perc'] = {}
-
-        # Retrieve kNNs keys for kNN_purity computiation
-        keys = self.get_keys(key=key)
-
-        # Loop over GE_spaces and their kNNs...
-        for pp, g in self.GE_spaces.items():
-            for key in keys:
-
-                # Collect kNNs
-                original_kNN = g.original_kNNs[key]['indices'] 
-                integrated = { m : g.integrated_kNNs[m][key]['indices'] for m in g.int_methods }
-
-                # Loop over d integrated indeces and calculate kNN_retention_perc
-                for int_method, integrated_kNN in integrated.items():
-                    score = kNN_retention_perc(original_kNN, integrated_kNN)
-
-                    # Add to metrics, if not None (BBKNN case)
-                    if score is not None:
-                        metrics_key = '|'.join([pp, int_method, key])
-                        self.bio_conservation_scores['kNN_retention_perc'][metrics_key] = round(score, 3)
-
-                        # Collect garbage
+                    # Compute for collected kNNs
+                    for int_method, kNN in d.items():
+                        self.compute_batch(g, kNN, batch, pp=pp, int_method=int_method, key=key, metric=metric, labels=labels)
                         gc.collect()
+                
+                # Bio metrics
+                if metric_type == 'bio': 
+                    original_kNN, integrated = self.get_kNNs(g, key=key, metric=metric, metric_type=metric_type)
 
-    ##
-
-    def compute_ARI(self, key=None, resolution=0.2, labels=None):
-        '''
-        Compute the Adjusted Rand Index between the two clustering solutions obtained from the Leiden partitioning 
-        (same, coarse grained resolution) of the original and integrated kNN graphs (same, if possible, number of NN and PCs).
-        '''
-        # Add dict['ARI'] to batch_removal_scores
-        self.bio_conservation_scores['ARI'] = {}
-
-        # Retrieve kNNs keys for ARI computiation
-        keys = self.get_keys(key=key)
-
-        # Loop over GE_spaces and their kNNs...
-        for pp, g in self.GE_spaces.items():
-            for key in keys:
-
-                # Collect kNNs
-                original_kNN = g.original_kNNs[key]['connectivities'] 
-                integrated = { m : g.integrated_kNNs[m][key]['connectivities'] for m in g.int_methods }
-
-                # Loop over d integrated indeces and calculate ARI
-                for int_method, integrated_kNN in integrated.items():
-
-                    # Check if ground truth is provided
-                    if labels is None:
-                        g1 = leiden_from_kNN(g.matrix, original_kNN, resolution=resolution)
-                    else:
-                        g1 = labels
-                    g2 = leiden_from_kNN(g.matrix, integrated_kNN, resolution=resolution)
-                    score = custom_ARI(g1, g2)
-
-                    # Add to metrics
-                    metrics_key = '|'.join([pp, int_method, key])
-                    self.bio_conservation_scores['ARI'][metrics_key] = round(score, 3)
-
-                    # Collect garbage
-                    gc.collect()
-
+                    # Compute for collected kNNs
+                    for int_method, integrated_kNN in integrated.items():
+                        self.compute_bio(g, original_kNN, integrated_kNN, pp=pp, int_method=int_method, key=key, 
+                                        resolution=resolution, metric=metric, labels=labels)
+                        gc.collect()
+    
     ##
     
-    def compute_NMI(self, key=None, resolution=0.2, labels=None):
-        '''
-        Compute the Normalized Mutual Information score between the two clustering solutions obtained from the Leiden partitioning 
-        (same, coarse grained resolution) of the original and integrated kNN graphs (same, if possible, number of NN and PCs).
-        '''
-        # Add dict['NMI'] to batch_removal_scores
-        self.bio_conservation_scores['NMI'] = {}
-
-        # Retrieve kNNs keys for ARI computiation
-        keys = self.get_keys(key=key)
-
-        # Loop over GE_spaces and their kNNs...
-        for pp, g in self.GE_spaces.items():
-            for key in keys:
-
-                # Collect kNNs
-                original_kNN = g.original_kNNs[key]['connectivities'] 
-                integrated = { m : g.integrated_kNNs[m][key]['connectivities'] for m in g.int_methods }
-
-                # Loop over d integrated indeces and calculate ARI
-                for int_method, integrated_kNN in integrated.items():
-
-                    # Check if ground truth is provided
-                    if labels is None:
-                        g1 = leiden_from_kNN(g.matrix, original_kNN, resolution=resolution)
-                    else:
-                        g1 = labels
-                    g2 = leiden_from_kNN(g.matrix, integrated_kNN, resolution=resolution)
-                    score = normalized_mutual_info_score(g1, g2, average_method='arithmetic')
-
-                    # Add to metrics
-                    metrics_key = '|'.join([pp, int_method, key])
-                    self.bio_conservation_scores['NMI'][metrics_key] = round(score, 3)
-
-                    # Collect garbage
-                    gc.collect()
-        
-    ##
-        
-    def compute_graph_cLISI(self):
-        '''
-        Compute cLISI. # todo: upgrade to graph cLISI as in scIB (Luecknen et al. 2022).
-        '''
-
-    ##
-    
-    def rank_methods(self, path):
+    def evaluate_runs(self, path, by='cumulative_score'):
         '''
         Rank methods, as in scib paper (Luecknen et al. 2022).
         '''
 
-        def format_dict(d, t):
-            '''
-            Helper function for formatting dicts.
-            '''
-            df = pd.concat(
-                [
-                    pd.DataFrame(
-                        index=d[k].keys(),
-                        data={ 
-                                'score' : rescale(list(d[k].values())), 
-                                'metric' : [k] * len(d[k].keys()),
-                                'type' : [t] * len(d[k].keys())
-                            },
-                    )
-                    for k in d.keys()   
-                ], axis=0
-            )
-
-            return df
-
-        def summary_one_run(df, run):
-            '''
-            Computes overall bio and batch scores for each run.
-            '''
-            total_batch = df.query('run == @run and type == "batch"')['score'].mean()
-            total_bio = df.query('run == @run and type == "bio"')['score'].mean()
-            total = 0.6 * total_bio + 0.4 * total_batch
-
-            return total_batch, total_bio, total
-
-        def rank_runs(df, metrics):
-            '''
-            Computes each metrics rankings.
-            '''
-            DF = []
-            for metric in metrics:
-                s = df[df['metric'] == metric].sort_values(by='score', ascending=False)['run']
-                DF.append(
-                    pd.DataFrame({ 
-                        'run' : s, 
-                        'ranking' : range(1, len(s)+1), 
-                        'metric' : [ metric ] * len(s)
-                    }) 
-                )
-            df = pd.concat(DF, axis=0)
-
-            return df
-
-
         # Create results df 
         df = pd.concat(
             [ 
-                format_dict(self.batch_removal_scores, 'batch'), 
-                format_dict(self.bio_conservation_scores, 'bio') 
+                format_metric_dict(self.batch_removal_scores, 'batch'), 
+                format_metric_dict(self.bio_conservation_scores, 'bio') 
             ], 
             axis=0
         )
-        # Write to path
-        df.to_excel(path + 'integration_diagnostics_results.xlsx')
+        df.to_excel(path + 'integration_diagnostics_results.xlsx', index=False)
 
         # Create summary and rankings dfs
-        runs = [ x for x in np.unique(df.index) if x.split('|')[1] != 'original' ] # Filter out original runs
-        df = df[df.index.isin(runs)].reset_index().rename(columns={'index':'run'}) 
-
-        # Summary df
-        summary_df = pd.DataFrame(
-            data=[ summary_one_run(df, run) for run in runs ], 
-            index=runs,
-            columns=['total_batch', 'total_bio', 'total']
-        ).sort_values(by='total', ascending=False)
-        # Write to path
-        summary_df.to_excel(path + 'summary_results.xlsx')
+        runs = [ x for x in df['run'].unique() if x.split('|')[1] != 'original' ] # Filter out original runs
+        df = df[df['run'].isin(runs)]
 
         # Rankings df
-        metrics = [ 
-            'kBET', 'graph_conn', 'entropy_bb',
-            'ARI', 'NMI', 'kNN_retention_perc'
-        ]
-        rankings_df = rank_runs(df, metrics)
+        df_rankings = rank_runs(df)
+        df_rankings.to_excel(path + 'rankings_by_metric.xlsx', index=False)
 
-        return summary_df, rankings_df
-    
+        # Summary df
+        direction_up = True if by == 'cumulative_ranking' else False 
+        df_summary = summary_metrics(df, df_rankings, evaluation='integration').sort_values(
+            by=by, ascending=direction_up
+        )
+        df_summary.to_excel(path + 'summary_results.xlsx', index=False)
+
+        # Top 3 runs
+        top_3 = df_summary['run'][:3].to_list()
+
+        return df, df_summary, df_rankings, top_3
+
     ##
     
-    def viz_results(self, summary_df, rankings_df, path, figsize=(8,5)):
+    def viz_results(self, df, df_summary, df_rankings, feature='score', by='score', figsize=(8,5)):
         '''
         Plot rankings. 
         '''
-        # Fix run names
-        rankings_df['run'] = rankings_df['run'].map(lambda x: '|'.join(x.split('|')[:-1]))
-        summary_df.index = summary_df.index.map(lambda x: '|'.join(x.split('|')[:-1]))
+        # Fix 'run' names and join
+        fix_names = lambda x: '|'.join(x.split('|')[:-1])
+        df_summary['run'] = df_summary['run'].map(fix_names)
+        df_rankings['run'] = df_rankings['run'].map(fix_names)
+        df['run'] = df['run'].map(fix_names)
 
-        # Figure
-        fig, ax = plt.subplots(figsize=figsize)
+        # Plot
+        fig = plot_rankings(df, df_rankings, df_summary, feature=feature, by=by, figsize=figsize, 
+            loc='lower left', bbox_to_anchor=(0.08, 0.35))
 
-        # Box
-        sns.boxplot(
-            data=rankings_df, 
-            x='run', 
-            y='ranking', 
-            order=summary_df.index, 
-            palette = sns.color_palette("rocket_r", n_colors=len(summary_df.index)),
-            saturation=0.9, 
-            fliersize=1
-        )
-        # Swarm on top
-        sns.swarmplot(
-            data=rankings_df, 
-            x='run', 
-            y='ranking', 
-            order=summary_df.index, 
-            color=".2"
-        )
-
-        ax.set(title='Integration methods ranking', ylabel='Rankings', xlabel='Integration run') 
-        ax.tick_params(axis='x', labelrotation = 90)
-
-        # Save
-        fig.tight_layout()
-        fig.savefig(path + 'rankings_plot.pdf')
+        return fig
 
 
 ##
@@ -767,12 +570,17 @@ def GE_space_to_adata(g, chosen_int):
     
     adata.obsm['X_pca'] = g.PCA.embs
 
-    if chosen_int != 'BBKNN':
+    if chosen_int not in ['BBKNN', 'original']:
         adata.obsm['X_corrected'] = g.get_repr(chosen_int)
 
-    adata.uns['neighbors'] = { 'neighbors' : list(g.integrated_kNNs[chosen_int].keys()) }
-    for key in g.integrated_kNNs[chosen_int].keys():
-        adata.obsp[key + '_connectivities'] = g.integrated_kNNs[chosen_int][key]['connectivities']
+    if chosen_int != 'original':
+        adata.uns['neighbors'] = { 'neighbors' : list(g.integrated_kNNs[chosen_int].keys()) }
+        for key in g.integrated_kNNs[chosen_int].keys():
+            adata.obsp[key + '_connectivities'] = g.integrated_kNNs[chosen_int][key]['connectivities']
+    else:
+        adata.uns['neighbors'] = { 'neighbors' : list(g.original_kNNs.keys()) }
+        for key in g.original_kNNs.keys():
+            adata.obsp[key + '_connectivities'] = g.original_kNNs[key]['connectivities']
 
     return adata
 

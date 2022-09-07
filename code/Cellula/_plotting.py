@@ -88,13 +88,91 @@ def plot_heatmap(df, palette='mako', ax=None, title=None, x_names=True, y_names=
 ##
 
 
+def plot_rankings(
+    df, 
+    df_rankings, 
+    df_summary, 
+    feature='score',
+    by='score',
+    assessment=None, 
+    loc='lower left', 
+    bbox_to_anchor=(0.1, 0.25), 
+    figsize=(8,5), 
+    legend=True
+    ):
+    '''
+    Plot rankings. 
+    '''
+    # Join
+    df_viz = df.merge(df_rankings, on=['run', 'metric'])
+    # Create categories and colors
+    categories = df_viz['type'].unique()
+    colors = sns.color_palette('dark', len(categories))
+
+    # Create runs order
+    if by == 'score':
+        order = df_summary.sort_values(by=f'cumulative_score', ascending=False)['run'].to_list()
+    else:
+        order = df_summary.sort_values(by=f'cumulative_ranking', ascending=True)['run'].to_list()
+
+    # Figure
+    fig, ax = plt.subplots(figsize=figsize)
+    # Box
+    sns.boxplot(
+        data=df_viz, 
+        x='run', 
+        y=feature, 
+        order=order,
+        saturation=0.9, 
+        fliersize=1,
+        **{
+            'boxprops':{'facecolor':'#C0C0C0', 'edgecolor':'black'}, 
+            'medianprops':{'color':'black'}, 'whiskerprops':{'color':'black'}, 'capprops':{'color':'black'}
+        }
+    )
+    # Swarm on top
+    sns.swarmplot(
+        data=df_viz, 
+        x='run', 
+        y=feature, 
+        hue='type',
+        order=order, 
+        palette=colors
+    )
+    
+    # Remove dafault legend, and add custom if requested 
+    ax.legend([],[], frameon=False)
+    if legend:
+        handles = create_handles(categories, colors=colors)
+        fig.legend(handles=handles, loc=loc, bbox_to_anchor=bbox_to_anchor, frameon=True, shadow=False, title='Type')
+    # Ticks and axis
+    ax.set(title=f'{assessment} runs {feature}. Runs ordered by mean {by}', ylabel=feature.capitalize(), xlabel='') 
+    ax.tick_params(axis='x', labelrotation = 90)
+
+    fig.tight_layout()
+     
+    return fig
+
+
+##
+
+
 ########################################################################
 
 
 ## Pp plots
 
 
-def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10)):
+def QC_plot(
+    meta, 
+    grouping, 
+    QC_covariates, 
+    colors, 
+    figsize=(12, 10), 
+    labels=True, 
+    legend=True,
+    bbox_to_anchor=(0.93, 0.05)
+    ):
     '''
     Plot boxplot of QC covariates, by some cell goruping.
     '''
@@ -116,13 +194,16 @@ def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10)):
             saturation=0.9, 
             fliersize=1
         )
-        ax.tick_params(axis='x', which='both', bottom=False, labelbottom=False) 
+        if not labels: 
+            ax.tick_params(axis='x', which='both', bottom=False, labelbottom=False) 
 
+    if legend:
+        handles = create_handles(meta[grouping].cat.categories, colors=colors[grouping])
+        fig.legend(handles=handles, loc='lower right', bbox_to_anchor = bbox_to_anchor, 
+            frameon=True, shadow=False, title=grouping.capitalize()
+        )
+    
     fig.tight_layout()
-    handles = create_handles(meta[grouping].cat.categories, colors=colors[grouping])
-    fig.legend(handles=handles, loc='lower right', bbox_to_anchor = (0.93, 0.09), 
-        frameon=True, shadow=False, title=grouping.capitalize()
-    )
     
     return fig
 
@@ -244,47 +325,16 @@ def cluster_relationships_plot(meta, couples, size=10, figsize=(15,13)):
 ##
 
 
-def plot_rankings(summary_df, rankings_df, figsize=(10,5)):
-     '''
-     Plot rankings. 
-     '''
-
-     # Figure
-     fig, ax = plt.subplots(figsize=figsize)
-     # Box
-     sns.boxplot(
-         data=rankings_df, 
-         x='solution', 
-         y='ranking', 
-         order=summary_df.index, 
-         palette = sns.color_palette("rocket_r", n_colors=len(summary_df.index)),
-         saturation=0.9, 
-         fliersize=1
-     )
-     # Swarm on top
-     sns.swarmplot(
-         data=rankings_df, 
-         x='solution', 
-         y='ranking', 
-         order=summary_df.index, 
-         color=".2"
-     )
-     ax.set(title='Clustering solution ranking', ylabel='Rankings', xlabel='Solution') 
-     ax.tick_params(axis='x', labelrotation = 90)
-     
-     return fig
-
-
-##
-
-
-def cluster_separation_plot(sol, df_kNN):
+def cluster_separation_plot(clustering_solutions, df_kNN):
     '''
     Visualize quality of all partitionings obtained from a certain kNN graph.
     '''
     # Prep data
-    kNN = '_'.join(df_kNN.index[0].split('_')[:-1])
-    subsetted = sol.loc[:, [ x for x in sol.columns if re.search(kNN, x)]]
+    NN = str(df_kNN['NN'].values[0])
+    subsetted = clustering_solutions.loc[
+        :, 
+        [ x for x in clustering_solutions.columns if re.search(f'^{NN}', x)]
+    ]
     n_clusters = [ subsetted[x].cat.categories.size for x in subsetted.columns ]
 
     # Figure
@@ -295,17 +345,21 @@ def cluster_separation_plot(sol, df_kNN):
     colors = sns.color_palette(palette='dark', n_colors=len(metrics))
     for metric, c in zip(metrics, colors):
         d = df_kNN.query('metric == @metric')
-        axs[0].plot(d['resolution'], d['score'],  marker='o', label=metric, color=c)
-        axs[0].plot(d['resolution'], d['score'],  linestyle='-', color=c)
+        x = [ str(x) for x in d['resolution'] ]
+        y = d['score']
+        axs[0].plot(x, y,  marker='o', label=metric, color=c)
+        axs[0].plot(x, y,  linestyle='-', color=c)
     axs[0].set(title='Metrics trend', xlabel='Resolution', ylabel='Rescaled score')
     axs[0].legend()
 
     # n clusters by resolution
-    axs[1].bar([ str(x) for x in d['resolution'] ], n_clusters, 
+    axs[1].bar(x, n_clusters, 
        linewidth=0.6, edgecolor='black', facecolor='#C0C0C0')
     axs[1].set(title='n clusters by resolution', xlabel='Resolution', ylabel='n')
 
+    # Layout
     fig.tight_layout()
+    plt.subplots_adjust(wspace=0.15, hspace=0.15)
 
     return fig
 

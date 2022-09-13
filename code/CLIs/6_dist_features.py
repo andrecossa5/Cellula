@@ -156,11 +156,6 @@ def dist_features():
     # Load adata
     adata = sc.read(path_data + 'clustered.h5ad')
 
-
-    adata.obs['leiden']
-
-    sc.tl.rank_genes_groups(adata, )
-
     
 
 

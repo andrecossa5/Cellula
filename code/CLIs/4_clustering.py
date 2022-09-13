@@ -50,6 +50,13 @@ my_parser.add_argument(
     help='Number of resolutions to perform clustering with. Default: 10.'
 )
 
+# with_markers
+my_parser.add_argument( 
+    '--with_markers', 
+    action='store_true',
+    help='Calculate Wilcoxon markers for all clustering solutions. Default: False.'
+)
+
 # Skip
 my_parser.add_argument(
     '--skip', 
@@ -60,7 +67,7 @@ my_parser.add_argument(
 # Parse arguments
 args = my_parser.parse_args()
 
-path_main = args.path_main
+path_main = args.path_main 
 step = f'step_{args.step}'
 range_ = [ float(x) for x in args.range.split(':') ]
 n = args.n
@@ -77,9 +84,10 @@ if not args.skip:
     from _pp import *
     from _integration import *
     from _clustering import *
+    from _dist_features import *
 
     # Custom code 
-    sys.path.append(path_main + 'custom/') # Path to local-system, user-defined custom code
+    sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
     from colors import *
     from meta_formatting import * 
 
@@ -142,10 +150,49 @@ def clustering():
         logger.info(f'Finished partitioning {kNN} graph in total {t.stop()} s.')
 
     # Save clustered data
-    adata.obs.loc[
+    clustering_solutions = adata.obs.loc[
         :, 
         [ x for x in adata.obs.columns if re.search('_PCs_', x)] 
-    ].to_csv(path_results + 'clustering_solutions.csv')
+    ]
+    clustering_solutions.to_csv(path_results + 'clustering_solutions.csv')
+
+    #-----------------------------------------------------------------#
+
+    # Compute all clusters markers for future use
+
+    if args.with_markers:
+
+        t.start()
+        logger.info(f'Begin markers calculation...')
+
+        # Create contrasts
+        clustering_solutions = pd.read_csv(path_results + 'clustering_solutions.csv', index_col=0)
+        contrasts = {
+            k: Contrast(clustering_solutions, k) for k in clustering_solutions.columns
+        }
+
+        # Prep Dist_features instance
+        D = Dist_features(adata, contrasts)
+        D.select_genes(no_miribo=False)         # Exclude only genes expressed by less than 0.15 total cells here
+
+        # Here we go
+        count = 1
+        total = len(contrasts)
+        t_step = Timer()
+
+        for k in contrasts.keys():
+            t_step.start()
+            logger.info(f'Begin markers calculation {k}, solution {count}/{total}...')
+            D.compute_DE(contrast_key=k, which='perc_0.15')
+            logger.info(f'Markers calculation {k}, solution {count}/{total}: {t_step.stop()} s')
+            count += 1
+
+        # Save to path
+        path_ = '/Users/IEO5505/Desktop/sc_pipeline_prova//results_and_plots/dist_features/step_0/'
+        with open(path_ + 'clusters_markers.txt', 'wb') as f:
+            pickle.dump(D.results_DE, f)
+
+        logger.info(f'Finished markers: {t.stop()} s.')
 
     #-----------------------------------------------------------------#
 

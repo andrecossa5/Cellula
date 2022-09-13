@@ -7,6 +7,7 @@ import sys
 import os
 import logging
 import time
+import gc
 from glob import glob
 import pickle
 from joblib import cpu_count, Parallel, delayed, parallel_backend
@@ -111,12 +112,253 @@ class Contrast:
         except:
             c = pd.Categorical(s)
 
-
         self.category = c
         self.codes = c.codes
         self.freqs = compo_summary(c)
 
-        print(self.freqs)
+
+##
+
+
+def rank_top(x, n=None, lowest=False):
+    '''
+    Returns index of top(n) values in some x np.array. Both ascending or descending order 
+    can be accessed. If n is not specified, all ranked index are returned.
+    '''
+    if not isinstance(x, np.ndarray):
+        x = np.array(x)
+    if lowest:
+        idx = np.argsort(x)[:n]
+    else:
+        idx = np.argsort(x)[::-1][:n]
+
+    return idx
+
+
+##
+
+
+def check_equal_pars(p_original, p_new, is_tuple=False):
+    '''
+    Check if some default parameters values have been modified or not.
+    '''
+    if is_tuple:
+        p_original = np.array([ x[1] for x in p_original.values() ])
+        p_new = np.array([ x[1] for x in p_new.values() ])
+    else:
+        p_original = np.array([ x for x in p_original.values() ])
+        p_new = np.array([ x for x in p_new.values() ])
+
+    return (p_original == p_new).all()
+
+
+##
+
+
+class Gene_set:
+    '''
+    A class to store and annotate a set of relevant genes.
+    '''
+
+    def __init__(self, genes_meta, results, name=None):
+        '''
+        Set attrs. Results can be a list-like object or a df, according to the method that produced the 
+        (ordered) or not gene set.
+        '''
+        self.name = name
+        try:
+            self.stats = genes_meta.loc[
+                results, ['percent_cells', 'highly_variable_features', 'mean', 'var']
+            ]
+            self.is_ordered = False
+            self.filtered = None
+        except:
+            self.stats = results.join(
+                genes_meta.loc[:, 
+                    ['percent_cells', 'highly_variable_features', 'mean', 'var']
+                ]
+            )
+            self.is_ordered = True
+            self.filtered = {}
+
+        # Params
+        self.filter_params = { 
+            'effect_size' : ( '>', 0 ), # All of em
+            'evidence' : ( '<', 0.1 ), # 10% FDR
+            'perc_FC' : ( '>', 1 ) # Whichever difference
+        }
+
+        self.rank_sort_params = { 
+            'n' : None,
+            'by' : 'effect_size'
+        }
+
+        self.ORA = {}
+        self.GSEA = {}
+    
+    ##
+
+    def filter_rank_genes(self, filter=False, rank_sort=True, filtering=None, sorting=None):
+        '''
+        Filters and and sort gs stats.
+        '''
+        if not self.is_ordered:
+            raise ValueError('Filtering operations can be performed only on ordered gene sets.')
+        
+        # Get stats
+        df = self.stats
+
+        # Filter
+        original_f = self.filter_params
+        if isinstance(filtering, dict):
+            for k, v in filtering.items():
+                self.filter_params[k] = v 
+
+        query = ' & '.join(f'{k} {op} {tresh}' for k, (op, tresh) in self.filter_params.items())
+        filtered_df = df.query(query)
+
+        # Sort 
+        original_s = self.rank_sort_params
+        if isinstance(sorting, dict):
+            for k, v in sorting.items():
+                self.rank_sort_params[k] = v 
+
+        by = self.rank_sort_params['by']
+        n = self.rank_sort_params['n']
+        lowest = False if by == 'effect_size' else True
+
+        idx = rank_top(filtered_df[by], n=n, lowest=lowest)
+        filtered_df = df.iloc[idx, :]
+
+        # Add to dict
+        default = check_equal_pars(original_f, self.filter_params, is_tuple=True) and check_equal_pars(original_s, self.rank_sort_params)
+        if default:
+            key_to_add = 'Default_ORA'    
+        else:
+            key_to_add = '_'.join([ f'{k}_{op}_{tresh}' for k, (op, tresh) in self.filter_params.items() ])
+            key_to_add += f'_sort_by_{by}_top_{n}'
+        
+        self.filtered[key_to_add] = filtered_df
+
+        gc.collect()
+
+    ##
+
+    def ORA(self, key='Default_ORA', by='Adjusted P-value', n_out=50):
+        '''
+        Perform ORA (Over-Representation Analysis)
+        '''
+        from gseapy import enrichr
+
+        gene_list = self.filtered[key]
+        collections = [
+            'GO_Biological_Process_2021'                 # For now...
+        ]
+
+        results = enrichr(
+            gene_list=gene_list,
+            gene_sets=collections,
+            organism='human', 
+            outdir=None, 
+        ).results
+
+        df = results.loc[:, 
+            [ 'Term', 'Overlap', 'Adjusted P-value', 'Genes' ]
+        ]
+
+        idx = rank_top(df[by], n=n_out, lowest=True)
+        filtered_df = df.iloc[idx, :]
+
+        # Add 
+        self.ORA[key] = filtered_df
+
+        gc.collect()
+
+    ##
+
+    def GSEA(self, covariate='effect_size', by='Adjusted P-value', n_out=50):
+        '''
+        Perform GSEA (Gene-Set Enrichment Anlysis).
+        '''
+        from gseapy import prerank
+
+        ranked_gene_list = self.stats[covariate]
+        collections = [
+            'GO_Biological_Process_2021'                 # For now...
+        ]
+
+        results = prerank(
+            rnk=ranked_gene_list,
+            gene_sets=collections,
+            threads=cpu_count(),
+            min_size=50,
+            max_size=1000,
+            permutation_num=200, 
+            outdir=None, 
+            seed=1234,
+            verbose=True
+        )
+
+        df = results.res2d.loc[:, 
+            [ 'Term', 'ES', 'NES', 'FDR q-val', 'Lead_genes' ]
+        ].rename(columns={'FDR q-val' : 'Adjusted P-value'})
+
+        idx = rank_top(df[by], n=n_out, lowest=True)
+        filtered_df = df.iloc[idx, :]
+
+        # Add 
+        self.GSEA['original'] = filtered_df
+
+        gc.collect()
+
+
+##
+
+
+def format_results(raw_results, genes_meta, y, contrast_type, mode='DE'):
+    '''
+    Format dist_features raw results into a dictionary of Gene_sets.
+    '''
+    if mode == 'DE':
+        # Check
+        cat_names = np.unique([ x.split(':')[0] for x in raw_results.columns ])
+        if not all([ str(x) in cat_names for x in y.categories ]):
+            raise ValueError('Something is wrong. Check contrast categories...')
+
+        # Here we go
+        d = {} 
+        for cat in y.categories:
+
+            # Prep Gene_set key_to_add
+            cat = str(cat)
+            if bool(re.search('vs each other', contrast_type)):
+                rest = list(cat_names[cat_names != cat])
+                key_to_add = f'{cat}_vs_' + ''.join(rest) 
+            else:
+                key_to_add = f'{cat}_vs_others'
+
+            # Collect info 
+            test = lambda x: bool(re.search(f'^{cat}:', x)) and bool(re.search('log2FC|qval|percentage_fold', x))
+            one_df = raw_results.loc[:, map(test, raw_results.columns)].rename(
+                columns={
+                    f'{cat}:log2FC' : 'effect_size',
+                    f'{cat}:mwu_qval' : 'evidence',
+                    f'{cat}:percentage_fold_change' : 'perc_FC',
+                }
+            ).assign(
+                effect_type='log2FC', 
+                evidence_type='FDR'
+            )
+            
+            # Transform to Gene_set
+            g = Gene_set(genes_meta, one_df, name=key_to_add)
+
+            # Add to d
+            d[key_to_add] = g
+
+            gc.collect()
+
+    return d
 
 
 ##
@@ -160,145 +402,125 @@ def _xgb(X, y, n_jobs=-1):
 ##
 
 
-
-def format_results(df, y, mode=None):
-    '''
-    Utility to 
-    '''
-    if mode == 'DE':
-        cols = [ f'{i}:metric' for i in range(10) ]
-        if len(categories) > 2:
-            lambda x: x.split(':')[0] + '_rest:' + x.split(':')[1]
-
-
-
-    # COdeeeee
-
-##
-
-
 class Dist_features:
     '''
     A class to retrieve (and annotate) gene sets distinguishing cell groups in data.
     '''
 
-    def __init__(self, adata, contrasts, scale=True):
+    def __init__(self, adata, contrasts, gene_sets=None, scale=True):
         '''
         Extract features and features metadata from input adata. Prep other attributes.
         '''
         # Genes
-        self.genes = anndata.AnnData(
+        self.genes = {}
+        self.genes['original'] = anndata.AnnData(
             X=adata.X, 
             var=pd.DataFrame(index=adata.var_names),
             obs=pd.DataFrame(index=adata.obs_names)
         )
-        self.filtered_genes = {}
 
-        # PCs (recompute here)
+        # Linear spaces
+        self.linear_spaces = {}
+        # PCA
         if scale:
             g = GE_space().load(adata).red().scale().pca()
         else:
             g = GE_space().load(adata).red().pca()
-        
+        PCs = pd.DataFrame(
+            data=g.PCA.embs,
+            columns=[ f'PC{x}' for x in range(1, g.PCA.loads.shape[1]+1)], 
+            index=adata.obs_names
+        )
         loadings = pd.DataFrame(
             data=g.PCA.loads, 
             index=adata.var_names[adata.var['highly_variable_features']],
             columns=[ f'PC{x}' for x in range(1, g.PCA.loads.shape[1]+1) ]
         )
+        self.linear_spaces['PCA'] = PCs
 
-        self.PCs = pd.DataFrame(
-            data=g.PCA.embs,
-            columns=[ f'PC{x}' for x in range(1, g.PCA.loads.shape[1]+1)], 
-            index=adata.obs_names
-        )
-
-        self.other = None
+        # Add NMF here...
+        
         del g
+
+        # Gene_sets 
+        self.gene_sets = gene_sets
 
         # Features metadata
         self.features_meta = {
-            'genes' : adata.var.assign(gene=adata.var.index),
-            'PCs' : loadings 
+            'genes' : adata.var,
+            'PCA' : loadings 
         }
 
         # Others
-        self.n_jobs = cpu_count()
         self.contrasts = contrasts
+        self.n_jobs = cpu_count()
+
+        # Results data structures
         self.methods_used = { 'DE' : [], 'ML': [] } 
-        self.results_DE = None # a dict dfs
-        self.results_logit = None  # a dict of dfs
-        self.results_xgboost = None  # a dict of dfs
+        self.results_DE = {} # a dict dfs
+        self.results_logit = {}  # a dict of dfs
+        self.results_xgboost = {} # a dict of dfs
+
+        gc.collect()
 
     ##
 
     def select_genes(self, cell_perc=0.15, no_miribo=True, only_HVGs=False):
         '''
         Filter genes expressed in less than cell_perc cells &| only HVGs &| no MIT or ribosomal genes.
-        Add these filtered matrix to filtered genes.
+        Add these filtered matrix self.genes.
         '''
-        # Prep 3 names, tests couples
-        test_perc = self.features_meta['genes']['percent_cells'] > cell_perc
+        original_genes = self.genes['original']
+        genes_meta = self.features_meta['genes'].reset_index() # Needed to map lambda afterwards
+
+        # Prep individual tests
+        test_perc = genes_meta['percent_cells'] > cell_perc
         if no_miribo:
             t = lambda x: not ( x.startswith('MT-') | x.startswith('RPL') | x.startswith('RPS') )
-            test_miribo = self.features_meta['genes']['gene'].map(t)
+            test_miribo = genes_meta['featurekey'].map(t)
         if only_HVGs:
-            test_HVGs = self.features_meta['genes']['highly_variable_features']
+            test_HVGs = genes_meta['highly_variable_features']
         
-        # Add filtered genes 
+        # Add filtered adata to self.genes 
         if only_HVGs and not no_miribo:
             key = f'perc_{cell_perc}_only_HVGs'
             test = test_perc & test_HVGs
-            self.filtered_genes[key] = self.genes[:, test].copy()
+            self.genes[key] = original_genes[:, test].copy()
         elif no_miribo and not only_HVGs:
             key = f'perc_{cell_perc}_no_miribo'
             test = test_perc & test_miribo
-            self.filtered_genes[key] = self.genes[:, test].copy()
+            self.genes[key] = original_genes[:, test].copy()
         elif no_miribo and only_HVGs:
             key = f'perc_{cell_perc}_no_miribo_only_HVGs'
             test = test_perc & test_miribo & test_HVGs
-            self.filtered_genes[key] = self.genes[:, test].copy()
+            self.genes[key] = original_genes[:, test].copy()
         else:
             key = f'perc_{cell_perc}'
             test = test_perc 
-            self.filtered_genes[key] = self.genes[:, test]
-
-    ##
-
-    def get_contrast(self, name):
-        '''
-        Get right contrast.
-        '''
-        return self.contrasts[name]
-
-    ##
-
-    def get_XY(
-        self, 
-        contrast_name=None, 
-        features='genes', 
-        which='perc_0.15_no_miribo', 
-        scale=False
-        ):
-        '''
-        Get the needed feature matrix.
-        '''
-        if features == 'genes':
-            if which == 'original':
-                X = self.genes.X.copy()
-                features_names = self.genes.var_names
-            else:
-                try:
-                    X = self.filtered_genes[which].X.copy()
-                    features_names = self.filtered_genes[which].var_names
-                except:
-                    raise KeyError('Representation not available.')
-        elif features == 'PCs': 
-            X = self.PCs.values.copy()
-            features_names = self.PCs.columns
-        else:
-            print('No other features available at the moment.')
+            self.genes[key] = original_genes[:, test].copy()
         
-        c = self.get_contrast(contrast_name)
+        print(f'Original {original_genes.shape[1]}; {key} filtered {self.genes[key].shape[1]}')
+
+    ##
+
+    def get_XY(self, contrast_key=None, feat_type='genes', which='original', scale=False):
+        '''
+        Get the appropriate contrast feature matrix (X), feature names and observation labels (y).
+        '''
+        try:
+            features = self.__dict__[feat_type][which]
+            if isinstance(features, anndata.AnnData):
+                features_names = features.var_names
+                X = features.X # Still csr_matrix here
+            elif isinstance(features, pd.DataFrame):
+                features_names = features.columns
+                X = features.values
+            else:
+                raise ValueError('Genes, linear spaces and gene_sets need to be either adatas of dfs.')
+        except:
+            raise KeyError('Representation not available.')
+        
+        c = self.contrasts[contrast_key]
 
         if 'to_exclude' in c.category.categories:
             test = c.category != 'to_exclude'
@@ -306,41 +528,49 @@ class Dist_features:
             y = c.category[test].remove_unused_categories()
         else:
             y = c.category
+
+        gc.collect()
         
-        return X, y, features_names, contrast_type
-        
+        return X, features_names, y, c.type
             
     ##
 
-    def compute_DE(self, contrast_name=None, which='perc_0.15_no_miribo'):
+    def compute_DE(self, contrast_key=None, which='perc_0.15_no_miribo'):
         '''
         Compute Wilcoxon test-based DE over some filtered gene matrix for all the specified contrasts.
         Use super-duper fast MWU test implementation from pegasus.
         '''
-        # Prep X, y, gene_names
+        # Prep X, y, features_names, contrast_type
         self.methods_used['DE'].append('Wilcoxon')
-
-        X, y, features_names, contrast_type = self.get_XY(contrast_name=contrast_name, which=which)
+        X, features_names, y, contrast_type = self.get_XY(contrast_key=contrast_key, which=which)
 
         # Compute pegasus Wilcoxon's test
-        from pegasus.tools.diff_expr import _de_test as wilcoxon
+        from pegasus.tools.diff_expr import _de_test as DE
 
-        df = wilcoxon(
+        raw_results = DE(
             X=X,
             cluster_labels=y,
             gene_names=features_names,
             n_jobs=self.n_jobs
         )
+        d = format_results(raw_results, self.features_meta['genes'], y, contrast_type, mode='DE')        
 
-        df = self.format_results(df, y, mode='DE')
+        # Add
+        key_to_add = '|'.join([contrast_key, which])
+        self.results_DE[key_to_add] = d
 
-        which = which if which is not None else ''
-        key_to_add = '_'.join([contrast_name, which])
-        self.results_DE[key_to_add] = df
-
-        return df
+        gc.collect()
 
     ##
+
+
+
+
+
+    # ML refractoring hereee
+
+
+
 
     def compute_logit(
         self, 
@@ -445,7 +675,7 @@ class Dist_features:
 
 
         
-
+        ##################################
 
 
 
@@ -462,9 +692,22 @@ class Dist_features:
 
 
 
-    def format_all_results(self):
-        
-        return self
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     ##
 
@@ -494,179 +737,4 @@ class Dist_features:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-################################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# def jaccard(a, b):
-#     '''
-#     Calculate the Jaccard Index between two sets.
-#     '''
-#     inter = len(set(a) & set(b))
-#     union = len(set(a) | set(b))
-#     if union == 0:
-#         ji = 0
-#     else:
-#         ji = inter / (union + 00000000.1)
-#     return ji
-# 
-# 
-# ##
-# 
-# 
-# def summary(solution, DEGs, path, method=None, stringency=None):
-#     '''
-#     Quantify mean overlap among clustering solutions markers, at a certain stringency.
-#     '''
-# 
-#     # Take out clusters
-#     clusters = list(DEGs.keys())
-#     n = len(clusters)
-#     J = np.ones((n,n))
-# 
-#     # n_empty 
-#     n_few = np.array([ len(s) < 10 for s in DEGs.values() ]).sum()
-#                 
-#     # n_average 
-#     n_average = np.array([ len(s) for s in DEGs.values() ]).mean()
-# 
-#     # Compute JI matrix, and its mean
-#     for i in range(n):
-#         for j in range(n):
-#             genes_x = DEGs[clusters[i]]
-#             genes_y = DEGs[clusters[j]]
-#             J[i,j] = jaccard(genes_x, genes_y)
-#     m = J.mean()
-# 
-#     # Define what method we are writing the report of:
-#     if method == 'tresholds':
-#         what_method = '_'.join([method, stringency])
-#     else:
-#         what_method = method
-# 
-#     # Write to file (open new if necessary, else only append to)
-#     if not os.exists(path + 'overlaps.txt'):
-#         mode = 'w'
-#     else:
-#         mode = 'a'
-#     with open(path + 'overlaps.txt', mode) as file:
-#         file.write('#\n')
-#         file.write(f'Solution: {solution}, type_of: {what_method}\n')
-#         file.write(f'N clusters {len(clusters)}\n')
-#         file.write(f'Mean overlap: {m:.3f}\n')
-#         file.write(f'N of clusters with less than 10 markers: {n_few}\n')
-#         file.write(f'Average n of markers per cluster: {n_average}\n')
-# 
-# 
-# ##
-# 
-# 
-# def markers(M, resolution_range, combos, path):
-#     '''Determine gene markers and summary stats for each clustering solution '''
-# 
-#     # Initialize the clustering output and markers original dictionaries
-#     clustering_out = {}
-#     markers_original = {}
-# 
-#     # For each clustering solution...
-#     for r in resolution_range:
-#         # Take out labels and store them in clustering_out 
-#         solution = 'leiden_' + str(r)
-#         print(solution)
-#         clustering_out[solution] = M.obs[solution].astype(int).to_list()
-#         # Find markers genes for each cluster of this particular solution: scanpy wilcoxon's 
-#         # M.uns['log1p']['base'] = None # Bug fix
-#         sc.tl.rank_genes_groups(M, solution, method='wilcoxon', pts=True)
-# 
-#         # For each method... Filter groups DEGs
-#         # Initialize a solution_markers dictionary in which to store all its filtered markers 
-#         solution_markers = {}
-#         for method in ['tresholds', 'other_method', 'no_filter']:
-#             print(method)
-#             # 1st method: user-defined tresholds (provided in the combos dictionary)
-#             if method == 'tresholds':
-#                 # For each stringency combo...
-#                 for stringency, combo in combos.items():
-#                     print(stringency)
-#                     print(combo)
-#                     # Filter at the current stringency
-#                     DEGs = filter_markers(M.uns['rank_genes_groups'], only_genes=True, combo=combo)
-#                     # Print to terminal each group n DEGs
-#                     for k, v in DEGs.items():
-#                         print(f'{k}: {len(v)}')
-#                     # Write a summary of these DEGs
-#                     summary(solution, DEGs, path, method=method, stringency=stringency)
-#                     # Append to the solution_markers dictionary
-#                     solution_markers['stringency_' + stringency ] = DEGs
-#             # 2nd method: other_method (h-mean of z-scored log2FC, % group and diff_perc) here
-#             elif method == 'other_method':
-#                 # Filter 
-#                 DEGs = filter_markers(M.uns['rank_genes_groups'], only_genes=True, other_method=True)
-#                 # Print to terminal each group n DEGs
-#                 for k, v in DEGs.items():
-#                     print(f'{k}: {len(v)}')
-#                 # Write a summary of these DEGs
-#                 summary(solution, DEGs, path, method=method)
-#                 # Append to the solution_markers dictionary
-#                 solution_markers['h_mean'] = DEGs
-#             # 3nd method: other_method no filters at all
-#             elif method == 'no_filter':
-#                 # No filter applied
-#                 DEGs = filter_markers(M.uns['rank_genes_groups'], only_genes=False, filter_genes=False)
-#                 # No summary here... All genes retained for all clusters
-#                 # Append to the solution_markers dictionary
-#                 solution_markers['no_filter_GSEA'] = DEGs
-# 
-#         # Append solution markers to the markers_original dictionary
-#         markers_original[solution] = solution_markers
-# 
-#     # Save markers_original dictionary as a pickle
-#     with open(path + 'markers.txt', 'wb') as f:
-#         pickle.dump(markers_original, f)
-# 
-#     # Save clustering labels as pickle
-#     with open(path + 'clustering_labels.txt', 'wb') as f:
-#         pickle.dump(clustering_out, f)
-# 
-#     return 'Finished!'
-# 
-# 
-# ##
-
-
-########################################################################
 

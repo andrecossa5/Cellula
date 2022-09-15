@@ -4,7 +4,7 @@
 
 # Libraries
 import sys
-import os
+import os 
 import logging
 import time
 import gc
@@ -108,7 +108,7 @@ class Contrast:
             raise ValueError('Provide a dict or a string')
 
         try:
-            c = pd.Categorical(s.astype(int)) # For leiden clusters, correct ordering
+            c = pd.Categorical(s.astype(int)) # For leiden clusters, ensures correct ordering
         except:
             c = pd.Categorical(s)
 
@@ -200,7 +200,7 @@ class Gene_set:
 
     def filter_rank_genes(self, filter=False, rank_sort=True, filtering=None, sorting=None):
         '''
-        Filters and and sort gs stats.
+        Filters and and sort gs stats. TO BE FIXED.
         '''
         if not self.is_ordered:
             raise ValueError('Filtering operations can be performed only on ordered gene sets.')
@@ -528,8 +528,6 @@ class Dist_features:
             y = c.category[test].remove_unused_categories()
         else:
             y = c.category
-
-        gc.collect()
         
         return X, features_names, y, c.type
             
@@ -547,6 +545,10 @@ class Dist_features:
         # Compute pegasus Wilcoxon's test
         from pegasus.tools.diff_expr import _de_test as DE
 
+        # Last check matrix
+        X = csr_matrix(X)
+
+        # OK
         raw_results = DE(
             X=X,
             cluster_labels=y,

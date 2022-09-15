@@ -37,8 +37,6 @@ my_parser.add_argument(
 args = my_parser.parse_args()
 path_main = args.path_main
 
-#path_main = '/Users/IEO5505/Desktop/sc_pipeline_prova/'
-
 ########################################################################
 
 # Preparing run: import code, set logger, prepare directories
@@ -49,6 +47,8 @@ if not args.skip:
     from _plotting import *
     from _utils import *
     from _pp import *
+    from _integration import *
+    from _dist_features import *
 
     # Custom code 
     sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
@@ -69,7 +69,7 @@ if not args.skip:
         make_folder(x, y, overwrite=False)
 
     # Update paths
-    path_results += '/minimal/' # For now, only preprocessed_minimal.h5ad as output.
+    path_results += '/minimal/' # For now, DE_results.txt
     path_runs += '/minimal/'
 
     #-----------------------------------------------------------------#
@@ -99,13 +99,17 @@ def minimal():
     universe = sorted(list(reduce(lambda x,y: x&y, [ set(x.var_names) for x in L ])))
     seed(1234)
     universe = sample(universe, len(universe))
-    # Concatenate anndatas, subsetted for universe
+    # Concatenate aatas, subsetted for universe
     adata = anndata.concat([ x[:, universe] for x in L ], axis=0)
-    # Format meta
+    # Format meta, custom_code
     adata.obs = meta_format(adata.obs)
     # Create colors 
     colors = create_colors(adata.obs)
     logger.info(f'Data merging and formatting operations: {t.stop()} s.')
+
+    # Shuld become...
+    #  adata = read_matrices(path_to_matrices)
+    #  adata = custom_code(adata)
 
     #-----------------------------------------------------------------#
 
@@ -113,35 +117,48 @@ def minimal():
 
     # Log-normalization, hvg selection, signatures scoring
     t.start()
-    pp_wrapper(adata)
+    pp_wrapper(adata) 
     cc_scores(adata)
+    adata_norm = adata.copy()
 
     # Subset, scale, PCA and NN
-    adata = adata[:, adata.var['highly_variable_features']]
-    sc.pp.scale(adata)
-    pca = my_PCA()
-    pca.calculate_PCA(adata.X)
-    adata.obsm['X_pca'] = pca.embs
-    sc.pp.neighbors(adata, n_neighbors=30, use_rep='X_pca', n_pcs=30, random_state=1234)
+    g = GE_space()
+    g.load(adata).red().scale().pca() # Remove load()
+    g.compute_kNNs()
+    g.matrix = adata_norm
+    adata = GE_space_to_adata(g, 'original') # Make as method... g.to_adata(adata_norm)
     logger.info(f'Pre-processing:  {t.stop()} s.')
 
     # Clustering 
     t.start()
-    sc.tl.leiden(adata, resolution=0.2)
+    sc.tl.leiden(adata, obsp='15_NN_30_PCs_connectivities', resolution=0.2) # Default
     logger.info(f'Clustering: {t.stop()} s.')
 
-    # Markers here
-    # t.start()
-    # ...
-    # logger.info(f'Markers: {t.stop()} s.')
+    # DE: leiden and samples
+    t.start()
+    D = Dist_features(
+        adata, 
+        { 
+            'leiden' : Contrast(adata.obs, 'leiden'), 
+            'samples' : Contrast(adata.obs, 'sample') 
+        }
+    )
+    D.select_genes() # Default, > 15% cells, no MT and Ribo
+    for k in D.contrasts.keys():
+        D.compute_DE(contrast_key=k)   
+    logger.info(f'DE: {t.stop()} s.')
 
     # Viz here: UMAP samples and clusters, barplot clusters/samples markers bubble. 
-    # t.start()
-    # ...
-    # logger.info(f'Basic vizualization: {t.stop()} s.')
+    t.start()
+    
+    # Code here....
 
-    # Save preprocessed adata and markers
+    logger.info(f'Basic vizualization: {t.stop()} s.')
+
+    # Save clustered adata and results_DE
     adata.write(path_data + f'clustered_minimal.h5ad')
+    with open(path_results + 'results_DE_minimal.txt', 'wb') as f:
+        pickle.dump(D.results_DE, f)
 
     # Write final exec time
     logger.info(f'Execution was completed successfully in total {T.stop()} s.')
@@ -154,3 +171,58 @@ if __name__ == "__main__":
         minimal()
 
 #######################################################################
+
+
+# # Minimal script 
+# def minimal():
+# 
+#     T = Timer()
+#     T.start()
+# 
+#     t = Timer()
+#     t.start()
+#     logger.info('Execute 0_minimal...')
+# 
+#     # Read
+#     adata = read_matrices(path_to_matrices)
+#     adata = QC(adata, recipe='scanpy_scroublet', path_viz)
+#     adata = custom_code(adata)
+#     logger.info(f'Data merging and formatting operations: {t.stop()} s.')
+# 
+#     # Pp
+#     t.start()
+#     logger.info('Pp...')
+#     adata = pp(adata, recipe='scib', scores=['cc', 'Panglao'])
+#     g = GE_space(adata, store_as_normalized=True)
+#     g.red(n_HVGs=2000).scale().pca(n_pcs=30).compute_kNNs(k=15) # Default, original GE_space
+#     adata = g.to_adata()
+#     logger.info(f'Pp: {t.stop()} s.')
+# 
+#     # Clustering
+#     t.start()
+#     logger.info('Clustering...')
+#     leiden_clustering(adata, key='K_15_30_PCs', r=0.2) # Default leiden clustering
+#     logger.info(f'Clustering: {t.stop()} s.')
+# 
+#     # DE
+#     t.start()
+#     D = Dist_features(adata, contrasts=['leiden', 'sample'])
+#     D.select_genes() # Default, > 15% cells, no MT and Ribo
+#     D.compute_DE(all=True)   
+#     adata = D.to_adata()
+#     logger.info(f'DE: {t.stop()} s.')
+# 
+#     # Viz: embs and compo covariates, plus markers
+#     t.start()
+#     embs(adata, kind=['UMAP', 'FLE', 'PAGA'])
+#     plot_embs(adata, path_viz)
+#     plot_compo(adata, path_viz)
+#     plot_DE(adata, path_viz)
+#     logger.info(f'Basic vizualization: {t.stop()} s.')
+# 
+#     # Save 
+#     adata.write(path_data + f'clustered_minimal.h5ad')
+# 
+#     logger.info(f'Execution was completed successfully in total {T.stop()} s.')
+# 
+# #######################################################################

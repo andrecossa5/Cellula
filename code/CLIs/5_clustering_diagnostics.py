@@ -108,7 +108,7 @@ if not args.skip:
         mode = 'w'
     elif chosen is not None or remove is not None:
         mode = 'a'
-    logger = set_logger(path_runs, 'logs_5_integration_diagnostics.txt', mode=mode)
+    logger = set_logger(path_runs, 'logs_5_clustering_diagnostics.txt', mode=mode)
 
 ########################################################################
 

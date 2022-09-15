@@ -1,5 +1,5 @@
 path_data = path_main + '/data/'
-path_results = '/Users/IEO5505/Desktop/sc_pipeline_prova//results_and_plots/clustering/step_0/'
+path_results = '/Users/IEO5505/Desktop/sc_pipeline_prova//results_and_plots/dist_features/step_0/'
 
 adata = sc.read(path_data + 'clustered.h5ad')
 const_ex = {   
@@ -14,7 +14,9 @@ const_ex = {
 
 D = Dist_features(adata, const_ex)
 D.select_genes()
-D.compute_DE(contrast_key='one_vs_all', which='perc_0.15_no_miribo')
+
+D.genes
+D.compute_DE(contrast_key='one_vs_all', which='perc_0.15')
 
 D.results_DE
 

@@ -127,7 +127,7 @@ def kBET():
         GE_spaces = pickle.load(f) 
 
     # Instantiate int_evaluator class
-    I = int_evaluator(GE_spaces)
+    I = Int_evaluator(GE_spaces)
     del GE_spaces
 
     logger.info(f'Data loading and preparation: {t.stop()} s.')
@@ -144,10 +144,8 @@ def kBET():
     for k in k_range:
         t.start()
         logger.info(f'Begin operations on all GE_spaces, for k {k}...')
-        # kNNs
         I.compute_all_kNN_graphs(k=k, n_pcs=n_pcs)
-        # kBET
-        I.compute_kBET(covariate=covariate)
+        I.compute_metric(metric='kBET', covariate=covariate)
         logger.info(f'kBET calculations finished for k {k}: {t.stop()} s.')
 
     # Extract results and take the integration decision
@@ -158,13 +156,10 @@ def kBET():
     df = pd.DataFrame().from_dict(I.batch_removal_scores['kBET'], 
             orient='index'
         ).reset_index().rename(columns={'index':'rep', 0:'acceptance_rate'})
-    # Format
     df['pp_option'] = df['rep'].map(lambda x: x.split('|')[0])
     df['kNN'] = df['rep'].map(lambda x: x.split('|')[2])
     df['k'] = df['kNN'].map(lambda x: x.split('_')[:1][0]).astype(int)
     df.pop('rep')
-
-    # Save 
     df.sort_values(by='acceptance_rate', ascending=False).to_excel(path_results + 'kBET_df.xlsx')
 
     #-----------------------------------------------------------------#

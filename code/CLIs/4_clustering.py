@@ -50,9 +50,16 @@ my_parser.add_argument(
     help='Number of resolutions to perform clustering with. Default: 10.'
 )
 
-# with_markers
+# Markers
 my_parser.add_argument( 
-    '--with_markers', 
+    '--skip_clustering', 
+    action='store_true',
+    help='Calculate all clustering solutions. Default: False.'
+)
+
+# Markers
+my_parser.add_argument( 
+    '--markers', 
     action='store_true',
     help='Calculate Wilcoxon markers for all clustering solutions. Default: False.'
 )
@@ -99,10 +106,15 @@ if not args.skip:
     path_runs = path_main + '/runs/'
     path_viz = path_main + '/results_and_plots/vizualization/clustering/'
 
-    # Create step_{i} clustering folders. Overwrite, if they have already been created
+    # Create step_{i} clustering folders. 
     to_make = [ (path_results, step), (path_viz, step) ]
-    for x, y in to_make:
-        make_folder(x, y, overwrite=True)
+
+    if not args.skip_clustering:
+        for x, y in to_make:
+            make_folder(x, y, overwrite=True)
+    elif args.skip_clustering and not all([ os.path.exists(x + y) for x, y in to_make ]):
+        print('Run without --skip_clustering option first!')
+        sys.exit()
 
     # Update paths
     path_runs += f'/{step}/'
@@ -111,7 +123,8 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set logger 
-    logger = set_logger(path_runs, 'logs_4_clustering.txt')
+    mode = 'a' if args.markers and args.skip_clustering else 'w'
+    logger = set_logger(path_runs, 'logs_4_clustering.txt', mode=mode)
 
 ########################################################################
 
@@ -123,7 +136,7 @@ def clustering():
 
     logger.info('Begin clustering...')
 
-    # Load adata
+    # Load preprocessed 
     adata = sc.read(path_data + 'preprocessed.h5ad')
     
     # Define resolution range
@@ -158,41 +171,58 @@ def clustering():
 
     #-----------------------------------------------------------------#
 
-    # Compute all clusters markers for future use
+    # Write final exec time
+    logger.info(f'Execution was completed successfully in total {T.stop()} s.')
 
-    if args.with_markers:
+#######################################################################
 
-        t.start()
-        logger.info(f'Begin markers calculation...')
+# Markers all
+def markers_all():
+    
+    T = Timer()
+    T.start()
 
-        # Create contrasts
+    t = Timer()
+    t.start()
+    logger.info(f'Adding markers...')
+
+    # Load clustering solutions
+    if not os.path.exists(path_results + 'clustering_solutions.csv'):
+        print('Run without --skip_clustering, first!')
+        sys.exit()
+    else:
         clustering_solutions = pd.read_csv(path_results + 'clustering_solutions.csv', index_col=0)
-        contrasts = {
-            k: Contrast(clustering_solutions, k) for k in clustering_solutions.columns
-        }
 
-        # Prep Dist_features instance
-        D = Dist_features(adata, contrasts)
-        D.select_genes(no_miribo=False)         # Exclude only genes expressed by less than 0.15 total cells here
+    # Create contrasts
+    contrasts = {
+        k: Contrast(clustering_solutions, k) for k in clustering_solutions.columns
+    }
 
-        # Here we go
-        count = 1
-        total = len(contrasts)
-        t_step = Timer()
+    # Prep Dist_features instance
+    adata = sc.read(path_data + 'adata.h5ad')   # Full log-normalized matrix required
+    D = Dist_features(adata, contrasts)
+    D.select_genes(no_miribo=False)         # Exclude only genes expressed by less than 0.15 total cells here
 
-        for k in contrasts.keys():
-            t_step.start()
-            logger.info(f'Begin markers calculation {k}, solution {count}/{total}...')
-            D.compute_DE(contrast_key=k, which='perc_0.15')
-            logger.info(f'Markers calculation {k}, solution {count}/{total}: {t_step.stop()} s')
-            count += 1
+    # Here we go
+    count = 1
+    total = len(contrasts)
+    t_step = Timer()
+    for k in contrasts.keys():
+        t_step.start()
+        logger.info(f'Begin markers calculation {k}, solution {count}/{total}...')
+        D.compute_DE(contrast_key=k, which='perc_0.15')
+        logger.info(f'Markers calculation {k}, solution {count}/{total}: {t_step.stop()} s')
+        count += 1
 
-        # Save to path
-        path_ = '/Users/IEO5505/Desktop/sc_pipeline_prova//results_and_plots/dist_features/step_0/'
-        with open(path_ + 'clusters_markers.txt', 'wb') as f:
-            pickle.dump(D.results_DE, f)
+    # Save markers
+    path_markers = path_main + '/results_and_plots/dist_features/'
+    make_folder(path_markers, step, overwrite=False)
+    path_markers += f'/{step}/' 
 
-        logger.info(f'Finished markers: {t.stop()} s.')
+    with open(path_markers + 'clusters_markers.txt', 'wb') as f:
+        pickle.dump(D.results_DE, f)
+
+    logger.info(f'Finished markers: {t.stop()} s.')
 
     #-----------------------------------------------------------------#
 
@@ -204,6 +234,9 @@ def clustering():
 # Run program
 if __name__ == "__main__":
     if not args.skip:
-        clustering()
+        if not args.skip_clustering:
+            clustering()
+        if args.markers:
+            markers_all()
 
 #######################################################################

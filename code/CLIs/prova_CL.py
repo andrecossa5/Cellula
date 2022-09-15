@@ -12,8 +12,8 @@ import argparse
 
 # Create the parser
 my_parser = argparse.ArgumentParser(
-    prog='5_clustering_diagnostics',
-    description='''Leiden clustering diagnostics. 3 main steps: cell QC (by cluster); cluster separation; markers overlap.'''
+    prog='4_clustering',
+    description='''Leiden clustering. Starts from a preprocessed adata with pre-computed kNN graph(s).'''
 )
 
 # Add arguments
@@ -34,20 +34,34 @@ my_parser.add_argument(
     help='The pipeline step to run. Default: 0.'
 )
 
-# Chosen 
+# Upper resolution
 my_parser.add_argument( 
-    '--chosen', 
+    '--range', 
     type=str,
-    default=None,
-    help='The clustering solution to choose. Default: None.'
+    default='0.1:2.0',
+    help='Resolution range to perform clustering with. Default: 0.1-2.0.'
 )
 
-# Remove cell subsets
+# n clusterign solutions to evalutate
 my_parser.add_argument( 
-    '--remove', 
-    type=str,
-    default=None,
-    help='The cell subset to remove. Default: None.'
+    '--n', 
+    type=int,
+    default=10,
+    help='Number of resolutions to perform clustering with. Default: 10.'
+)
+
+# Markers
+my_parser.add_argument( 
+    '--skip_clustering', 
+    action='store_true',
+    help='Calculate all clustering solutions. Default: False.'
+)
+
+# Markers
+my_parser.add_argument( 
+    '--markers', 
+    action='store_true',
+    help='Calculate Wilcoxon markers for all clustering solutions. Default: False.'
 )
 
 # Skip
@@ -60,10 +74,10 @@ my_parser.add_argument(
 # Parse arguments
 args = my_parser.parse_args()
 
-path_main = args.path_main
+path_main = args.path_main 
 step = f'step_{args.step}'
-chosen = args.chosen
-remove = args.remove
+range_ = [ float(x) for x in args.range.split(':') ]
+n = args.n
 
 ########################################################################
 
@@ -77,9 +91,10 @@ if not args.skip:
     from _pp import *
     from _integration import *
     from _clustering import *
+    from _dist_features import *
 
     # Custom code 
-    sys.path.append(path_main + 'custom/') # Path to local-system, user-defined custom code
+    sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
     from colors import *
     from meta_formatting import * 
 
@@ -91,65 +106,78 @@ if not args.skip:
     path_runs = path_main + '/runs/'
     path_viz = path_main + '/results_and_plots/vizualization/clustering/'
 
+    # Create step_{i} clustering folders. Dp not overwrite only if: 
+    # 1) --skip_clustering is False 
+    # AND 
+    # 2) folders are already present
+    to_make = [ (path_results, step), (path_viz, step) ]
+
+    if not args.skip_clustering:
+        for x, y in to_make:
+            make_folder(x, y, overwrite=True)
+    elif args.skip_clustering and not all([ os.path.exists(x + y) for x, y in to_make ]):
+        print('Run without --skip_clustering option first!')
+        sys.exit()
+
     # Update paths
     path_runs += f'/{step}/'
     path_results += f'/{step}/' 
-    path_viz += f'/{step}/' 
-
-    # Check if clustering has already been performed 
-    if not os.path.exists(path_results + 'clustering_solutions.csv'):
-        print('Run clustering first!')
-        sys.exit()
 
     #-----------------------------------------------------------------#
 
     # Set logger 
-    mode = 'a' if chosen is not None else 'w'
-    logger = set_logger(path_runs, 'logs_5_integration_diagnostics.txt', mode=mode)
+    mode = 'a' if args.markers and args.skip_clustering else 'w'
+    logger = set_logger(path_runs, 'logs_4_clustering.txt', mode=mode)
 
 ########################################################################
 
-# clustering_diagnostics
-def clustering_diagnostics():
+# clustering
+def clustering():
 
-    print('Main clustering diagnostic script')
+    T = Timer()
+    T.start()
 
-    if chosen is not None:
-        
-        print('Clustering diagnostic script: QC plot')
+    print(path_results)
 
-    if chosen is not None:
-
-       print('Clustering diagnostic script: Concordance among solution heatmaps')
-
-    if chosen is not None:
-
-        print('Clustering diagnostic script: Markers overlaps')
+    logger.info('Begin clustering...')
+    logger.info(f'Execution was completed successfully in total {T.stop()} s.')
 
 #######################################################################
 
-# Choose solution 
-def choose_solution():
+# Markers all
+def markers_all():
+    
+    T = Timer()
+    T.start()
 
-    print(f'Choose solution {chosen}')
+    t = Timer()
+    t.start()
+    logger.info(f'Adding markers...')
+
+    print('Should be clustering')
+    print(path_results)
+
+    path_markers = path_main + '/results_and_plots/dist_features/'
+    path_markers += f'/{step}/' 
+
+    print('Should be dist_features')
+    print(path_markers)
+
+    logger.info(f'Finished markers: {t.stop()} s.')
+
+    #-----------------------------------------------------------------#
+
+    # Write final exec time
+    logger.info(f'Execution was completed successfully in total {T.stop()} s.')
 
 #######################################################################
 
-# Choose solution 
-def remove_partition():
-
-    print(f'Remove partition {remove}')
-
-#######################################################################
-
-# Run program(s)
+# Run program
 if __name__ == "__main__":
     if not args.skip:
-        clustering_diagnostics()
-        if chosen is not None:
-            choose_solution()
-        if remove is not None:
-            remove_partition()
-        
+        if not args.skip_clustering:
+            clustering()
+        if args.markers:
+            markers_all()
 
 #######################################################################

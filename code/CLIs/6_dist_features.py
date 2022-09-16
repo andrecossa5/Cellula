@@ -48,27 +48,16 @@ my_parser.add_argument(
     default='/results_and_plots/dist_features/contrasts/main_contrasts.py',
     help='''
     The relative path to the .py file encoding contrasts information: 
-    Default is path_main/results_and_plots/dist_features/contrasts/main_contrasts.py,
-    containing info to evaluate the distinguishing features among Leiden clusters, one vs rest, with 
-    wilcoxon DE. 
+    Default is path_main/results_and_plots/dist_features/contrasts/main_contrasts.py. 
     Contasts needs to be specified into a .py file storing a nested dictionary like:
-    { contrast_type : { contrast_name : { groups : [query1, query0], methods : ['DE', ... ] } }.
-    Suggestion, put your own .py file into path_main/custom/.
+    { contrast_family : { contrast_name : { groups : [query1, query0], methods : ['DE', ... ] } }.
+    This is still a temporary definition.
     '''
-)
+)   # Temporary contrasts specification
 
-# Fast
+# Filter genes
 my_parser.add_argument( 
-    '--fast', 
-    action='store_true',
-    help=
-    '''If ML or all modes are specified, specify for fast hyperparameters optimization. 
-    Default: False.'''
-)
-
-# Fast
-my_parser.add_argument( 
-    '--filter_genes', 
+    '--genes_treshold', 
     type=float,
     default=0.15,
     help='''
@@ -100,7 +89,7 @@ args = my_parser.parse_args()
 path_main = args.path_main
 step = f'step_{args.step}'
 contrasts = args.contrasts
-gene_treshold = args.filter_genes
+gene_treshold = args.genes_treshold
 
 ########################################################################
 

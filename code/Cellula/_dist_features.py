@@ -160,19 +160,26 @@ class Gene_set:
     A class to store and annotate a set of relevant genes.
     '''
 
-    def __init__(self, genes_meta, results, name=None):
+    def __init__(self, results, genes_meta, name=None):
         '''
         Set attrs. Results can be a list-like object or a df, according to the method that produced the 
         (ordered) or not gene set.
         '''
+        from copy import deepcopy
+
         self.name = name
-        try:
+
+        # Checks
+        if isinstance(results, list): 
+            filtered_results = [ x for x in results if x in genes_meta.index ] # Curated signatures could contain undetected genes
+            if len(filtered_results) == 0:
+                raise ValueError("All passed genes were not detected in data.")
             self.stats = genes_meta.loc[
-                results, ['percent_cells', 'highly_variable_features', 'mean', 'var']
+                    filtered_results, ['percent_cells', 'highly_variable_features', 'mean', 'var']
             ]
             self.is_ordered = False
-            self.filtered = None
-        except:
+            self.filtered = {}
+        else:
             self.stats = results.join(
                 genes_meta.loc[:, 
                     ['percent_cells', 'highly_variable_features', 'mean', 'var']
@@ -183,74 +190,130 @@ class Gene_set:
 
         # Params
         self.filter_params = { 
-            'effect_size' : ( '>', 0 ), # All of em
-            'evidence' : ( '<', 0.1 ), # 10% FDR
-            'perc_FC' : ( '>', 1 ) # Whichever difference
+            'effect_size' : [ '>', 0 ], # All of em
+            'evidence' : [ '<', 0.1 ], # 10% FDR
+            'perc_FC' : [ '>', 1 ] # Whichever difference
         }
+        self.original_f = deepcopy(self.filter_params)
 
         self.rank_sort_params = { 
-            'n' : None,
+            'n' : 100,
             'by' : 'effect_size'
         }
+        self.original_s = deepcopy(self.rank_sort_params)
 
         self.ORA = {}
         self.GSEA = {}
     
     ##
+    
+    def filter_rank_genes(self, filter=False, rank_sort=True, out=True, only_genes=False,
+        filt_kwargs=None, sort_kwargs=None):
+        '''
+        Filters and and sort gs stats. 
+        '''
+        if self.is_ordered:
+            effect_type = self.stats['effect_type'].unique()[0]
+        else:
+            raise ValueError('Filtering and sorting operations can be performed only on ordered gene sets.')
 
-    def filter_rank_genes(self, filter=False, rank_sort=True, filtering=None, sorting=None):
-        '''
-        Filters and and sort gs stats. TO BE FIXED.
-        '''
-        if not self.is_ordered:
-            raise ValueError('Filtering operations can be performed only on ordered gene sets.')
-        
+        if effect_type not in ['log2FC', 'loading']:
+            raise ValueError('Unknown effect type.')
+
         # Get stats
         df = self.stats
 
         # Filter
-        original_f = self.filter_params
-        if isinstance(filtering, dict):
-            for k, v in filtering.items():
-                self.filter_params[k] = v 
+        if effect_type == 'log2FC':
+            if filt_kwargs is None:
+                pass
+            elif isinstance(filt_kwargs, dict): 
+                for k, v in filt_kwargs.items():
+                    if k in self.filter_params:
+                        self.filter_params[k][1] = v 
+                    else:
+                        print(f'{k} is not available for filter querying.')
+            else:
+                raise ValueError(
+                    '''
+                    filtering should be None, or a dictionary with one (or more) of the following key:value pairs:
+                    1) effect_size : lower treshold on the es.
+                    2) evidence : upper treshold on the evidence. Used only for evidence type: FDR;
+                    3) perc_FC : minimum FC between cells percentages expressing an expression feature. 
+                    N.B. default filt_kwargs works fine in most cases, and is applied only for DE results. 
+                    '''
+                )
 
-        query = ' & '.join(f'{k} {op} {tresh}' for k, (op, tresh) in self.filter_params.items())
-        filtered_df = df.query(query)
+            query = ' & '.join(f'{k} {op} {tresh}' for k, (op, tresh) in self.filter_params.items())
+            filtered_df = df.query(query)
+
+        else:
+            raise ValueError(
+                '''
+                Filtering implemented only for DE results. Other ordered Gene_sets can 
+                only be only sorted and sliced via rank_top.
+                '''
+            )
 
         # Sort 
-        original_s = self.rank_sort_params
-        if isinstance(sorting, dict):
-            for k, v in sorting.items():
-                self.rank_sort_params[k] = v 
+        if sort_kwargs is None:
+            pass
+        elif isinstance(sort_kwargs, dict):
+            for k, v in sort_kwargs.items():
+                if k in self.rank_sort_params:
+                    self.rank_sort_params[k] = v 
+        else:
+            raise ValueError(
+                '''
+                sort_kwargs should be None, or a dictionary with one (or more) 
+                of the following key:value pairs: 
+                1) by : stat to rank features by. Default 'effect_size'. 
+                2) n : n (top or low) genes to retained. Default: 100. 
+
+                N.B. default sort_kwargs works fine in most cases. 
+                '''
+            )
 
         by = self.rank_sort_params['by']
         n = self.rank_sort_params['n']
         lowest = False if by == 'effect_size' else True
 
         idx = rank_top(filtered_df[by], n=n, lowest=lowest)
-        filtered_df = df.iloc[idx, :]
+        filtered_df = filtered_df.iloc[idx, :]
 
-        # Add to dict
-        default = check_equal_pars(original_f, self.filter_params, is_tuple=True) and check_equal_pars(original_s, self.rank_sort_params)
+        # Add 
+        default = check_equal_pars(self.original_f, self.filter_params, is_tuple=True) 
+        default &= check_equal_pars(self.original_s, self.rank_sort_params)
+
         if default:
             key_to_add = 'Default_ORA'    
         else:
-            key_to_add = '_'.join([ f'{k}_{op}_{tresh}' for k, (op, tresh) in self.filter_params.items() ])
-            key_to_add += f'_sort_by_{by}_top_{n}'
-        
+            key_to_add = query
+            key_to_add += f'|by: {by}, n: {n}'
+
         self.filtered[key_to_add] = filtered_df
 
-        gc.collect()
+        if only_genes:
+            output = filtered_df.index.to_list()
+        else:
+            output = filtered_df
+
+        if out:
+            return output
 
     ##
 
-    def ORA(self, key='Default_ORA', by='Adjusted P-value', n_out=50):
+    def compute_ORA(self, key='Default_ORA', by='Adjusted P-value', n_out=50):
         '''
         Perform ORA (Over-Representation Analysis)
         '''
         from gseapy import enrichr
 
-        gene_list = self.filtered[key]
+        if key in self.filtered.keys():
+            gene_list = self.filtered[key].index.to_list()
+        else:
+            gene_list = self.stats.index.to_list()
+
         collections = [
             'GO_Biological_Process_2021'                 # For now...
         ]
@@ -273,16 +336,21 @@ class Gene_set:
         self.ORA[key] = filtered_df
 
         gc.collect()
+        
 
     ##
 
-    def GSEA(self, covariate='effect_size', by='Adjusted P-value', n_out=50):
+    def compute_GSEA(self, covariate='effect_size', by='Adjusted P-value', n_out=50):
         '''
         Perform GSEA (Gene-Set Enrichment Anlysis).
         '''
         from gseapy import prerank
 
-        ranked_gene_list = self.stats[covariate]
+        if self.is_ordered:
+            ranked_gene_list = self.stats[covariate]
+        else:
+            raise ValueError('GSEA can be performed only on ordered gene sets.')
+
         collections = [
             'GO_Biological_Process_2021'                 # For now...
         ]
@@ -351,7 +419,7 @@ def format_results(raw_results, genes_meta, y, contrast_type, mode='DE'):
             )
             
             # Transform to Gene_set
-            g = Gene_set(genes_meta, one_df, name=key_to_add)
+            g = Gene_set(one_df, genes_meta, name=key_to_add)
 
             # Add to d
             d[key_to_add] = g

@@ -117,8 +117,9 @@ def minimal():
 
     # Log-normalization, hvg selection, signatures scoring
     t.start()
+    adata.raw = adata.copy()
     pp_wrapper(adata) 
-    cc_scores(adata)
+    cc_scores(adata) # OLD. Needs to be updated with scanpy_score.
     adata_norm = adata.copy()
 
     # Subset, scale, PCA and NN

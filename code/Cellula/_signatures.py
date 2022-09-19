@@ -178,9 +178,7 @@ def scanpy_score(M, g, key=None, n_bins=50):
             if len(genes) > 500: 
                 raise ValueError('Trying to score an ordered gene set, without rank_top first. Too big gene list!')
     elif isinstance(g, list):
-        genes = set([ x in M.var_names for x in g ])
-    
-    assert all([ g in M.var_names for g in genes ]) # Should already pass, from Gene_set check 
+        genes = set([ x for x in g if x in M.var_names ])
 
     all_genes = M.var_names.to_list()
 
@@ -245,9 +243,7 @@ def wot_zscore(M, g, key=None):
             if len(genes) > 500: 
                 raise ValueError('Trying to score an ordered gene set, without rank_top first. Too big gene list!')
     elif isinstance(g, list):
-        genes = [ x in M.var_names for x in g ]
-    
-    assert all([ x in M.var_names for x in genes ]) # Should already pass, from Gene_set check or above line of code
+        genes = [ x for x in g if x in M.var_names ]
 
     # Subset and compute genes z-scores
     X = M[:, genes].X
@@ -281,9 +277,7 @@ def wot_rank(M, g, key=None):
             if len(genes) > 500: 
                 raise ValueError('Trying to score an ordered gene set, without rank_top first. Too big gene list!')
     elif isinstance(g, list):
-        genes = [ x in M.var_names for x in g ]
-    
-    assert all([ x in M.var_names for x in genes ]) # Should already pass, from Gene_set check 
+        genes = [ x for x in g if x in M.var_names ]
 
     # Compute ranks, after retrieving idx for genes
     X = M.X
@@ -353,7 +347,8 @@ class Scores():
 
         # GMs as dict of Gene_sets
         GMs = { 
-            f'Hotspot_{x}': Gene_set(self.matrix.var, GMs[GMs==x].index.to_list(), name=f'Hotspot_{x}') \
+            f'Hotspot_{x}': \
+            Gene_set(self.matrix.var, GMs[GMs==x].index.to_list(), name=f'Hotspot_{x}') \
             for x in GMs.unique() if x != -1 
         }
 
@@ -439,7 +434,7 @@ class Scores():
     ##
 
     def compute_wot_zscore(self):
-        '''
+        ''' 
         wot zscore method,  modified to return a pd.DataFrame with cols Gene_sets.
         '''
         scores = pd.concat(
@@ -463,6 +458,14 @@ class Scores():
             self.compute_wot_zscore() 
         
         return self.scores
+
+    ##
+
+    def format_results(self):
+        '''
+        Output results.
+        '''
+        return { 'gene_sets' : self.gene_sets, 'scores' : self.scores }
 
 
 ##

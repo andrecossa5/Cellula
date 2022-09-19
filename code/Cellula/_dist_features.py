@@ -7,12 +7,13 @@ import sys
 import os 
 import logging
 import time
+import yaml
 import gc
 from glob import glob
 import pickle
 from joblib import cpu_count, Parallel, delayed, parallel_backend
 from shutil import rmtree
-from functools import reduce
+from functools import reduce 
 from itertools import combinations
 import pandas as pd
 import numpy as np
@@ -35,10 +36,73 @@ sys.path.append('/Users/IEO5505/Desktop/pipeline/code/Cellula/') # Path to pipel
 from _utils import *
 from _plotting import *
 from _pp import *
+from _ML import *
 
 ########################################################################
 
 # Distinguishing features
+
+
+def prep_jobs_contrasts(adata, path, contrasts_name):
+    '''
+    Load contrasts, specified in a .yml file at path_contrasts.
+    '''
+    with open(path + f'{contrasts_name}.yml', 'r') as f:
+        d = yaml.load(f, Loader=yaml.FullLoader)
+    
+    jobs = {}
+    contrasts = {}
+
+    for f in d:
+        for k in d[f]:
+            D = d[f][k]
+            jobs[k], contrasts[k] = prep_one_contrast_jobs(adata, D)
+
+    return jobs, contrasts
+
+
+##
+
+
+def prep_one_contrast_jobs(adata, D):
+    '''
+    Prep all the jobs for one contrast. Put em in a list and return it.
+    '''
+    query = D['query']
+    c = Contrast(adata.obs, query=query)
+
+    features = []
+    models = []
+    params = []
+
+    for k, v in D['methods'].items():
+        if k == 'DE':
+            features.append('genes')
+            models.append('wilcoxon')
+            params.append(None)
+        else:
+            ml_pars = v 
+            feat_ = ml_pars['features']
+            models_ = ml_pars['models']
+            mode_ = ml_pars['mode']
+
+            from itertools import product
+            combos = list(product(feat_, models_, [mode_]))
+
+            for combo in combos:
+                features.append(combo[0])
+                models.append(combo[1])
+                params.append(combo[2])
+
+    L = [ 
+        { 'features': x, 'model' : y, 'mode' : z} \
+        for x, y, z in zip(features, models, params) 
+    ]
+
+    return L, c
+
+
+##
 
 
 def compo_summary(c):
@@ -186,6 +250,7 @@ class Gene_set:
                 ]
             )
             self.is_ordered = True
+            self.is_filtered = False
             self.filtered = {}
 
         # Params
@@ -298,6 +363,8 @@ class Gene_set:
         else:
             output = filtered_df
 
+        self.is_filtered = True
+
         if out:
             return output
 
@@ -336,7 +403,7 @@ class Gene_set:
         self.ORA[key] = filtered_df
 
         gc.collect()
-        
+
 
     ##
 
@@ -383,55 +450,6 @@ class Gene_set:
 ##
 
 
-def format_results(raw_results, genes_meta, y, contrast_type, mode='DE'):
-    '''
-    Format dist_features raw results into a dictionary of Gene_sets.
-    '''
-    if mode == 'DE':
-        # Check
-        cat_names = np.unique([ x.split(':')[0] for x in raw_results.columns ])
-        if not all([ str(x) in cat_names for x in y.categories ]):
-            raise ValueError('Something is wrong. Check contrast categories...')
-
-        # Here we go
-        d = {} 
-        for cat in y.categories:
-
-            # Prep Gene_set key_to_add
-            cat = str(cat)
-            if bool(re.search('vs each other', contrast_type)):
-                rest = list(cat_names[cat_names != cat])
-                key_to_add = f'{cat}_vs_' + ''.join(rest) 
-            else:
-                key_to_add = f'{cat}_vs_others'
-
-            # Collect info 
-            test = lambda x: bool(re.search(f'^{cat}:', x)) and bool(re.search('log2FC|qval|percentage_fold', x))
-            one_df = raw_results.loc[:, map(test, raw_results.columns)].rename(
-                columns={
-                    f'{cat}:log2FC' : 'effect_size',
-                    f'{cat}:mwu_qval' : 'evidence',
-                    f'{cat}:percentage_fold_change' : 'perc_FC',
-                }
-            ).assign(
-                effect_type='log2FC', 
-                evidence_type='FDR'
-            )
-            
-            # Transform to Gene_set
-            g = Gene_set(one_df, genes_meta, name=key_to_add)
-
-            # Add to d
-            d[key_to_add] = g
-
-            gc.collect()
-
-    return d
-
-
-##
-
-
 def one_hot_from_labels(y):
     '''
     My one_hot encoder from a categorical variable.
@@ -450,32 +468,12 @@ def one_hot_from_labels(y):
 ##
 
 
-def _xgb(X, y, n_jobs=-1):
-    '''
-    Utility to call XGBClassifier.
-    '''
-    # Fit XGBoost model
-    model = LGBMClassifier(
-        learning_rate=0.01,
-        n_jobs=n_jobs,
-        n_estimators=300,
-        random_state=1234,
-        importance_type='gain'
-    )
-    model.fit(X, y)
-
-    return model
-
-
-##
-
-
 class Dist_features:
     '''
     A class to retrieve (and annotate) gene sets distinguishing cell groups in data.
     '''
 
-    def __init__(self, adata, contrasts, gene_sets=None, scale=True):
+    def __init__(self, adata, contrasts, jobs=None, signatures=None, scale=True):
         '''
         Extract features and features metadata from input adata. Prep other attributes.
         '''
@@ -487,9 +485,7 @@ class Dist_features:
             obs=pd.DataFrame(index=adata.obs_names)
         )
 
-        # Linear spaces
-        self.linear_spaces = {}
-        # PCA
+        # PCs
         if scale:
             g = GE_space().load(adata).red().scale().pca()
         else:
@@ -504,30 +500,32 @@ class Dist_features:
             index=adata.var_names[adata.var['highly_variable_features']],
             columns=[ f'PC{x}' for x in range(1, g.PCA.loads.shape[1]+1) ]
         )
-        self.linear_spaces['PCA'] = PCs
+        self.PCs = PCs 
 
-        # Add NMF here...
+        ####################################
+        # Add others here...
+        ####################################
         
         del g
 
-        # Gene_sets 
-        self.gene_sets = gene_sets
+        # Signatures
+        self.signatures = signatures['scores'] if signatures is not None else None
 
         # Features metadata
         self.features_meta = {
             'genes' : adata.var,
-            'PCA' : loadings 
+            'PCs' : loadings,
+            'signatures' : signatures['gene_sets'] if signatures is not None else None
         }
 
         # Others
         self.contrasts = contrasts
+        self.jobs = jobs
         self.n_jobs = cpu_count()
 
         # Results data structures
-        self.methods_used = { 'DE' : [], 'ML': [] } 
-        self.results_DE = {} # a dict dfs
-        self.results_logit = {}  # a dict of dfs
-        self.results_xgboost = {} # a dict of dfs
+        self.Results = None
+        #...
 
         gc.collect()
 
@@ -571,24 +569,25 @@ class Dist_features:
 
     ##
 
-    def get_XY(self, contrast_key=None, feat_type='genes', which='original', scale=False):
+    def get_XY(self, contrast_key=None, feat_type='genes', which='original'):
         '''
-        Get the appropriate contrast feature matrix (X), feature names and observation labels (y).
+        Get the appropriate contrast-feature matrix (X), feature names and observation labels (y).
         '''
-        try:
+        if feat_type != 'genes': 
+            features = self.__dict__[feat_type]
+            X = features.values
+            feature_names = features.columns
+        elif feat_type == 'genes': 
             features = self.__dict__[feat_type][which]
-            if isinstance(features, anndata.AnnData):
-                features_names = features.var_names
-                X = features.X # Still csr_matrix here
-            elif isinstance(features, pd.DataFrame):
-                features_names = features.columns
-                X = features.values
-            else:
-                raise ValueError('Genes, linear spaces and gene_sets need to be either adatas of dfs.')
-        except:
+            X = features.X 
+            feature_names = features.var_names
+        else:
             raise KeyError('Representation not available.')
-        
-        c = self.contrasts[contrast_key]
+
+        if contrast_key in self.contrasts:
+            c = self.contrasts[contrast_key]
+        else:
+            raise KeyError('Contrast not available.')
 
         if 'to_exclude' in c.category.categories:
             test = c.category != 'to_exclude'
@@ -597,8 +596,61 @@ class Dist_features:
         else:
             y = c.category
         
-        return X, features_names, y, c.type
+        return X, feature_names, y, c.type
             
+    ##
+
+    def format_de(self, de_raw, y, contrast_type):
+        '''
+        Format Dist_features.compute_DE() results into a human-readable df and into 
+        a dictionary of Gene_Sets.
+        '''
+        # Check
+        cat_names = np.unique([ x.split(':')[0] for x in de_raw.columns ])
+        if not all([ str(x) in cat_names for x in y.categories ]):
+            raise ValueError('Something is wrong. Check contrast categories...')
+
+        # Here we go
+        d = {}
+        DF = []
+
+        for cat in y.categories:
+            cat = str(cat)
+            if bool(re.search('vs each other', contrast_type)):
+                rest = list(cat_names[cat_names != cat])
+                between = f'{cat}_vs_' + ''.join(rest) 
+            else:
+                between = f'{cat}_vs_others'
+
+            # Collect info and reformat
+            test = lambda x: bool(re.search(f'^{cat}:', x)) and bool(re.search('log2FC|qval', x))
+            one_df = de_raw.loc[:, map(test, de_raw.columns)].rename(
+                columns={
+                    f'{cat}:log2FC' : 'effect_size',
+                    f'{cat}:mwu_qval' : 'evidence',
+                }
+            ).assign(
+                effect_type='log2FC', 
+                evidence_type='FDR',
+                feature_type='genes', 
+                between=between
+            )
+            one_df['effect_size'] = rescale(one_df['effect_size'])
+            idx = rank_top(one_df['effect_size']) 
+            one_df = one_df.iloc[idx, :].assign(rank=[ i for i in range(1, one_df.shape[0]+1) ])
+            one_df = one_df.loc[:,
+                ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 
+                'effect_type', 'between']
+            ]
+
+            DF.append(one_df)
+            d[between] = Gene_set(one_df, self.features_meta['genes'])
+
+        # Concat and return 
+        df = pd.concat(DF, axis=0)
+
+        return df, d
+
     ##
 
     def compute_DE(self, contrast_key=None, which='perc_0.15_no_miribo'):
@@ -607,202 +659,211 @@ class Dist_features:
         Use super-duper fast MWU test implementation from pegasus.
         '''
         # Prep X, y, features_names, contrast_type
-        self.methods_used['DE'].append('Wilcoxon')
-        X, features_names, y, contrast_type = self.get_XY(contrast_key=contrast_key, which=which)
+        X, feature_names, y, contrast_type = self.get_XY(contrast_key=contrast_key, which=which)
 
         # Compute pegasus Wilcoxon's test
         from pegasus.tools.diff_expr import _de_test as DE
 
-        # Last check matrix
-        X = csr_matrix(X)
+        X = csr_matrix(X) # Last check matrix
 
-        # OK
-        raw_results = DE(
+        # DE
+        de_raw = DE(
             X=X,
             cluster_labels=y,
-            gene_names=features_names,
+            gene_names=feature_names,
             n_jobs=self.n_jobs
         )
-        d = format_results(raw_results, self.features_meta['genes'], y, contrast_type, mode='DE')        
-
-        # Add
-        key_to_add = '|'.join([contrast_key, which])
-        self.results_DE[key_to_add] = d
+        
+        df, gene_set_dict = self.format_de(de_raw, y, contrast_type)  
 
         gc.collect()
 
+        return df, gene_set_dict
+
     ##
 
-
-
-
-
-    # ML refractoring hereee
-
-
-
-
-    def compute_logit(
-        self, 
-        contrast_name=None, 
-        features='genes', 
-        which='perc_0.15_no_miribo',
-        scale=True, 
-        n_jobs=cpu_count()
-        ):
+    def gs_from_ML(self, df, feat_type, n=5):
         '''
-        Train and fit a logistic regression model with X feature and y labels arrays.
-        Code similar to scanpy.tl.rank_genes_groups
+        Create a dictionary of Gene_sets from a clasification output between two 
+        groups of cells in certain contrast.
         '''
-        # Prep X, y, gene_names
-        self.methods_used['ML'].append('logit')
-    
-        X, y, features_names, contrast_type = self.get_XY(
-            contrast_name=contrast_name, 
-            features=features,
-            which=which,
-        )
+        meta = self.features_meta[feat_type]
 
-        if scale:
-            from sklearn.preprocessing import StandardScaler
-            scaler = StandardScaler()
-            X = scaler.fit_transform(X)
-
-        from sklearn.linear_model import LogisticRegression
-        model = LogisticRegression(
-            n_jobs=self.n_jobs, 
-            random_state=1234, 
-            max_iter=10000
-        )
-        model.fit(X, y)
-
-        if len(y.categories) > 2:
-            columns = [ f'{x}_vs_rest:LM_coef' for x in y.categories ]
-            data = model.coef_.T
+        if feat_type == 'genes':
+            g = Gene_set(df, self.features_meta['genes'])
+            d = { 'genes' :  g }
+        elif feat_type == 'signatures':
+            top_n = df.index[:n].to_list()
+            d = { k: meta[k] for k in top_n }
+        elif feat_type == 'PCs': 
+            d = {}
+            top_n = df.index[:n].to_list()
+            for x in top_n:
+                g = Gene_set(
+                    meta.loc[:, [x]].sort_values(ascending=False, by=x), 
+                    self.features_meta['genes']
+                )
+                d[x] = g
         else:
-            columns = [ f'{y.categories[0]}_vs_{y.categories[1]}:LM_coef' ]
-            data = model.coef_[0]
+            raise ValueError('No other features implemented so far...')
 
-        df = pd.DataFrame(data=data, index=features_names, columns=columns)
-        df = self.format_results(df, y, mode='logit')
-
-        which = which if which is not None else ''
-        key_to_add = '_'.join([contrast_name, features, which])
-        self.results_logit[key_to_add] = df
-        
-        return df
-
+        return d
+    
     ##
 
-    def compute_xgboost(
-        self, 
-        contrast_name=None, 
-        features='genes', 
-        which='perc_0.15_no_miribo',
-        scale=True
-        ):
+    def compute_ML(self, contrast_key=None, feat_type='PCs', which='original', 
+        model='xgboost', mode='fast', n_combos=50, n_jobs=cpu_count(), score='f1'):
         '''
-        Train and fit a XGBoost Classifier model with X feature and y labels arrays.
-        Code similar to scanpy.tl.rank_genes_groups.
+        Train and fit a classification with X feature and y labels arrays.
         '''
         # Prep X, y, gene_names
-        from lightgbm import LGBMClassifier
-        self.methods_used['ML'].append('xgboost')
-
-        X, y, features_names, contrast_type = self.get_XY(
-            contrast_name=contrast_name, 
-            features=features,
-            which=which,
+        X, feature_names, y, contrast_type = self.get_XY(
+            contrast_key=contrast_key, 
+            feat_type=feat_type,
+            which=which
         )
 
-        if scale:
-            from sklearn.preprocessing import StandardScaler
-            scaler = StandardScaler()
-            X = scaler.fit_transform(X)
+        # Here we go
+        GS = False if mode == 'fast' else True
+        gene_set_dict = {}
+        DF = []
 
+        # Constrast with multiple labels to iterate over
         if len(y.categories) > 2:
-            DF = []
             Y = one_hot_from_labels(y)
             # Here we go
             for i in range(Y.shape[1]):
-                columns = [ f'{y.categories[i]}_vs_rest:XGB_importance' ]
+                between = f'{y.categories[i]}_vs_rest' 
                 y_ = Y[:, i]
-                feat_importances_, score = _xgb(X, y_, n_jobs=self.n_jobs)
-                pd.DataFrame(data=data, index=features_names, columns=columns)
+                df = classification(X, y_, feature_names, score=score,
+                            key=model, GS=GS, n_combos=n_combos, cores_GS=cpu_count())
+                df = df.assign(between=between, feature_type=feat_type)          
+                df = df.loc[:,
+                    ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 
+                    'effect_type', 'between']
+                ]
+                d = self.gs_from_ML(df, feat_type)
+
+                gene_set_dict[between] = d
                 DF.append(df)
 
-            df = pd.concat(DF, axis=1)
-
+        # Contrast with only two lables
         else:
-            columns = [ f'{y.categories[0]}_vs_{y.categories[1]}:XGB_importance' ]
-            y_ = one_hot_from_labels(y) # Only one column is ok
-            model = _xgb(X, y_, n_jobs=self.n_jobs)
-            data = model.feature_importances_
+            b_ab = f'{y.categories[0]}_vs_{y.categories[1]}' 
+            y_ab = one_hot_from_labels(y) # Only one column is ok
+            df = classification(X, y_ab, feature_names, score=score,
+                        key=model, GS=GS, n_combos=n_combos, cores_GS=cpu_count())
+            df = df.assign(between=b_ab, feature_type=feat_type)
+            df = df.loc[:,
+                ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 
+                'effect_type', 'between']
+            ]
+            d = self.gs_from_ML(df, feat_type)
 
-            df = pd.DataFrame(data=data, index=features_names, columns=columns)
+            gene_set_dict[b_ab] = d
+            DF.append(df)
 
+            b_ba = f'{y.categories[1]}_vs_{y.categories[0]}' 
+            y_ba = np.where(one_hot_from_labels(y) == 0, 1, 0)
+            df = classification(X, y_ba, feature_names, score=score,
+                        key=model, GS=GS, n_combos=n_combos, cores_GS=cpu_count())
+            df = df.assign(between=b_ba, feature_type=feat_type)
+            df = df.loc[:,
+                ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 
+                'effect_type', 'between']
+            ]
+            d = self.gs_from_ML(df, feat_type)
 
-
-
+            gene_set_dict[b_ba] = d
+            DF.append(df)
         
-        ##################################
+        # Concat
+        df = pd.concat(DF, axis=0)
 
+        return df, gene_set_dict
 
+    ##
 
+    def run_all_jobs(self, select=True):
+        '''
+        Run all prepared jobs.
+        '''
+        #Preps
+        logger = logging.getLogger("my_logger")
+        self.select_genes()
+        self.select_genes(only_HVGs=True)
 
-        which = which if which is not None else ''
-        key_to_add = '_'.join([contrast_name, features, which])
-        self.results_xgboost[key_to_add] = df
+        Results = { 
+
+            '|'.join([k, x['features'], x['model']]) : \
+            { 'df' : None, 'gs' : None  } \
+            for k in self.jobs for x in self.jobs[k] 
+
+        }
+
+        # Here, no multithreading. Needs to be implemented...
         
-        return df
+        i = 1
+        n_jobs = len([ 0 for k in self.jobs for x in self.jobs[k] ])
 
+        for k in self.jobs: 
+            
+            logger.info(f'Beginning with contrast {k}...')
 
+            # All jobs
+            for x in self.jobs[k]: 
 
+                job_key = '|'.join([k, x['features'], x['model']])
 
+                logger.info(f'Beginning with job {job_key}: {i}/{n_jobs}')
 
+                t = Timer()
+                t.start() 
 
+                if x['model'] == 'wilcoxon':
+                    de_results, gene_set_dict = self.compute_DE(contrast_key=k)
+                    Results[job_key]['df'] = de_results
+                    Results[job_key]['gs'] = gene_set_dict
+                else:
+                    ML_results, gene_set_dict = self.compute_ML(contrast_key=k, 
+                                    feat_type=x['features'], which='perc_0.15_no_miribo_only_HVGs', 
+                                    model=x['model'], mode=x['mode']
+                                    )
+                    Results[job_key]['df'] = ML_results
+                    Results[job_key]['gs'] = gene_set_dict
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                logger.info(f'Finished with job {job_key}: {t.stop()} s')
+                i += 1
+        
+        # Add 
+        self.Results = Results
 
     ##
 
-    def summary_results(self):
+    def summary_contrast(self):
 
         return self
 
     ##
 
-    def summary_all_results(self):
+    def summary_all_contrasts(self):
 
         return self
 
     ##
 
-    def viz_results(self):
+    def to_pickle(self, path_results):
+        '''
+        Dump results_dfs and results_gs to path_results.
+        '''
+        with open(path_results + 'dist_features.txt', 'wb') as f:
+            pickle.dump(self.Results, f)
 
-        return self
 
-    ##
+##
 
-    def viz_all_results(self):
 
-        return self
-
+########################################################################
 
 
 

@@ -11,10 +11,12 @@ from lightgbm import LGBMClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import StratifiedShuffleSplit, RandomizedSearchCV
 from sklearn.metrics import f1_score, balanced_accuracy_score, accuracy_score
+from scipy.sparse import issparse
 
 import sys
 sys.path.append('/Users/IEO5505/Desktop/pipeline/code/Cellula/') # Path to pipeline code in docker image
 from _utils import *
+from _dist_features import *
 
 ########################################################################
 
@@ -83,10 +85,13 @@ def classification(X, y, features_names, key='xgboost', GS=True, n_combos=5,
     '''
     Given some input data, run a classification analysis in several flavours.
     '''
-
     # Train-test split 
     rng = np.random.RandomState(1234)
     sss = StratifiedShuffleSplit(n_splits=2, test_size=0.2, random_state=rng)
+
+    if issparse(X):
+        X = X.toarray() # Remove if genes
+
     for train_index, test_index in sss.split(X, y):
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
@@ -119,7 +124,7 @@ def classification(X, y, features_names, key='xgboost', GS=True, n_combos=5,
         if key == 'xgboost':
             effect_size = model.best_estimator_[1].feature_importances_
         elif key == 'logit':
-            effect_size = model.best_estimator_[1].coef_.reshape(50, 1)
+            effect_size = model.best_estimator_[1].coef_.reshape(len(features_names), 1)
 
     # Simple: once, on all training set, default hyperparameters
     else:
@@ -129,14 +134,7 @@ def classification(X, y, features_names, key='xgboost', GS=True, n_combos=5,
         if key == 'xgboost':
             effect_size = model.steps[1][1].feature_importances_
         elif key == 'logit':
-            effect_size = model.steps[1][1].coef_.reshape(50, 1)
-        
-    # To series
-    effect_size = pd.DataFrame(
-        data=effect_size, 
-        columns=['effect_size'],
-        index=features_names
-    )
+            effect_size = model.steps[1][1].coef_.reshape(len(features_names), 1)
 
     # Test: N.B. X_test should be scaled as X_train
     scaler = StandardScaler()
@@ -144,32 +142,26 @@ def classification(X, y, features_names, key='xgboost', GS=True, n_combos=5,
 
     # Scores
     y_pred = model.predict(X_test)
-    scores = {
-        'accuracy': accuracy_score(y_test, y_pred),
-        'balanced_accuracy' : balanced_accuracy_score(y_test, y_pred),
-        'f1' : f1_score(y_test, y_pred)
-    }
+    if score == 'accuracy':
+        evidence = accuracy_score(y_test, y_pred)
+    elif score == 'balanced_accuracy':
+        evidence = balanced_accuracy_score(y_test, y_pred)
+    elif score == 'f1':
+        evidence = f1_score(y_test, y_pred)
+    else:
+        raise ValueError('Unknown score for classification.')
 
-    return scores, effect_size
+    # Format and return 
+    df = pd.DataFrame({'evidence': evidence}, index=features_names).assign(
+        evidence_type=score,
+        effect_size=rescale(effect_size),
+        effect_type='importance' if key == 'xgboost' else 'LM_coef'
+    )
+    df = df.sort_values(by='effect_size', ascending=False).assign(
+        rank=[ i for i in range(1, df.shape[0]+1) ]
+    )
 
-
-
-################################################################
-
-# Here we go
-import scanpy as sc
-
-path_data = '/Users/IEO5505/Desktop/sc_pipeline_prova/data/'
-adata = sc.read(path_data + 'clustered.h5ad')
-
-X = adata.obsm['X_pca']
-y = np.where(adata.obs['sample'] == 'GFP_high_d5_tr', 1, 0)
-features_names = [ f'PC{i}' for i in range(1, X.shape[1]+1) ]
-
-scores, es = classification(X, y, features_names, 
-                            key='logit', GS=True, n_combos=2, cores_GS=cpu_count())
-
-pd.Series(es).describe()
+    return df
 
 ################################################################
 

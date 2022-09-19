@@ -193,34 +193,27 @@ def markers_all():
     else:
         clustering_solutions = pd.read_csv(path_results + 'clustering_solutions.csv', index_col=0)
 
-    # Create contrasts
+    # Create contrasts and jobs
     contrasts = {
         k: Contrast(clustering_solutions, k) for k in clustering_solutions.columns
     }
-
-    # Prep Dist_features instance
-    adata = sc.read(path_data + 'adata.h5ad')   # Full log-normalized matrix required
-    D = Dist_features(adata, contrasts)
-    D.select_genes(no_miribo=False)         # Exclude only genes expressed by less than 0.15 total cells here
+    jobs = {
+        k: [{ 'features': 'genes', 'model' : 'wilcoxon', 'mode' : 'None' }] \
+        for k in clustering_solutions.columns
+    }
 
     # Here we go
-    count = 1
-    total = len(contrasts)
-    t_step = Timer()
-    for k in contrasts.keys():
-        t_step.start()
-        logger.info(f'Begin markers calculation {k}, solution {count}/{total}...')
-        D.compute_DE(contrast_key=k, which='perc_0.15')
-        logger.info(f'Markers calculation {k}, solution {count}/{total}: {t_step.stop()} s')
-        count += 1
+    adata = sc.read(path_data + 'adata.h5ad')   # Full log-normalized matrix required
+    D = Dist_features(adata, contrasts, jobs=jobs)
+    D.run_all_jobs()
 
-    # Save markers
+    # Save markers, as Gene_sets dictionary only
     path_markers = path_main + '/results_and_plots/dist_features/'
     make_folder(path_markers, step, overwrite=False)
     path_markers += f'/{step}/' 
 
     with open(path_markers + 'clusters_markers.txt', 'wb') as f:
-        pickle.dump(D.results_DE, f)
+        pickle.dump(D.results_gs, f)
 
     logger.info(f'Finished markers: {t.stop()} s.')
 

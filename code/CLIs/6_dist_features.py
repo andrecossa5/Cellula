@@ -45,35 +45,20 @@ my_parser.add_argument(
 my_parser.add_argument( 
     '--contrasts', 
     type=str,
-    default='/results_and_plots/dist_features/contrasts/main_contrasts.py',
+    default='contrasts',
     help='''
-    The relative path to the .py file encoding contrasts information: 
-    Default is path_main/results_and_plots/dist_features/contrasts/main_contrasts.py. 
-    Contasts needs to be specified into a .py file storing a nested dictionary like:
-    { contrast_family : { contrast_name : { groups : [query1, query0], methods : ['DE', ... ] } }.
-    This is still a temporary definition.
-    '''
-)   # Temporary contrasts specification
-
-# Filter genes
-my_parser.add_argument( 
-    '--genes_treshold', 
-    type=float,
-    default=0.15,
-    help='''
-    Adaptive treshold to filter genes for dist_features computation. 
-    Default: genes expressed by 0.15 of total cells.
+    The name of the .yml file encoding contrasts information.
+    The file needs to be found at path_main/custom/. 
+    Contasts needs to be specified into .yml file storing info like:
+    { contrast_family : { contrast_name : { query : [query1, query0], methods : ['DE', ... ] } }
     '''
 )
 
-# HVGs
+# Filter genes
 my_parser.add_argument( 
-    '--only_HVGS',
+    '--skip_computation', 
     action='store_true',
-    help='''
-    If specified, only HVGs are reainted for dist_features computation. 
-    Default: False.
-    '''
+    help='Skip Dist_features computation. Default: False.'
 )
 
 # Skip
@@ -88,8 +73,7 @@ args = my_parser.parse_args()
 
 path_main = args.path_main
 step = f'step_{args.step}'
-contrasts = args.contrasts
-gene_treshold = args.genes_treshold
+contrasts_name = args.contrasts
 
 ########################################################################
 
@@ -117,6 +101,7 @@ if not args.skip:
     path_results = path_main + '/results_and_plots/dist_features/'
     path_runs = path_main + '/runs/'
     path_viz = path_main + '/results_and_plots/vizualization/dist_features/'
+    path_signatures = path_main + '/results_and_plots/signatures/'
 
     # Create step_{i} clustering folders. Overwrite, if they have already been created
     to_make = [ (path_results, step), (path_viz, step) ]
@@ -126,6 +111,7 @@ if not args.skip:
     # Update paths
     path_runs += f'/{step}/'
     path_results += f'/{step}/' 
+    path_signatures += f'/{step}/' 
 
     #-----------------------------------------------------------------#
 
@@ -140,24 +126,25 @@ def dist_features():
     T = Timer()
     T.start()
 
-    logger.info('Begin distinguishing features calculations...')
-
-    # Load adata
+    # Load adata, singatures and prep contrasts and jobs
     adata = sc.read(path_data + 'clustered.h5ad')
+    with open(path_signatures + 'signatures.txt', 'rb') as f:
+        signatures = pickle.load(f)
+    jobs, contrasts = prep_jobs_contrasts(adata, path_main + 'custom/', 'contrasts')
 
-    
+    # Here we go
+    if not args.skip_computation:
 
+        logger.info('Begin distinguishing features calculations...')
+        D = Dist_features(adata, contrasts, signatures=signatures, jobs=jobs)
+        D.run_all_jobs()
+        D.to_pickle(path_results)
 
+    else:
 
-
-    #-----------------------------------------------------------------#
-
-    # Code ...
-    print('Code here')
-
-    #-----------------------------------------------------------------#
-
-
+        #Read results 
+        with open(path_results + 'dist_features.txt', 'rb') as f:
+            results = pickle.load(f)
 
     # Write final exec time
     logger.info(f'Execution was completed successfully in total {T.stop()} s.')

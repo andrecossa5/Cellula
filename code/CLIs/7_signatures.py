@@ -156,34 +156,19 @@ def signatures():
     # Retrieve gene_sets and score them
     S = Scores(adata, clusters, markers, curated)
 
-
-
-    dir(S.markers['15_NN_30_PCs_1.79|perc_0.15']['23_vs_others'])
-    
-    S.markers['15_NN_30_PCs_1.79|perc_0.15']['23_vs_others'].filter_rank_genes()
-    
-    g = S.markers['15_NN_30_PCs_1.79|perc_0.15']['23_vs_others']
-    g.compute_ORA()
-
-    g.compute_GSEA()
-
-    g.GSEA
-
-
-
-
-
     logger.info('Begin GMs retrieval...')
     S.compute_GMs(kind=which)# 
     logger.info(f'GMs retrieval: {t.stop()} s.')
 
     t.start()
     logger.info('Begin signatures scoring...')
-    scores = S.score_signatures(kind=scoring) # Default, scanpy
+    S.score_signatures(kind=scoring) # Default, scanpy
     logger.info(f'Signatures scoring: {t.stop()} s.')
 
     # Save scores
-    scores.to_csv(path_results + 'scores.csv')
+    signatures = S.format_results()
+    with open(path_results + 'signatures.txt', 'wb') as f:
+        pickle.dump(signatures, f)
 
     # Write final exec time
     logger.info(f'Execution was completed successfully in total {T.stop()} s.')

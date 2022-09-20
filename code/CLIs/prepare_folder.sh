@@ -17,11 +17,11 @@ mkdir results_and_plots runs
 
 # Update results and plots
 cd results_and_plots
-mkdir pp clustering modules vizualization dist_features
+mkdir pp clustering vizualization dist_features signatures
 
 # Update vizualization
 cd vizualization
-mkdir pp clustering modules dist_features
+mkdir pp clustering modules dist_features signatures
 
 # # Trajectories
 # cd ../trajectories

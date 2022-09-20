@@ -204,7 +204,7 @@ def markers_all():
 
     # Here we go
     adata = sc.read(path_data + 'adata.h5ad')   # Full log-normalized matrix required
-    D = Dist_features(adata, contrasts, jobs=jobs)
+    D = Dist_features(adata, contrasts, jobs=jobs)   # Job mode here
     D.run_all_jobs()
 
     # Save markers, as Gene_sets dictionary only
@@ -213,7 +213,7 @@ def markers_all():
     path_markers += f'/{step}/' 
 
     with open(path_markers + 'clusters_markers.txt', 'wb') as f:
-        pickle.dump(D.results_gs, f)
+        pickle.dump(D.Results.results, f)
 
     logger.info(f'Finished markers: {t.stop()} s.')
 

@@ -137,16 +137,9 @@ def minimal():
 
     # DE: leiden and samples
     t.start()
-    D = Dist_features(
-        adata, 
-        { 
-            'leiden' : Contrast(adata.obs, 'leiden'), 
-            'samples' : Contrast(adata.obs, 'sample') 
-        }
-    )
+    D = Dist_features(adata, {'leiden' : Contrast(adata.obs, 'leiden')})
     D.select_genes() # Default, > 15% cells, no MT and Ribo
-    for k in D.contrasts.keys():
-        D.compute_DE(contrast_key=k)   
+    markers = D.compute_DE(contrast_key='leiden')[1]
     logger.info(f'DE: {t.stop()} s.')
 
     # Viz here: UMAP samples and clusters, barplot clusters/samples markers bubble. 
@@ -159,7 +152,7 @@ def minimal():
     # Save clustered adata and results_DE
     adata.write(path_data + f'clustered_minimal.h5ad')
     with open(path_results + 'results_DE_minimal.txt', 'wb') as f:
-        pickle.dump(D.results_DE, f)
+        pickle.dump(markers, f)
 
     # Write final exec time
     logger.info(f'Execution was completed successfully in total {T.stop()} s.')

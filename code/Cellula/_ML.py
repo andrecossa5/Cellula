@@ -20,33 +20,7 @@ from _dist_features import *
 
 ########################################################################
 
-# Utils
-
-
-def report_GS(results, n_top=3):
-    '''
-    Report Grid Search results.
-    '''
-    for i in range(1, n_top + 1):
-        candidates = np.flatnonzero(results["rank_test_score"] == i)
-        for candidate in candidates:
-            print(f'Model with rank: {i}')
-            print(
-                f'''
-                Mean validation score: 
-                {results["mean_test_score"][candidate]:.3f} 
-                std: {results["std_test_score"][candidate]:.3f}
-                '''
-            )
-        
-            print(f'Parameters: {results["params"][candidate]}')
-            print('')
-
-
-##
-
- 
-################################################################
+# Params
 
 models = {
 
@@ -76,7 +50,7 @@ params = {
 
 }
 
-################################################################
+########################################################################
 
 # classification()
 
@@ -90,7 +64,7 @@ def classification(X, y, features_names, key='xgboost', GS=True, n_combos=5,
     sss = StratifiedShuffleSplit(n_splits=2, test_size=0.2, random_state=rng)
 
     if issparse(X):
-        X = X.toarray() # Remove if genes
+        X = X.toarray() # Densify if genes as features
 
     for train_index, test_index in sss.split(X, y):
         X_train, X_test = X[train_index], X[test_index]
@@ -154,7 +128,8 @@ def classification(X, y, features_names, key='xgboost', GS=True, n_combos=5,
     # Format and return 
     df = pd.DataFrame({'evidence': evidence}, index=features_names).assign(
         evidence_type=score,
-        effect_size=rescale(effect_size),
+        effect_size=effect_size,
+        es_rescaled=rescale(effect_size),
         effect_type='importance' if key == 'xgboost' else 'LM_coef'
     )
     df = df.sort_values(by='effect_size', ascending=False).assign(

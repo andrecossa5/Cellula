@@ -37,6 +37,7 @@ from _utils import *
 from _plotting import *
 from _pp import *
 from _ML import *
+from _Results import *
 
 ########################################################################
 
@@ -161,6 +162,7 @@ class Contrast:
                 for value_to_add, positions in groups_indices.items():
                     s[positions] = value_to_add
                 s = pd.Series(s, index=meta['barcodekey']).astype('category')
+                self.n_cells = s[s!='to_exclude'].size
                 self.status = 'new'
                 self.query = query
                 self.description = description 
@@ -272,7 +274,7 @@ class Gene_set:
     
     ##
     
-    def filter_rank_genes(self, filter=False, rank_sort=True, out=True, only_genes=False,
+    def filter_rank_genes(self, filtering=False, rank_sort=True, out=True, only_genes=False,
         filt_kwargs=None, sort_kwargs=None):
         '''
         Filters and and sort gs stats. 
@@ -289,7 +291,7 @@ class Gene_set:
         df = self.stats
 
         # Filter
-        if effect_type == 'log2FC':
+        if effect_type == 'log2FC' and filtering:
             if filt_kwargs is None:
                 pass
             elif isinstance(filt_kwargs, dict): 
@@ -310,15 +312,17 @@ class Gene_set:
                 )
 
             query = ' & '.join(f'{k} {op} {tresh}' for k, (op, tresh) in self.filter_params.items())
-            filtered_df = df.query(query)
+            df = df.query(query)
 
-        else:
+        elif effect_type != 'log2FC' and filtering:
             raise ValueError(
                 '''
                 Filtering implemented only for DE results. Other ordered Gene_sets can 
                 only be only sorted and sliced via rank_top.
                 '''
             )
+        else:
+            query = ''
 
         # Sort 
         if sort_kwargs is None:
@@ -339,12 +343,13 @@ class Gene_set:
                 '''
             )
 
-        by = self.rank_sort_params['by']
-        n = self.rank_sort_params['n']
-        lowest = False if by == 'effect_size' else True
+        if rank_sort:
+            by = self.rank_sort_params['by']
+            n = self.rank_sort_params['n']
+            lowest = False if by == 'covariate' else True
 
-        idx = rank_top(filtered_df[by], n=n, lowest=lowest)
-        filtered_df = filtered_df.iloc[idx, :]
+            idx = rank_top(df[by], n=n, lowest=lowest)
+            df = df.iloc[idx, :]
 
         # Add 
         default = check_equal_pars(self.original_f, self.filter_params, is_tuple=True) 
@@ -356,12 +361,12 @@ class Gene_set:
             key_to_add = query
             key_to_add += f'|by: {by}, n: {n}'
 
-        self.filtered[key_to_add] = filtered_df
+        self.filtered[key_to_add] = df
 
         if only_genes:
-            output = filtered_df.index.to_list()
+            output = df.index.to_list()
         else:
-            output = filtered_df
+            output = df
 
         self.is_filtered = True
 
@@ -398,6 +403,7 @@ class Gene_set:
 
         idx = rank_top(df[by], n=n_out, lowest=True)
         filtered_df = df.iloc[idx, :]
+        filtered_df = filtered_df.set_index('Term')
 
         # Add 
         self.ORA[key] = filtered_df
@@ -440,6 +446,11 @@ class Gene_set:
 
         idx = rank_top(df[by], n=n_out, lowest=True)
         filtered_df = df.iloc[idx, :]
+
+        pd.options.mode.chained_assignment = None # Remove warning
+        new_term = filtered_df['Term'].map(lambda x: x.split('__')[1])
+        filtered_df.loc[:, 'Term'] = new_term
+        filtered_df = filtered_df.set_index('Term')
 
         # Add 
         self.GSEA['original'] = filtered_df
@@ -523,9 +534,11 @@ class Dist_features:
         self.jobs = jobs
         self.n_jobs = cpu_count()
 
-        # Results data structures
-        self.Results = None
-        #...
+        # Results data structure
+        if jobs is not None:
+            self.Results = Results(adata, contrasts, jobs)
+        else:
+            self.Results = None
 
         gc.collect()
 
@@ -537,7 +550,7 @@ class Dist_features:
         Add these filtered matrix self.genes.
         '''
         original_genes = self.genes['original']
-        genes_meta = self.features_meta['genes'].reset_index() # Needed to map lambda afterwards
+        genes_meta = self.features_meta['genes'].reset_index() # Need to map lambda afterwards
 
         # Prep individual tests
         test_perc = genes_meta['percent_cells'] > cell_perc
@@ -616,35 +629,36 @@ class Dist_features:
 
         for cat in y.categories:
             cat = str(cat)
-            if bool(re.search('vs each other', contrast_type)):
+            if bool(re.search('vs each other', contrast_type)) or len(y.categories) == 2:
                 rest = list(cat_names[cat_names != cat])
-                between = f'{cat}_vs_' + ''.join(rest) 
+                comparison = f'{cat}_vs_' + ''.join(rest) 
             else:
-                between = f'{cat}_vs_others'
+                comparison = f'{cat}_vs_rest'
 
             # Collect info and reformat
-            test = lambda x: bool(re.search(f'^{cat}:', x)) and bool(re.search('log2FC|qval', x))
+            test = lambda x: bool(re.search(f'^{cat}:', x)) and bool(re.search('log2FC|qval|percentage_fold', x))
             one_df = de_raw.loc[:, map(test, de_raw.columns)].rename(
                 columns={
                     f'{cat}:log2FC' : 'effect_size',
                     f'{cat}:mwu_qval' : 'evidence',
+                    f'{cat}:percentage_fold_change' : 'perc_FC',
                 }
             ).assign(
                 effect_type='log2FC', 
                 evidence_type='FDR',
                 feature_type='genes', 
-                between=between
+                comparison=comparison
             )
-            one_df['effect_size'] = rescale(one_df['effect_size'])
+            one_df['es_rescaled'] = rescale(one_df['effect_size']) # Rescaled for within methods comparisons
             idx = rank_top(one_df['effect_size']) 
             one_df = one_df.iloc[idx, :].assign(rank=[ i for i in range(1, one_df.shape[0]+1) ])
-            one_df = one_df.loc[:,
-                ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 
-                'effect_type', 'between']
+            one_df_harmonized = one_df.loc[:,
+                ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'es_rescaled',
+                'effect_type', 'comparison']
             ]
 
-            DF.append(one_df)
-            d[between] = Gene_set(one_df, self.features_meta['genes'])
+            DF.append(one_df_harmonized) # Without perc_FC
+            d[comparison] = Gene_set(one_df, self.features_meta['genes'])
 
         # Concat and return 
         df = pd.concat(DF, axis=0)
@@ -673,7 +687,7 @@ class Dist_features:
             gene_names=feature_names,
             n_jobs=self.n_jobs
         )
-        
+
         df, gene_set_dict = self.format_de(de_raw, y, contrast_type)  
 
         gc.collect()
@@ -700,7 +714,9 @@ class Dist_features:
             top_n = df.index[:n].to_list()
             for x in top_n:
                 g = Gene_set(
-                    meta.loc[:, [x]].sort_values(ascending=False, by=x), 
+                    meta.loc[:, [x]].sort_values(ascending=False, by=x).assign(
+                        effect_type='loading'
+                    ).rename(columns={ x : 'effect_size'}),
                     self.features_meta['genes']
                 )
                 d[x] = g
@@ -712,7 +728,7 @@ class Dist_features:
     ##
 
     def compute_ML(self, contrast_key=None, feat_type='PCs', which='original', 
-        model='xgboost', mode='fast', n_combos=50, n_jobs=cpu_count(), score='f1'):
+                model='xgboost', mode='fast', n_combos=50, n_jobs=cpu_count(), score='f1'):
         '''
         Train and fit a classification with X feature and y labels arrays.
         '''
@@ -733,48 +749,48 @@ class Dist_features:
             Y = one_hot_from_labels(y)
             # Here we go
             for i in range(Y.shape[1]):
-                between = f'{y.categories[i]}_vs_rest' 
+                comparison = f'{y.categories[i]}_vs_rest' 
                 y_ = Y[:, i]
                 df = classification(X, y_, feature_names, score=score,
-                            key=model, GS=GS, n_combos=n_combos, cores_GS=cpu_count())
-                df = df.assign(between=between, feature_type=feat_type)          
+                            key=model, GS=GS, n_combos=n_combos, cores_GS=n_jobs)
+                df = df.assign(comparison=comparison, feature_type=feat_type)          
                 df = df.loc[:,
-                    ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 
-                    'effect_type', 'between']
+                    ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'es_rescaled',
+                    'effect_type', 'comparison']
                 ]
                 d = self.gs_from_ML(df, feat_type)
 
-                gene_set_dict[between] = d
+                gene_set_dict[comparison] = d
                 DF.append(df)
 
         # Contrast with only two lables
         else:
-            b_ab = f'{y.categories[0]}_vs_{y.categories[1]}' 
+            comparison_ab = f'{y.categories[0]}_vs_{y.categories[1]}' 
             y_ab = one_hot_from_labels(y) # Only one column is ok
             df = classification(X, y_ab, feature_names, score=score,
                         key=model, GS=GS, n_combos=n_combos, cores_GS=cpu_count())
-            df = df.assign(between=b_ab, feature_type=feat_type)
+            df = df.assign(comparison=comparison_ab, feature_type=feat_type)
             df = df.loc[:,
-                ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 
-                'effect_type', 'between']
+                ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'es_rescaled',
+                'effect_type', 'comparison']
             ]
             d = self.gs_from_ML(df, feat_type)
 
-            gene_set_dict[b_ab] = d
+            gene_set_dict[comparison_ab] = d
             DF.append(df)
 
-            b_ba = f'{y.categories[1]}_vs_{y.categories[0]}' 
+            comparison_ba = f'{y.categories[1]}_vs_{y.categories[0]}' 
             y_ba = np.where(one_hot_from_labels(y) == 0, 1, 0)
             df = classification(X, y_ba, feature_names, score=score,
                         key=model, GS=GS, n_combos=n_combos, cores_GS=cpu_count())
-            df = df.assign(between=b_ba, feature_type=feat_type)
+            df = df.assign(comparison=comparison_ba, feature_type=feat_type)
             df = df.loc[:,
-                ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 
-                'effect_type', 'between']
+                ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'es_rescaled',
+                    'effect_type', 'comparison']
             ]
             d = self.gs_from_ML(df, feat_type)
 
-            gene_set_dict[b_ba] = d
+            gene_set_dict[comparison_ba] = d
             DF.append(df)
         
         # Concat
@@ -784,24 +800,18 @@ class Dist_features:
 
     ##
 
-    def run_all_jobs(self, select=True):
+    def run_all_jobs(self):
         '''
         Run all prepared jobs.
         '''
         #Preps
+        if self.Results is None:
+            raise ValueError('Dist_features needs to be instantiated with some jobs...')
         logger = logging.getLogger("my_logger")
-        self.select_genes()
+        self.select_genes()                          # Default is 0.15, no_miribo for DE and 0.15, no_miribo HVGs only for ML with genes 
         self.select_genes(only_HVGs=True)
 
-        Results = { 
-
-            '|'.join([k, x['features'], x['model']]) : \
-            { 'df' : None, 'gs' : None  } \
-            for k in self.jobs for x in self.jobs[k] 
-
-        }
-
-        # Here, no multithreading. Needs to be implemented...
+        # Here, no multithreading. Needs to be implemented if we want to take advantage of the 'full' ML mode...
         
         i = 1
         n_jobs = len([ 0 for k in self.jobs for x in self.jobs[k] ])
@@ -822,39 +832,22 @@ class Dist_features:
 
                 if x['model'] == 'wilcoxon':
                     de_results, gene_set_dict = self.compute_DE(contrast_key=k)
-                    Results[job_key]['df'] = de_results
-                    Results[job_key]['gs'] = gene_set_dict
+                    self.Results.add_job_results(de_results, gene_set_dict, job_key=job_key)
                 else:
                     ML_results, gene_set_dict = self.compute_ML(contrast_key=k, 
                                     feat_type=x['features'], which='perc_0.15_no_miribo_only_HVGs', 
                                     model=x['model'], mode=x['mode']
                                     )
-                    Results[job_key]['df'] = ML_results
-                    Results[job_key]['gs'] = gene_set_dict
+                    self.Results.add_job_results(ML_results, gene_set_dict, job_key=job_key)
 
                 logger.info(f'Finished with job {job_key}: {t.stop()} s')
                 i += 1
-        
-        # Add 
-        self.Results = Results
-
-    ##
-
-    def summary_contrast(self):
-
-        return self
-
-    ##
-
-    def summary_all_contrasts(self):
-
-        return self
 
     ##
 
     def to_pickle(self, path_results):
         '''
-        Dump results_dfs and results_gs to path_results.
+        Dump self.Results to path_results.
         '''
         with open(path_results + 'dist_features.txt', 'wb') as f:
             pickle.dump(self.Results, f)

@@ -44,20 +44,26 @@ def create_filtered_list(clusters, markers, n=50, m=50, ji_treshold=0.75):
     This yield a final_list of minimally overlapping markers across multiple clustering resolution, 
     that will be used to build GMs.
     '''
-    markers = { k.split('|')[0] : v for k, v in markers.items() }
+    markers_ = {}
     
-    if not all([ x in clusters.columns for x in markers.keys() ]):
+    for sol_key in markers:
+        gs = markers[sol_key]['gs']
+        sol_key_ = sol_key.split('|')[0]
+        for g_key in gs:
+            g_key_ = g_key.split('_')[0]
+            markers_[(sol_key_, g_key_)] = gs[g_key]
+
+    if not all([ x in clusters.columns for x, y in markers_.keys() ]):
         raise ValueError('Clustering solution names do not match markers solution names...')
  
     # First filter (cluster > than n cells, markers > m genes )
     filtered_sets = []
-    for sol, d in markers.items():
-        for contrast, g in d.items():
-            cell_group = int(contrast.split('_')[0]) 
-            n_cells = clusters.loc[clusters[sol] == cell_group].shape[0]
-            gene_set = g.filter_rank_genes(only_genes=True)
-            n_genes = len(gene_set)
-            if (n_cells > n) and (n_genes > m):
+    for sol, cluster in markers_: 
+        n_cells = clusters.loc[clusters[sol] == int(cluster)].shape[0]
+        g = markers_[(sol, cluster)]
+        gene_set = g.filter_rank_genes(only_genes=True)
+        n_genes = len(gene_set)
+        if (n_cells > n) and (n_genes > m):
                 filtered_sets.append(set(gene_set))
 
     # Second filter (JI)

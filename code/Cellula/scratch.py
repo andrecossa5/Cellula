@@ -6,6 +6,14 @@ with open(path_signatures + 'signatures.txt', 'rb') as f:
     signatures = pickle.load(f)
 jobs, contrasts = prep_jobs_contrasts(adata, path_main + 'custom/', 'contrasts')
 
+contrasts['C1'].__dict__
+
+
+
+
+
+
+
 D = Dist_features(adata, contrasts, signatures=signatures, jobs=jobs, app=True)
 
 # D.genes
@@ -19,7 +27,7 @@ D.to_pickle(path_results)
 # # Read results 
 with open(path_results + 'dist_features.txt', 'rb') as f:
     results = pickle.load(f)
-
+ 
 # results.summary_one_comparison(
 #     job_key='C1|genes|wilcoxon', 
 #     comparison_key='a_vs_b', 

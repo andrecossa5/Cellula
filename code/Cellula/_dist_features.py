@@ -155,6 +155,10 @@ class Contrast:
             except:
                 raise ValueError('Incorrect queries. Pass correct ones!')
 
+            sizes = np.array([ groups_indices[k].size for k in groups_indices ])
+            if np.any(sizes == 0):
+                raise ValueError(f'One of the groups has no cells. Change query!')
+
             int_two = lambda x,y: x&y
             intersection = reduce(int_two, [ set(x.to_list()) for x in groups_indices.values() ])
 
@@ -768,7 +772,7 @@ class Dist_features:
                 DF.append(df)
 
         # Contrast with only two lables
-        else:
+        elif len(y.categories) == 2:
             comparison_ab = f'{y.categories[0]}_vs_{y.categories[1]}' 
             y_ab = one_hot_from_labels(y) # Only one column is ok
             df = classification(X, y_ab, feature_names, score=score,
@@ -796,6 +800,8 @@ class Dist_features:
 
             gene_set_dict[comparison_ba] = d
             DF.append(df)
+        else:
+            raise ValueError(f'n categories = {len(y.categories)}')
         
         # Concat
         df = pd.concat(DF, axis=0)

@@ -12,7 +12,7 @@ import argparse
 
 # Create the parser
 my_parser = argparse.ArgumentParser(
-    prog='7_signatures',
+    prog='6_signatures',
     description=
     '''
     Compute signature scores for dyfferent types of gene sets:
@@ -129,7 +129,7 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set logger 
-    logger = set_logger(path_runs, 'logs_7_signatures.txt')
+    logger = set_logger(path_runs, 'logs_6_signatures.txt')
 
 ########################################################################
 

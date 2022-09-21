@@ -46,6 +46,26 @@ from _dist_features import *
 
 # Utils for Results
 
+def restyle(df, mode='GSA'):
+    '''
+    Restyle df
+    '''
+    if mode == 'GSA':
+        color = '#7a3121' 
+    elif mode == 'dist':
+        color = '#155731'
+    else:
+        color = '#153e57'
+
+    df = df.style.set_properties(**{
+                            'background-color': 'white',
+                            'color': color,
+                            'border-color': 'black'
+                            }
+                        )
+    return df
+
+##
 
 def report_one(df, gs, comparison_key=None, contrast=None, model=None, n=10, show_genes=False, print_last=True):
     '''
@@ -56,104 +76,112 @@ def report_one(df, gs, comparison_key=None, contrast=None, model=None, n=10, sho
 
     if not isinstance(list(gs.values())[0], dict):
         assert model == 'wilcoxon'
-        print('')
-        print(f'For {comparison_key} in {contrast}, show top {n} ranked genes and associated GSEA pathways')
+        st.write('')
+        st.markdown(f'For __{comparison_key}__ in __{contrast}__, show top {n} ranked genes and associated GSEA pathways__')
         for k in gs:
             if k == comparison_key:
                 g = gs[k]
-                print('')
-                print('================================================================')
-                print('')
-                print(f'DE output: top {n} ranked genes')
-                print('')
-                print(g.stats.loc[:,
-                        [ 'effect_size', 'effect_type', 'evidence', 'evidence_type', 'perc_FC' ] 
-                    ].head(n)
+                st.write('')
+                st.write('================================================================')
+                st.write('')
+                st.markdown(f'__DE output__: top {n} ranked genes')
+                st.write('')
+                st.dataframe(
+                    restyle(
+                        g.stats.loc[:,
+                            [ 'effect_size', 'effect_type', 'evidence', 'evidence_type', 'perc_FC' ] 
+                        ].head(n),
+                        mode='dist'
+                    )
                 )
-                print('')
-                print('================================================================')
-                print('')
-                print(f'Ranked genes enrichment (GSEA)')
-                print('')
+                st.write('')
+                st.write('================================================================')
+                st.write('')
+                st.markdown(f'Ranked genes enrichment: __GSEA__')
+                st.write('')
                 g.compute_GSEA()
                 gsa = g.GSEA['original'].loc[:, ['Adjusted P-value', 'Lead_genes']].head(n)
                 if show_genes:
                     for x in gsa.index:
-                        print(f'--> {x}')
-                        print(gsa.loc[x, 'Lead_genes'])
-                        print('')
+                        st.write(f'--> {x}')
+                        st.write(gsa.at[x, 'Lead_genes'])
+                        st.write('')
                 else:
-                    print(gsa)
+                    st.write(restyle(gsa, mode='GSA'))
 
     elif isinstance(list(gs.values())[0], dict):
-        print('')
-        print(f'For {comparison_key} in {contrast}, show classification output and associated ORA/GSEA pathways')
+        st.write('')
+        st.markdown(f'For __{comparison_key}__ in __{contrast}__, show classification output and associated ORA/GSEA pathways')
         for k in gs:
             if k == comparison_key:
                 g = gs[k]
-                print('')
-                print('================================================================')
-                print('')
-                print(f'Classification output, top {n} ranked features:')
-                print('')
-                print(df_one.loc[:,
-                        [ 'effect_size', 'effect_type', 'evidence', 'evidence_type' ] 
-                    ].head(n)
+                st.write('')
+                st.write('================================================================')
+                st.write('')
+                st.markdown(f'__Classification output__, top {n} ranked features:')
+                st.write('')
+                st.dataframe(
+                    restyle(
+                        df_one.loc[:,
+                            [ 'effect_size', 'effect_type', 'evidence', 'evidence_type' ] 
+                        ].head(n),
+                        mode='dist'
+                    )                    
                 )
-                print('')
-                print('================================================================')
-                print('')
-                print(f'Top {n} ranked features annotation:')
-                print('')
+                st.write('')
+                st.write('================================================================')
+                st.write('')
+                st.write(f'Top {n} ranked features annotation:')
+                st.write('')
 
                 last = len(list(gs[k]))-1
 
                 for i, top_feat in enumerate(gs[k]):
-                    print(top_feat)
-                    print('')
+                    st.write(top_feat)
+                    st.write('')
                     g = gs[k][top_feat]
                     if g.is_ordered:
                         g_type = 'ordered' 
-                        print(f'{top_feat} gene set type: {g_type}')
-                        print(f'{top_feat} associated genes stats:')
-                        print('')
-                        print(g.stats.head(n))
-                        print('')
-                        print(f'{top_feat} associated gene set enrichment (GSEA):')
-                        print('') 
+                        st.write(f'{top_feat} gene set type: {g_type}')
+                        st.write(f'{top_feat} associated genes stats:')
+                        st.write('')
+                        st.dataframe(restyle(g.stats.head(n), mode='properties'))
+                        st.write('')
+                        st.write(f'{top_feat} associated gene set enrichment: __GSEA__')
+                        st.write('') 
                         g.compute_GSEA()
-                        gsa = g.GSEA['original'].loc[:, ['Adjusted P-value', 'Lead_genes']].head(n)
+                        gsa = g.GSEA['original'].loc[:, ['Lead_genes']].head(n)
                         if show_genes:
                             for x in gsa.index:
-                                print(f'--> {x}')
-                                print(gsa.loc[x, 'Lead_genes'])
-                                print('')
+                                st.write(f'--> {x}')
+                                st.write(gsa.at[x, 'Lead_genes'])
+                                st.write('')
                         else:
-                            print(gsa)
+                            st.dataframe(restyle(gsa, mode='GSA'))
                     else:
                         g_type = 'unordered' 
-                        print(f'{top_feat} gene set type: {g_type}. Associated stats are not displayed.')
-                        print('')
+                        st.write(f'{top_feat} gene set type: {g_type}. Associated stats are not displayed.')
+                        st.write('')
                         g.compute_ORA()
-                        print(f'{top_feat} associated gene set enrichment (ORA):')
-                        print('')
-                        gsa = g.ORA['Default_ORA'].loc[:, ['Adjusted P-value', 'Genes']].head(n)
+                        st.markdown(f'{top_feat} associated gene set enrichment: __ORA__')
+                        st.write('')
+                        gsa = g.ORA['Default_ORA'].loc[:, ['Genes']].head(n)
                         if show_genes:
                             for x in gsa.index:
-                                print(f'--> {x}')
-                                print(gsa.loc[x, 'Genes'])
-                                print('')
+                                st.write(f'--> {x}')
+                                st.write(gsa.at[x, 'Genes'])
+                                st.write('')
                         else:
-                            print(gsa)
-                    print('')
+                            st.dataframe(restyle(gsa, mode='GSA'))
+                    st.write('')
                     
                     do_not = not print_last
             
                     if i == last and do_not:
                         pass
                     else:
-                        print('----------------------------------------------------------------')
-                        print('')
+                        st.write('----------------------------------------------------------------')
+                        st.write('')
 
 
 ##
@@ -162,7 +190,7 @@ def report_one(df, gs, comparison_key=None, contrast=None, model=None, n=10, sho
 ########################################################################
 
 
-class Results:
+class Results_app:
     '''
     A class to store (and interact) with Dist_features results.
     '''
@@ -231,31 +259,33 @@ class Results:
         gs = job['gs']
 
         if show_contrast:
-            print('')
-            print(f'Job {job_key}: analyze contrast {contrast}, using {features} as features and {model} as model.')
-            print(f'Comparison: {comparison_key}.')
-            print('')
-            print('================================================================')
+            st.write('')
+            st.markdown(f'###### Job {job_key}: analyze contrast {contrast}, using {features} as features and {model} as model.')
+            st.markdown(f'###### Comparison: {comparison_key}.')
+            st.write('')
+            st.write('================================================================')
 
             # Contrast info
-            print('')
+            st.write('')
             c = self.contrasts[contrast]
-            print(f'Contrast info: {contrast}')
-            print(f'n cells: {c.n_cells}')
-            print(f'Query: {c.query}')
-            print(f'Type: {c.type}')
-            print(f'Groups: {c.category.categories.to_list()}')
-            print('Groups frequencies:')
-            print('')
-            print(c.freqs)
-            print('')
-            print('================================================================')
+            st.markdown(f'__Contrast info__: {contrast}')
+            st.write(f'n cells: {c.n_cells}')
+            st.write(f'Query: {c.query}')
+            st.write(f'Type: {c.type}')
+            st.write(f'Groups: {c.category.categories.to_list()}')
+            st.write('Groups frequencies:')
+            st.write('')
+            df_freqs = c.freqs
+            df_freqs.index = list(df_freqs.index)
+            st.dataframe(restyle(df_freqs, mode='other'))
+            st.write('')
+            st.write('================================================================')
 
         # Show ranked features and associated Gene_sets
         report_one(df, gs, comparison_key=comparison_key, contrast=contrast, 
             model=model, show_genes=show_genes, print_last=print_last, n=n
         )
-        print('')
+        st.write('')
 
     ##
 
@@ -270,26 +300,28 @@ class Results:
         df = job['df']
         gs = job['gs']
 
-        print('')
-        print(f'Job {job_key}: analyze contrast {contrast}, using {features} as features and {model} as model.')
-        print('')
-        print('##')
+        st.write('')
+        st.markdown(f'###### Job {job_key}: analyze contrast {contrast}, using {features} as features and {model} as model.')
+        st.write('')
+        st.write('##')
 
         # Contrast info
-        print('')
+        st.write('')
         c = self.contrasts[contrast]
-        print(f'Contrast info: {contrast}')
-        print(f'n cells: {c.n_cells}')
-        print(f'Query: {c.query}')
-        print(f'Type: {c.type}')
-        print(f'Groups: {c.category.categories.to_list()}')
-        print('Groups frequencies:')
-        print('')
-        print(c.freqs)
-        print('')
-        print('##')
-        print('')
-        print('')
+        st.markdown(f'__Contrast info__: {contrast}')
+        st.write(f'n cells: {c.n_cells}')
+        st.write(f'Query: {c.query}')
+        st.write(f'Type: {c.type}')
+        st.write(f'Groups: {c.category.categories.to_list()}')
+        st.write('Groups frequencies:')
+        st.write('')
+        df_freqs = c.freqs
+        df_freqs.index = list(df_freqs.index)
+        st.dataframe(restyle(df_freqs, mode='other'))
+        st.write('')
+        st.write('##')
+        st.write('')
+        st.write('')
 
         # For each comparison, show ranked features and associated Gene_sets
         last = len(list(gs.keys()))-1
@@ -297,14 +329,14 @@ class Results:
             report_one(df, gs, comparison_key=k, contrast=contrast, model=model, 
                 show_genes=show_genes, n=n
             )
-            print('')
+            st.write('')
             if i != last:
-                print('')
-                print('')
-                print('')
-                print('##')
-                print('')
-                print('')
+                st.write('')
+                st.write('')
+                st.write('')
+                st.write('##')
+                st.write('')
+                st.write('')
 
     ##
 
@@ -319,35 +351,37 @@ class Results:
         '''
         keys = self.get_jobs_keys(contrast_key=contrast_key, feat_key=feat_key, model_key=model_key)
 
-        print('')
-        print(f'Showing all results for comparison {comparison_key}')
-        print('')
-        print('##')
+        st.write('')
+        st.markdown(f'##### Showing all results for comparison {comparison_key}')
+        st.write('')
+        st.write('##')
 
         # Contrast info
         contrast, features, model = keys[0].split('|')
 
-        print('')
+        st.write('')
         c = self.contrasts[contrast]
-        print(f'Contrast info: {contrast}')
-        print(f'n cells: {c.n_cells}')
-        print(f'Query: {c.query}')
-        print(f'Type: {c.type}')
-        print(f'Groups: {c.category.categories.to_list()}')
-        print('Groups frequencies:')
-        print('')
-        print(c.freqs)
-        print('')
+        st.markdown(f'__Contrast info__: {contrast}')
+        st.write(f'n cells: {c.n_cells}')
+        st.write(f'Query: {c.query}')
+        st.write(f'Type: {c.type}')
+        st.write(f'Groups: {c.category.categories.to_list()}')
+        st.write('Groups frequencies:')
+        st.write('')
+        df_freqs = c.freqs
+        df_freqs.index = list(df_freqs.index)
+        st.dataframe(restyle(df_freqs, mode='other'))
+        st.write('')
 
         for i, k in enumerate(keys):
             print_last = False
 
             contrast, features, model = k.split('|')
-            print('##')
-            print('')
-            print('')
-            print('')
-            print(f'Job {k}: analyze contrast {contrast}, using {features} as features and {model} as model.')
+            st.write('##')
+            st.write('')
+            st.write('')
+            st.write('')
+            st.markdown(f'###### Job {k}: analyze contrast {contrast}, using {features} as features and {model} as model.')
         
             self.summary_one_comparison(
                 job_key=k, 

@@ -12,7 +12,7 @@ import argparse
 
 # Create the parser
 my_parser = argparse.ArgumentParser(
-    prog='6_dist_features',
+    prog='7_dist_features',
     description=
     '''
     Giving some user defined contrasts, computes the distinguishing features among cell groups.
@@ -103,10 +103,10 @@ if not args.skip:
     path_viz = path_main + '/results_and_plots/vizualization/dist_features/'
     path_signatures = path_main + '/results_and_plots/signatures/'
 
-    # Create step_{i} clustering folders. Overwrite, if they have already been created
+    # Create step_{i} clustering folders. Do NOT overwrite, if they have already been created
     to_make = [ (path_results, step), (path_viz, step) ]
     for x, y in to_make:
-        make_folder(x, y, overwrite=True)
+        make_folder(x, y, overwrite=False)
 
     # Update paths
     path_runs += f'/{step}/'
@@ -116,7 +116,7 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set logger 
-    logger = set_logger(path_runs, 'logs_6_dist_features.txt')
+    logger = set_logger(path_runs, 'logs_7_dist_features.txt')
 
 ########################################################################
 
@@ -136,7 +136,7 @@ def dist_features():
     if not args.skip_computation:
 
         logger.info('Begin distinguishing features calculations...')
-        D = Dist_features(adata, contrasts, signatures=signatures, jobs=jobs)
+        D = Dist_features(adata, contrasts, signatures=signatures, jobs=jobs, app=True) # To load on the app directly
         D.run_all_jobs()
         D.to_pickle(path_results)
 

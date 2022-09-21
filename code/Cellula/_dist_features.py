@@ -38,6 +38,7 @@ from _plotting import *
 from _pp import *
 from _ML import *
 from _Results import *
+from _Results_app import *
 
 ########################################################################
 
@@ -484,7 +485,7 @@ class Dist_features:
     A class to retrieve (and annotate) gene sets distinguishing cell groups in data.
     '''
 
-    def __init__(self, adata, contrasts, jobs=None, signatures=None, scale=True):
+    def __init__(self, adata, contrasts, jobs=None, signatures=None, scale=True, app=False):
         '''
         Extract features and features metadata from input adata. Prep other attributes.
         '''
@@ -536,7 +537,10 @@ class Dist_features:
 
         # Results data structure
         if jobs is not None:
-            self.Results = Results(adata, contrasts, jobs)
+            if app:
+                self.Results = Results_app(adata, contrasts, jobs)
+            else:
+                self.Results = Results(adata, contrasts, jobs)
         else:
             self.Results = None
 

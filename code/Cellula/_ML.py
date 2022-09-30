@@ -91,7 +91,8 @@ def classification(X, y, features_names, key='xgboost', GS=True, n_combos=5,
             n_jobs=cores_GS,
             scoring=score,
             random_state=rng,
-            cv=StratifiedShuffleSplit(n_splits=5)
+            cv=StratifiedShuffleSplit(n_splits=5),
+            verbose=True
         )
         model.fit(X_train, y_train)
 

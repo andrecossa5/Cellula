@@ -40,4 +40,45 @@ with open(path_results + 'dist_features.txt', 'rb') as f:
 #     comparison_key='a_vs_b', show_genes=False
 # )
 
+import random
 
+pcs = pd.DataFrame(
+    adata.obsm['X_pca'], 
+    index=adata.obs_names, 
+    columns= [ f'PC{x}' for x in range(1, adata.obsm['X_pca'].shape[1]+1) ]
+)
+pcs['cat'] = ['a'] * int(((pcs.shape[0]/2) + 0.5)) + ['b'] * int(((pcs.shape[0]/2) - 0.5))
+pcs['cat_'] = [ random.randint(1, 10) for _ in range(pcs.shape[0]) ]
+df = pcs.join(adata.obs)
+
+colors = create_colors(adata.obs, 'leiden')
+
+
+
+fig, axs = plt.subplots(5, 5, figsize=(10, 10))
+
+g = adata.var.sort_values(by='var').index[0]
+df = df.assign(g=adata[:,g].X.toarray().flatten())
+
+for i, x in enumerate(pcs.columns[:5]):
+    for j, y in enumerate(pcs.columns[:5]):
+        scatter(df, x, y, by='g', c='viridis', a=1, s=1, ax=axs[i,j])
+
+fig.tight_layout()
+fig.savefig('/Users/IEO5505/Desktop/prova.pdf')
+
+df['mito_perc']
+
+scatter(df, 
+    'PC1', 'PC2', by='leiden', c={0:'r', 1:'g'}, a=1, s=1, ax=ax)
+scatter(df, 'PC1', 'PC2', by='mito_perc', c='viridis', a=1, s=1, ax=ax)
+#scatter(df.query('sample != "bulk_d5_un" & sample != "bulk_d5_un"'), 
+#    'PC1', 'PC2', c='grey', a=0.5, s=0.2, ax=ax)
+#scatter(df.query('sample == "bulk_d5_un"'), 
+#    'PC1', 'PC2', by='leiden', c={0:'r', 1:'g'}, a=1, s=1, ax=ax)
+plt.show()
+
+
+
+
+pcs['cat'].value_counts()

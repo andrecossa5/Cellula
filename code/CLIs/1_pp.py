@@ -206,7 +206,7 @@ def pp():
 
     # Visualize % explained variance of top50 PCs, for each PCA space
     fig = explained_variance_plot(GE_spaces, figsize=(10,7))
-    fig.savefig(path_viz + 'Explained_variance.pdf')
+    fig.savefig(path_viz + 'explained_variance.pdf')
     logger.info(f'Matrix manipulation and PCA vizualization: {t.stop()} s.')
 
     #-----------------------------------------------------------------#

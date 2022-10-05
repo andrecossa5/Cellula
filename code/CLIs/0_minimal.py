@@ -99,7 +99,7 @@ def minimal():
     universe = sorted(list(reduce(lambda x,y: x&y, [ set(x.var_names) for x in L ])))
     seed(1234)
     universe = sample(universe, len(universe))
-    # Concatenate aatas, subsetted for universe
+    # Concatenate adatas, subsetted for universe
     adata = anndata.concat([ x[:, universe] for x in L ], axis=0)
     # Format meta, custom_code
     adata.obs = meta_format(adata.obs)
@@ -107,7 +107,7 @@ def minimal():
     colors = create_colors(adata.obs)
     logger.info(f'Data merging and formatting operations: {t.stop()} s.')
 
-    # Shuld become...
+    # Should become...
     #  adata = read_matrices(path_to_matrices)
     #  adata = custom_code(adata)
 

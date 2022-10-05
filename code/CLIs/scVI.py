@@ -75,6 +75,7 @@ if not args.skip:
     from _utils import *
     from _pp import *
     from _integration import *
+    from _plotting import *
 
     # Custom code 
     sys.path.append(path_main + 'custom/') # Path to local-system, user-defined custom code

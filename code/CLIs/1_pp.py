@@ -51,6 +51,27 @@ my_parser.add_argument(
     help='Number of HVGs to select. Default: 2000.'
 )
 
+# embs
+my_parser.add_argument(
+    '--embs', 
+    action='store_true',
+    help='Compute and visualize cells embeddings. Default: False.'
+)
+
+# embs
+my_parser.add_argument(
+    '--umap_only', 
+    action='store_true',
+    help='Compute only UMAP dimred. Default: False.'
+)
+
+# embs
+my_parser.add_argument(
+    '--no_biplot', 
+    action='store_true',
+    help='Skip biplot vizualization. Default: False.'
+)
+
 # Skip
 my_parser.add_argument(
     '--skip', 
@@ -75,6 +96,9 @@ if not args.skip:
     from _plotting import *
     from _utils import *
     from _pp import *
+    from _embeddings import *
+    from _plotting import *
+    from _plotting_base import *
 
     # Custom code 
     sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
@@ -138,7 +162,7 @@ def pp():
 
     # Log-normalization, hvg selection, signatures scoring
     t.start()
-    adata.raw = adata
+    adata.raw = adata 
     pp_wrapper(adata, n_HVGs=n_HVGs)
     cc_scores(adata)
 
@@ -160,7 +184,7 @@ def pp():
     summary.to_excel(path_results + 'QC_results.xlsx')
 
     # Visualize QC metrics 
-    fig = QC_plot(adata.obs, 'sample', QC_covariates, colors, figsize=(12, 10))
+    fig = QC_plot(adata.obs, 'sample', QC_covariates, colors, labels=False, figsize=(12, 10))
     fig.savefig(path_viz + 'QC.pdf')
     logger.info(f'Adata gene filtering, log-normalization, HVGs ({n_HVGs}) selection, cc_scores calculation, and QC: {t.stop()} s.')
 
@@ -196,18 +220,65 @@ def pp():
 
     #-----------------------------------------------------------------#
 
-    # Visualize covariates of interest in the obtained PCA spaces
-    meta = adata.obs
-    covariates = ['nUMIs', 'mito_perc', 'cycling', 'apoptosis', 'seq_run', 'day']
-    fig = PCA_spaces_covariates_plot(GE_spaces, covariates, colors, figsize=(20, 14))
-    fig.savefig(path_viz + 'original_PCA_spaces.pdf')
-
-    #-----------------------------------------------------------------#
-
     # Visualize % explained variance of top50 PCs, for each PCA space
     fig = explained_variance_plot(GE_spaces, figsize=(10,7))
     fig.savefig(path_viz + 'explained_variance.pdf')
+
+    #-----------------------------------------------------------------#
+
+    # Visualize sample biplots, top5 PCs 
+    if not args.no_biplot:
+        for k in GE_spaces:
+            g = GE_spaces[k]
+            with PdfPages(path_viz + f'PCs_{k}.pdf') as pdf:
+                for cov in ['seq_run', 'sample', 'nUMIs', 'mito_perc', 'cycle_diff']:
+                    fig = plot_biplot_PCs(g, covariate=cov, colors=colors)
+                    pdf.savefig()  
+                    plt.close()
+
     logger.info(f'Matrix manipulation and PCA vizualization: {t.stop()} s.')
+    
+    #-----------------------------------------------------------------#
+
+    # Compute original cell embeddings
+    if args.embs:
+
+        t.start()
+        logger.info(f'Begin cell embeddings computation...')
+
+        EMBs = {}
+        for k in GE_spaces:
+            g = GE_spaces[k]
+            adata = prep_for_embeddings(g, n_pcs=30, k=15)
+            df = embeddings(adata, paga_groups='sample', umap_only=args.umap_only)
+            EMBs[k] = df
+
+        # Save
+        with open(path_results + 'embeddings.txt', 'wb') as f:
+            pickle.dump(EMBs, f)
+
+        logger.info(f'Original cell embeddings computation: {t.stop()} s.')
+
+        #-----------------------------------------------------------------#
+
+        # Visualize covariate of interest in cell embeddings
+        logger.info(f'Begin cell embeddings vizualization...')
+        t.start()
+
+        # Load embs
+        with open(path_results + 'embeddings.txt', 'rb') as f:
+            EMBs = pickle.load(f)
+
+        for k in EMBs:
+            adata = GE_spaces[k].matrix
+            df = EMBs[k]
+            with PdfPages(path_viz + f'original_embeddings_{k}.pdf') as pdf:
+                for cov in ['seq_run', 'sample', 'nUMIs', 'mito_perc', 'cycle_diff']:
+                    fig = plot_embeddings(adata, df, covariate=cov, colors=colors, umap_only=args.umap_only)
+                    pdf.savefig()  
+                    plt.close()
+
+        logger.info(f'Original cell embeddings vizualization: {t.stop()} s.')
 
     #-----------------------------------------------------------------#
 

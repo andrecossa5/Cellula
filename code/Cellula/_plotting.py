@@ -20,35 +20,14 @@ import seaborn as sns
 import matplotlib.cm as cm
 matplotlib.use('MacOSX')
 
+path_code = '/Users/IEO5505/Desktop/pipeline/code/Cellula/'
+sys.path.append(path_code) # Path to local-system, user-defined custom code
+from _plotting_base import *
+
 ########################################################################
 
 
 ## General purpose
-
-
-def create_handles(categories, marker='o', colors=None, size=10, width=0.5):
-    '''
-    Create quick and dirty handles and labels for legends.
-    '''
-    if colors is None:
-        colors = sns.color_palette('tab10')[:len(categories)]
-
-    handles = [ 
-        (Line2D([], [], 
-        marker=marker, 
-        label=l, 
-        linewidth=0,
-        markersize=size, 
-        markeredgewidth=width, 
-        markeredgecolor='black', 
-        markerfacecolor=c)) \
-        for l, c in zip(categories, colors) 
-    ]
-
-    return handles
-
-
-##
 
 
 def plot_clustermap(df, row_colors, palette='mako', title=None, label=None, 
@@ -181,16 +160,7 @@ def plot_rankings(
 ## Pp plots
 
 
-def QC_plot(
-    meta, 
-    grouping, 
-    QC_covariates, 
-    colors, 
-    figsize=(12, 10), 
-    labels=True, 
-    legend=True,
-    bbox_to_anchor=(0.93, 0.05)
-    ):
+def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), labels=False, rotate=False, legend=True, bbox_to_anchor=(0.93, 0.05)):
     '''
     Plot boxplot of QC covariates, by some cell goruping.
     '''
@@ -202,63 +172,18 @@ def QC_plot(
     # Axes
     for i, x in enumerate(QC_covariates):
         ax = plt.subplot(3, 3, i+1)
-        ax = sns.boxplot(
-            data=meta, 
-            x=grouping, 
-            y=x, 
-            # hue='sample',
-            order=meta[grouping].cat.categories, 
-            palette=colors[grouping], 
-            saturation=0.9, 
-            fliersize=1
-        )
+        box(meta, grouping, x, c=colors[grouping], ax=ax)
         if not labels: 
             ax.tick_params(axis='x', which='both', bottom=False, labelbottom=False) 
-
+        if rotate:
+            ax.set_xticklabels(ax.get_xticks(), rotation=90)
     if legend:
-        handles = create_handles(meta[grouping].cat.categories, colors=colors[grouping])
+        handles = create_handles(meta[grouping].cat.categories, colors=colors[grouping].values())
         fig.legend(handles=handles, loc='lower right', bbox_to_anchor = bbox_to_anchor, 
-            frameon=True, shadow=False, title=grouping.capitalize()
+            frameon=False, shadow=False, title=grouping.capitalize()
         )
     
     fig.tight_layout()
-    
-    return fig
-
-
-##
-
-
-def PCA_spaces_covariates_plot(GE_spaces, covariates, colors, figsize=(20, 14)):
-    '''
-    Plot scatterplots of QC covariates in the computed PCA_spaces.
-    '''
-    # Figure
-    pp_versions = list(GE_spaces.keys())
-    fig, axs = plt.subplots(len(pp_versions), len(covariates), figsize=figsize)
-
-    # Here we go!
-    for i, p in enumerate(pp_versions):
-        embeddings = GE_spaces[p].PCA.embs
-        meta = GE_spaces[p].matrix.obs
-        for j, cov in enumerate(covariates):
-            axs[i, j].axis('off')
-            if (meta[cov].dtype == 'float64') | (meta[cov].dtype == 'float32'):
-                axs[i, j].scatter(embeddings[:, 0], embeddings[:, 1], c=meta[cov], s=0.001, alpha=0.5)
-            else:
-                for z, cat in enumerate(meta[cov].cat.categories):
-                    test = meta[cov] == cat
-                    axs[i, j].scatter(embeddings[:, 0], embeddings[:, 1], 
-                        color=colors[cov][z], s=0.001, alpha=0.5, label=cat)
-                handles = create_handles(
-                            meta[cov].cat.categories, 
-                            marker='o', 
-                            colors=colors[cov], size=0.13, width=0.2
-                            )
-                legend = axs[i, j].legend(handles=handles, frameon=False, loc=7,
-                            markerscale=50, bbox_to_anchor=(1, 0.25), fontsize='xx-small')
-            axs[i, j].set_title(p + ': ' + cov) 
-            fig.tight_layout()
     
     return fig
 
@@ -300,7 +225,144 @@ def explained_variance_plot(GE_spaces, figsize=(10,7)):
 ##
 
 
+def plot_biplot_PCs(g, covariate='sample', colors=None):
+    '''
+    Plot a biplot of the first 5 PCs, colored by a cell attribute.
+    '''
+    # Data
+    df_ = pd.DataFrame(
+        data=g.PCA.embs[:,:5], 
+        columns=[f'PC{i}' for i in range(1,6)],
+        index=g.matrix.obs_names
+    )
+
+    df_[covariate] = g.matrix.obs[covariate] 
+
+    # Figure
+    fig, axs = plt.subplots(5, 5, figsize=(10, 10), sharex=True, sharey=True)
+    # Axes
+    for i, x in enumerate(df_.columns[:-1]):
+        for j, y in enumerate(df_.columns[:-1]):
+            if not(i == 2 and j == 2):
+                if colors is not None and covariate in colors:
+                    scatter(df_, x, y, by=covariate, c=colors[covariate], a=1, s=0.1, ax=axs[i,j])
+                else:
+                    scatter(df_, x, y, by=covariate, c='viridis', a=1, s=0.1, ax=axs[i,j])
+                format_ax(df_, axs[i, j], xlabel=x, ylabel=y)
+
+    # Legend/colorbar
+    if colors is not None and covariate in colors:
+        cats = df_[covariate].unique()
+        handles = create_handles(cats, colors=colors[covariate].values())
+        axs[2,2].legend(handles, cats, frameon=False, fontsize='x-small', loc='center')
+    else:
+        viridis = matplotlib.colormaps['viridis']
+        norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+        axins = inset_axes(
+            axs[2,2],
+            width="75%",  # width: 50% of parent_bbox width
+            height="5%",  # height: 5%
+            loc="center",
+        )
+        axins.xaxis.set_ticks_position("bottom")
+        fig.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=viridis), 
+            cax=axins, orientation="horizontal", label=covariate
+        )
+
+    fig.tight_layout()
+
+    return fig
+
+
+##
+
+
+
+def plot_embeddings(adata, df, covariate='nUMIs', colors=None, a=1, s=0.1, umap_only=False):
+    '''
+    Plot a covariate of interest on cells embeddings.
+    '''
+    # Data 
+    df_ = df.join(adata.obs.loc[:, covariate])
+    
+    # Colors
+    c = colors[covariate] if colors is not None and covariate in colors else 'viridis'
+
+    # Fig 
+    if not umap_only:
+        fig, axs = plt.subplots(1, 3, figsize=(15,5))
+        # Axes
+        scatter(df_, 'UMAP1', 'UMAP2', by=covariate, c=c, a=a, s=s, ax=axs[0])
+        format_ax(df_, axs[0], xlabel='UMAP1', ylabel='UMAP2')
+        scatter(df_, 'FA1', 'FA2', by=covariate, c=c, a=a, s=s, ax=axs[1])
+        format_ax(df_, axs[1], xlabel='FA1', ylabel='FA2')
+        scatter(df_, 'tSNE1', 'tSNE2', by=covariate, c=c, a=a, s=s, ax=axs[2])
+        format_ax(df_, axs[2], xlabel='tSNE1', ylabel='tSNE2')
+    else:
+        fig, ax = plt.subplots(figsize=(4.5,5))
+        scatter(df_, 'UMAP1', 'UMAP2', by=covariate, c=c, a=a, s=s, ax=ax)
+        format_ax(df_, ax, xlabel='UMAP1', ylabel='UMAP2')
+
+    # Legend/colorbar
+    if colors is not None and covariate in colors:
+        if not umap_only:
+            ncols = len(colors)
+        else: 
+            ncols = len(colors) // 2 + 1
+        cats = df_[covariate].unique()
+        handles = create_handles(cats, colors=colors[covariate].values())
+        fig.subplots_adjust(top=0.8, wspace=0.3, bottom=0.1)
+        fig.legend(handles, cats, frameon=False, fontsize='x-small', loc='center', 
+            ncol=ncols, title=covariate.capitalize(), bbox_to_anchor=(0.5, 0.92)
+        )
+
+    else:
+        viridis = matplotlib.colormaps['viridis']
+        norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+        fig.subplots_adjust(top=0.8, wspace=0.3, bottom=0.1)
+        if not umap_only:
+            axins = inset_axes(axs[1], width="30%", height="1%", loc="upper right") #, #bbox_to_anchor=(0.01, 1.0, 0, 0))
+        else:
+            axins = inset_axes(ax, width="20%", height="1%", loc="upper right") #, #bbox_to_anchor=(0.01, 1.0, 0, 0))
+        axins.xaxis.set_ticks_position("bottom")
+        fig.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=viridis), 
+            cax=axins, orientation="horizontal", label=covariate
+        )
+    
+    return fig
+
+
+##
+
+
 ########################################################################
+
+
+# Integration diagnostics plots
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##
+
+
+########################################################################
+
+
 
 
 # Clustering plots

@@ -72,8 +72,7 @@ covariates = args.covariates.split(':')
 if not args.skip:
 
     # Code. To be fixed...
-    sys.path.append('/Users/IEO5505/Desktop/pipeline/code/') # Path to pipeline code in docker image
-    from _plotting import *
+    sys.path.append('/Users/IEO5505/Desktop/pipeline/code/Cellula/') # Path to pipeline code in docker image
     from _utils import *
     from _pp import *
     from _integration import *
@@ -81,7 +80,7 @@ if not args.skip:
     # Custom code 
     sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
     from colors import *
-    from meta_formatting import * 
+    from meta_formatting import *
 
     #-----------------------------------------------------------------#
 

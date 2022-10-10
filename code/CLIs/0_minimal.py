@@ -47,7 +47,9 @@ if not args.skip:
     from _plotting import *
     from _utils import *
     from _pp import *
+    from _embeddings import *
     from _integration import *
+    from _signatures import *
     from _dist_features import *
 
     # Custom code 
@@ -90,49 +92,31 @@ def minimal():
     t.start()
     logger.info('Execute 0_minimal...')
 
-    # Read (formatting cells names)
-    L = [ 
-            adata_name_formatter(sc.read(path_QC + x + '/filtered.h5ad')) \
-            for x in os.listdir(path_QC) if not x.startswith(tuple(['.', 'code']))
-        ]
-    # Create the gene universe 
-    universe = sorted(list(reduce(lambda x,y: x&y, [ set(x.var_names) for x in L ])))
-    seed(1234)
-    universe = sample(universe, len(universe))
-    # Concatenate adatas, subsetted for universe
-    adata = anndata.concat([ x[:, universe] for x in L ], axis=0)
-    # Format meta, custom_code
+    # Read adata other operations should be moved to 0_QC.py
+    adata = read_from_QC_dirs(path_QC) # Deprecated. Needs to be substituted by sc.read('original.h5ad')
     adata.obs = meta_format(adata.obs)
-    # Create colors 
-    colors = create_colors(adata.obs)
-    logger.info(f'Data merging and formatting operations: {t.stop()} s.')
 
-    # Should become...
-    #  adata = read_matrices(path_to_matrices)
-    #  adata = custom_code(adata)
+    logger.info(f'Data merging and formatting operations: {t.stop()} s.')
 
     #-----------------------------------------------------------------#
 
     # Pre-processing, clustering, markers
 
-    # Log-normalization, hvg selection, signatures scoring
+    # Log-normalization, hvg selection, (first) signatures scoring
     t.start()
     adata.raw = adata.copy()
-    pp_wrapper(adata) 
-    cc_scores(adata) # OLD. Needs to be updated with scanpy_score.
-    adata_norm = adata.copy()
+    adata = pp(adata, mode='default', target_sum=50*1e4, n_HVGs=2000, score_method='scanpy')
 
     # Subset, scale, PCA and NN
-    g = GE_space()
-    g.load(adata).red().scale().pca() # Remove load()
-    g.compute_kNNs()
-    g.matrix = adata_norm
-    adata = GE_space_to_adata(g, 'original') # Make as method... g.to_adata(adata_norm)
-    logger.info(f'Pre-processing:  {t.stop()} s.')
+    g = GE_space(adata).red().scale().pca()
+    g.compute_kNNs(k=15, n_components=30) # Default
+    g.matrix = adata
+    adata = g.to_adata(rep='original')
+    logger.info(f'Pre-processing: {t.stop()} s.')
 
     # Clustering 
     t.start()
-    sc.tl.leiden(adata, obsp='15_NN_30_PCs_connectivities', resolution=0.2) # Default
+    sc.tl.leiden(adata, obsp='15_NN_30_components_connectivities', resolution=0.5) # Default
     logger.info(f'Clustering: {t.stop()} s.')
 
     # DE: leiden and samples
@@ -142,12 +126,37 @@ def minimal():
     markers = D.compute_DE(contrast_key='leiden')[1]
     logger.info(f'DE: {t.stop()} s.')
 
-    # Viz here: UMAP samples and clusters, barplot clusters/samples markers bubble. 
-    t.start()
+    # Viz: UMAP samples and clusters, barplot clusters/samples, markers bubble.
+    logger.info(f'Basic viz...')
     
-    # Code here....
+    t.start()
 
-    logger.info(f'Basic vizualization: {t.stop()} s.')
+    # Compute UMAP
+    g.matrix.obs = adata.obs # Update GE_space cell annotations
+    adata = prep_for_embeddings(g, n_components=30, k=15)
+    df = embeddings(adata, paga_groups='leiden', umap_only=True)
+
+    # Viz in a single pdf
+    colors = create_colors(adata.obs, chosen='leiden')
+
+    # Fig
+    with PdfPages('/Users/IEO5505/Desktop/minimal_viz.pdf') as pdf:
+
+        for cov in ['seq_run', 'sample', 'nUMIs', 'mito_perc', 'cycle_diff']:
+            fig = plot_embeddings(adata, df, covariate=cov, colors=colors, umap_only=True)
+            pdf.savefig()  
+        
+        #fig = compo_plot(sample, leiden) 
+        #fig = compo_plot(sample, seq_run)
+        #fig = compo_plot(leiden, seq_run) 
+
+        #fig= paga
+        #fig = plot_embeddings(adata, df, covariate='leiden', colors=colors, umap_only=True)
+        #fig = dotplot(markers)
+
+        plt.close()
+
+    logger.info(f'Basic viz: {t.stop()} s.')
 
     # Save clustered adata and results_DE
     adata.write(path_data + f'clustered_minimal.h5ad')
@@ -166,57 +175,3 @@ if __name__ == "__main__":
 
 #######################################################################
 
-
-# # Minimal script 
-# def minimal():
-# 
-#     T = Timer()
-#     T.start()
-# 
-#     t = Timer()
-#     t.start()
-#     logger.info('Execute 0_minimal...')
-# 
-#     # Read
-#     adata = read_matrices(path_to_matrices)
-#     adata = QC(adata, recipe='scanpy_scroublet', path_viz)
-#     adata = custom_code(adata)
-#     logger.info(f'Data merging and formatting operations: {t.stop()} s.')
-# 
-#     # Pp
-#     t.start()
-#     logger.info('Pp...')
-#     adata = pp(adata, recipe='scib', scores=['cc', 'Panglao'])
-#     g = GE_space(adata, store_as_normalized=True)
-#     g.red(n_HVGs=2000).scale().pca(n_pcs=30).compute_kNNs(k=15) # Default, original GE_space
-#     adata = g.to_adata()
-#     logger.info(f'Pp: {t.stop()} s.')
-# 
-#     # Clustering
-#     t.start()
-#     logger.info('Clustering...')
-#     leiden_clustering(adata, key='K_15_30_PCs', r=0.2) # Default leiden clustering
-#     logger.info(f'Clustering: {t.stop()} s.')
-# 
-#     # DE
-#     t.start()
-#     D = Dist_features(adata, contrasts=['leiden', 'sample'])
-#     D.select_genes() # Default, > 15% cells, no MT and Ribo
-#     D.compute_DE(all=True)   
-#     adata = D.to_adata()
-#     logger.info(f'DE: {t.stop()} s.')
-# 
-#     # Viz: embs and compo covariates, plus markers
-#     t.start()
-#     embs(adata, kind=['UMAP', 'FLE', 'PAGA'])
-#     plot_embs(adata, path_viz)
-#     plot_compo(adata, path_viz)
-#     plot_DE(adata, path_viz)
-#     logger.info(f'Basic vizualization: {t.stop()} s.')
-# 
-#     # Save 
-#     adata.write(path_data + f'clustered_minimal.h5ad')
-# 
-#     logger.info(f'Execution was completed successfully in total {T.stop()} s.')
-# 
-# #######################################################################

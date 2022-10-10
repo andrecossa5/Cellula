@@ -66,6 +66,9 @@ step = f'step_{args.step}'
 n_pcs = args.n_pcs
 covariates = args.covariates.split(':')
 
+covariates = 'seq_run'
+n_pcs = 30
+
 ########################################################################
 
 # Preparing run: import code, prepare directories, set logger
@@ -131,11 +134,12 @@ def Harmony():
 
     # Perform Harmony on the 4 log-normalized input GE_spaces
     for k in GE_spaces:
+        pass
         t.start()
         logger.info(f'Begin Harmony for {k} GE_space...')
-        GE_spaces[k] = GE_spaces[k].compute_Harmony(covariates=covariates, n_pcs=n_pcs)
+        GE_spaces[k].compute_Harmony(covariates=covariates, n_pcs=n_pcs)
         logger.info(f'Harmony completed for {k} GE_space: {t.stop()} s.')
-
+        
     # Save temporary results
     with open(path_results + 'Harmony.txt', 'wb') as f:
         pickle.dump(GE_spaces, f)

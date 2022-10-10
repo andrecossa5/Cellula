@@ -23,7 +23,7 @@ from scipy.sparse.csgraph import connected_components
 from scipy.special import binom
 from sklearn.metrics.cluster import normalized_mutual_info_score
 
-import anndata
+import anndata 
 import scanpy as sc
 import pegasus as pg
 import pegasusio as io
@@ -549,40 +549,6 @@ class Int_evaluator:
             loc='lower left', bbox_to_anchor=(0.08, 0.35))
 
         return fig
-
-
-##
-
-
-def GE_space_to_adata(g, chosen_int):
-    '''
-    Utility function to reformat an adata from a GE_space.
-    '''
-    if chosen_int == 'scVI':
-        g.pca()
-
-    adata = g.matrix.copy()
-
-    if chosen_int == 'scVI':
-        adata.X = adata.layers['lognorm']
-        del adata.layers['lognorm']
-        del adata.layers['counts']
-    
-    adata.obsm['X_pca'] = g.PCA.embs
-
-    if chosen_int not in ['BBKNN', 'original']:
-        adata.obsm['X_corrected'] = g.get_repr(chosen_int)
-
-    if chosen_int != 'original':
-        adata.uns['neighbors'] = { 'neighbors' : list(g.integrated_kNNs[chosen_int].keys()) }
-        for key in g.integrated_kNNs[chosen_int].keys():
-            adata.obsp[key + '_connectivities'] = g.integrated_kNNs[chosen_int][key]['connectivities']
-    else:
-        adata.uns['neighbors'] = { 'neighbors' : list(g.original_kNNs.keys()) }
-        for key in g.original_kNNs.keys():
-            adata.obsp[key + '_connectivities'] = g.original_kNNs[key]['connectivities']
-
-    return adata
 
 
 ##

@@ -14,7 +14,7 @@ from joblib import cpu_count
 # Utils for embeddings calculations
 
 
-def prep_for_embeddings(g, n_pcs=30, k=15):
+def prep_for_embeddings(g, n_components=30, k=15, method='original'):
     '''
     Reformat GE_space to adata, with a kNN graph calculated with sc.pp.neighbors. This is done 
     to for scanpy visualization tools (i.e., PAGA, fa2, umap, tsne...) compatibility. N.B. Graphs computed via sc.pp.neighbors and 
@@ -23,16 +23,18 @@ def prep_for_embeddings(g, n_pcs=30, k=15):
     '''
 
     adata_embs = g.matrix.copy()
-    adata_embs.obsm['X_pca'] = g.PCA.embs
+
+    if method == 'original':
+        adata_embs.obsm['X_rep'] = g.PCA.embs
 
     # Calculate graphs
     sc.pp.neighbors(
         adata_embs, 
         n_neighbors=k, 
-        n_pcs=n_pcs,
-        use_rep='X_pca', 
+        n_pcs=n_components,
+        use_rep='X_rep', 
         random_state=1234, 
-        key_added=f'{k}_NN_{n_pcs}_PCs'
+        key_added=f'{k}_NN_{n_components}_components'
     )
 
     return adata_embs
@@ -44,14 +46,14 @@ def prep_for_embeddings(g, n_pcs=30, k=15):
 ##
 
 
-def embeddings(adata, paga_groups='sample', key='15_NN_30_PCs', umap_only=False):
+def embeddings(adata, paga_groups='sample', key='15_NN_30_components', umap_only=False):
     '''
     Compute paga, paga initialized umap, fa and tSNE embeddings. Return them in a df of embeddings cooridinates,
     with the top 5 PCs coordinates.
     '''
-    # Store first 5 PCs
+    # Store first 5 'primary' cell embeddings components
     df = pd.DataFrame(
-        data=adata.obsm['X_pca'][:, :5], 
+        data=adata.obsm['X_rep'][:,:5], 
         columns=[ f'PC{i}' for i in range(1, 6) ], 
         index=adata.obs_names
     )

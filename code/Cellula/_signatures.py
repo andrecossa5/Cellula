@@ -25,7 +25,7 @@ import wot
 
 import sys
 sys.path.append('/Users/IEO5505/Desktop/pipeline/code/Cellula/') # Path to pipeline code in docker image
-from _dist_features import *
+from _dist_features import Gene_set, Contrast
 
 ########################################################################
 

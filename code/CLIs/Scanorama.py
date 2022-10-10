@@ -124,7 +124,7 @@ def Scanorama():
     for k in GE_spaces:
         t.start()
         logger.info(f'Begin Scanorama for {k} GE_space...')
-        GE_spaces[k] = GE_spaces[k].compute_Scanorama(covariate=covariate)
+        GE_spaces[k].compute_Scanorama(covariate=covariate)
         logger.info(f'Scanorama completed for {k} GE_space: {t.stop()} s.')
 
     # Save temporary results

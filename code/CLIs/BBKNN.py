@@ -141,7 +141,7 @@ def BBKNN():
     for pp in GE_spaces:
         t.start()
         logger.info(f'Begin BBKNN for {pp} GE_space...')
-        GE_spaces[pp] = GE_spaces[pp].compute_BBKNN(covariate=covariate, k=k)
+        GE_spaces[pp].compute_BBKNN(covariate=covariate, k=k)
         logger.info(f'BBKNN completed for {pp} GE_space: {t.stop()} s.')
 
     # Save temporary results

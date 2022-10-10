@@ -278,11 +278,11 @@ def plot_biplot_PCs(g, covariate='sample', colors=None):
 
 
 
-def plot_embeddings(adata, df, covariate='nUMIs', colors=None, a=1, s=0.1, umap_only=False):
+def plot_embeddings(adata, df, covariate='nUMIs', colors=None, a=1, s=0.1, umap_only=False, axis=True):
     '''
     Plot a covariate of interest on cells embeddings.
     '''
-    # Data 
+    # Data
     df_ = df.join(adata.obs.loc[:, covariate])
     
     # Colors
@@ -299,9 +299,11 @@ def plot_embeddings(adata, df, covariate='nUMIs', colors=None, a=1, s=0.1, umap_
         scatter(df_, 'tSNE1', 'tSNE2', by=covariate, c=c, a=a, s=s, ax=axs[2])
         format_ax(df_, axs[2], xlabel='tSNE1', ylabel='tSNE2')
     else:
-        fig, ax = plt.subplots(figsize=(4.5,5))
+        fig, ax = plt.subplots(figsize=(5,5))
         scatter(df_, 'UMAP1', 'UMAP2', by=covariate, c=c, a=a, s=s, ax=ax)
         format_ax(df_, ax, xlabel='UMAP1', ylabel='UMAP2')
+        if not axis:
+            ax.axis('off')
 
     # Legend/colorbar
     if colors is not None and covariate in colors:
@@ -309,9 +311,9 @@ def plot_embeddings(adata, df, covariate='nUMIs', colors=None, a=1, s=0.1, umap_
             ncols = len(colors)
         else: 
             ncols = len(colors) // 2 + 1
-        cats = df_[covariate].unique()
+        cats = df_[covariate].cat.categories
         handles = create_handles(cats, colors=colors[covariate].values())
-        fig.subplots_adjust(top=0.8, wspace=0.3, bottom=0.1)
+        fig.subplots_adjust(top=0.8, wspace=0.3, bottom=0.1, left=0.2, right=0.9)
         fig.legend(handles, cats, frameon=False, fontsize='x-small', loc='center', 
             ncol=ncols, title=covariate.capitalize(), bbox_to_anchor=(0.5, 0.92)
         )
@@ -319,7 +321,7 @@ def plot_embeddings(adata, df, covariate='nUMIs', colors=None, a=1, s=0.1, umap_
     else:
         viridis = matplotlib.colormaps['viridis']
         norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
-        fig.subplots_adjust(top=0.8, wspace=0.3, bottom=0.1)
+        fig.subplots_adjust(top=0.8, wspace=0.3, bottom=0.1, left=0.2, right=0.9)
         if not umap_only:
             axins = inset_axes(axs[1], width="30%", height="1%", loc="upper right") #, #bbox_to_anchor=(0.01, 1.0, 0, 0))
         else:

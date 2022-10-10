@@ -117,17 +117,16 @@ def line(df, x, y, c='r', s=1, l=None, ax=None):
 # plt.show()
 
 
-def scatter(df, x, y, by=None, c='r', s=1.0, a=1, l=None, ax=None, scale_x=None, ordered=None):
+def scatter(df, x, y, by=None, c='r', s=1.0, a=1, l=None, ax=None, scale_x=None, ordered=True):
     '''
     Basic scatter plot.
     '''
-
     size = s if isinstance(s, float) or isinstance(s, int) else df[s]
 
-    if ordered is not None:
+    if ordered and df[by].dtype == 'category':
         try:
-            categories = df_[ordered].cat.categories
-            df = df.sort_values(ordered)
+            categories = df[by].cat.categories
+            df = df.sort_values(by)
         except:
             raise ValueError('Ordered is not a pd.Categorical')
 
@@ -142,8 +141,8 @@ def scatter(df, x, y, by=None, c='r', s=1.0, a=1, l=None, ax=None, scale_x=None,
             cmap=c, alpha=a)
 
     elif isinstance(c, dict) and by is not None:
-        assert all([ x in c for x in df['cbc_type'].unique() ])
-        colors = [ c[x] for x in df['cbc_type'] ]
+        assert all([ x in c for x in df[by].unique() ])
+        colors = [ c[x] for x in df[by] ]
         ax.scatter(df[x], df[y], c=colors, label=l, marker='o', s=size, alpha=a)
 
     else:

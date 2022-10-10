@@ -30,6 +30,10 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import seaborn as sns
 
+import sys
+sys.path.append('/Users/IEO5505/Desktop/pipeline/code/Cellula/') 
+from _signatures import scanpy_score, wot_zscore, wot_rank
+
 ########################################################################
 
 ## 1_pp functions
@@ -71,34 +75,96 @@ def read_from_QC_dirs(path_QC):
 ##
 
 
-def pp_wrapper(adata, percent_cells=0.05, n_HVGs=2000):
-    '''
-    A function to perform gene filtering, log-normalization, HVGs selection. 
-    NB. all operations are done in place on the input adata.
-    '''
-    # Gene filtering
-    pg.identify_robust_genes(adata, percent_cells=0.05)
-    # Log-normalization
-    sc.pp.normalize_total(adata, target_sum=1e4)
-    sc.pp.log1p(adata)
-    # HVGs selection
-    pg.highly_variable_features(adata, batch='sample', n_top=n_HVGs)
+def _sig_scores(adata, score_method='scanpy'):
+        '''
+        Calculate pegasus scores for cell cycle, ribosomal and apoptotic genes.
+        '''
+        from pegasus.tools import predefined_signatures, load_signatures_from_file
+        from sklearn.cluster import KMeans
+
+        # Load signatures
+        cc_transitions = load_signatures_from_file(predefined_signatures['cell_cycle_human'])
+        ribo = load_signatures_from_file(predefined_signatures['ribosomal_genes_human'])
+        del ribo['ribo_like']
+        apoptosis = load_signatures_from_file(predefined_signatures['apoptosis_human'])
+        signatures = {**cc_transitions, **ribo, **apoptosis}
+
+        # Calculate scores
+        if score_method == 'scanpy':
+                scores = pd.concat(
+                        [ scanpy_score(adata, x, n_bins=50) for x in signatures.values() ],
+                        axis=1
+                )
+        elif score_method == 'wot_zscore':
+                scores = pd.concat(
+                        [ wot_zscore(adata, x) for x in signatures.values() ],
+                        axis=1
+                )
+        elif score_method == 'wot_rank':
+                scores = pd.concat(
+                        [ wot_rank(adata, x) for x in signatures.values() ],
+                        axis=1
+                )
+        scores.columns = signatures.keys()
+        scores['cycle_diff'] = scores['G2/M'] - scores['G1/S']
+        cc_values = scores[['G1/S', 'G2/M']].values
+        scores['cycling'] = cc_values.max(axis=1)
+
+        # Calculate cc_phase
+        z_scored_cycling = (scores['cycling'] - scores['cycling'].mean()) / scores['cycling'].std()
+        kmeans = KMeans(n_clusters=2, random_state=1234)
+        kmeans.fit(z_scored_cycling.values.reshape(-1, 1))
+        cycle_idx = kmeans.labels_ == np.argmax(kmeans.cluster_centers_[:,0])
+        codes = np.zeros(scores.shape[0], dtype=np.int32)
+        codes[cycle_idx & (cc_values[:, 0] == scores['cycling'].values)] = 1
+        codes[cycle_idx & (cc_values[:, 1] == scores['cycling'].values)] = 2
+
+        scores['cc_phase'] = pd.Categorical.from_codes(codes, 
+                categories = ['Others', 'G1/S', 'G2/M']
+        )
+
+        return scores
 
 
 ##
 
 
-def cc_scores(a):
-    '''
-    A function to perform cell cycle, apoptosis and ribosomal genes signatures scoring. 
-    All operations are done in place on the input adata.
-    '''
-    d_ = io.UnimodalData(a)
-    for sig in ['cell_cycle_human', 'ribosomal_genes_human', 'apoptosis_human']:
-        pg.calc_signature_score(d_, sig)
-    sig = ['G1/S', 'G2/M', 'cycle_diff', 'cycling', 'ribo_genes', 'apoptosis']
-    d_.obs.loc[:, sig] = zscore(d_.obs.loc[:, sig])
-    a.obs = d_.obs
+def pp(adata, mode='default', target_sum=50*1e4, n_HVGs=2000, score_method='scanpy'):
+        '''
+        Pre-processing pp_wrapper on QCed and merged adata.
+        '''
+        
+        # Log-normalization, HVGs identification
+        adata.raw = adata.copy()
+        pg.identify_robust_genes(adata, percent_cells=0.05)
+        adata = adata[:, adata.var['robust']]
+
+        if mode == 'default': # Size normalization + pegasus batch aware HVGs selection
+                sc.pp.normalize_total(
+                        adata, 
+                        target_sum=target_sum,
+                        exclude_highly_expressed=True,
+                        max_fraction=0.2
+                )
+                sc.pp.log1p(adata)
+                pg.highly_variable_features(adata, batch='sample', n_top=n_HVGs)
+
+        elif mode == 'pearson': # Perason residuals workflow
+                sc.experimental.pp.highly_variable_genes(
+                        adata, flavor="pearson_residuals", n_top_genes=n_HVGs
+                )
+                sc.experimental.pp.normalize_pearson_residuals(adata)
+
+                adata.var = adata.var.drop(columns=['highly_variable_features'])
+                adata.var['highly_variable_features'] = adata.var['highly_variable']
+                adata.var = adata.var.drop(columns=['highly_variable'])
+                adata.var = adata.var.rename(columns={'means':'mean', 'variances':'var'})
+
+        # Sign scores
+        scores = _sig_scores(adata, score_method=score_method)
+        adata.obs = adata.obs.join(scores)
+
+        return adata 
 
 
 ##
@@ -143,7 +209,7 @@ class my_PCA:
 ## kNN and matrix processing functions and classes
 
 
-def _NN(X, k=15, n_pcs=30):
+def _NN(X, k=15, n_components=30):
     '''
     kNN search. pyNNDescent implementation and hsnwlib implementation available.
     '''
@@ -154,7 +220,7 @@ def _NN(X, k=15, n_pcs=30):
 
         # Search
         knn_indices, knn_dists, forest = nearest_neighbors(
-            X[:, :n_pcs],
+            X[:, :n_components],
             k,
             random_state=1234,
             metric='euclidean', 
@@ -168,19 +234,19 @@ def _NN(X, k=15, n_pcs=30):
         from hnswlib import Index
 
         # Build hnsw index
-        index = Index(space='l2', dim=X[:, :n_pcs].shape[1])
+        index = Index(space='l2', dim=X[:, :n_components].shape[1])
         index.init_index(
-            max_elements=X[:, :n_pcs].shape[0], 
+            max_elements=X[:, :n_components].shape[0], 
             ef_construction=200, 
             M=20, 
             random_seed=1234
         )
         # Set
         index.set_num_threads(cpu_count())
-        index.add_items(X[:, :n_pcs])
+        index.add_items(X[:, :n_components])
         # Query
         index.set_ef(200)
-        knn_indices, knn_distances = index.knn_query(X[:, :n_pcs], k=k)
+        knn_indices, knn_distances = index.knn_query(X[:, :n_components], k=k)
         knn_dists = np.sqrt(knn_distances)
 
     return (knn_indices, knn_dists)
@@ -189,7 +255,7 @@ def _NN(X, k=15, n_pcs=30):
 ##
 
 
-def kNN_graph(X, k=15, n_pcs=30):
+def kNN_graph(X, k=15, n_components=30):
         '''
         Compute kNN graph from some stored data X representation. Use umap functions for 
         both knn search and connectivities calculations. Code taken from scanpy.
@@ -199,7 +265,7 @@ def kNN_graph(X, k=15, n_pcs=30):
         from scipy.sparse import coo_matrix
 
         # kNN search (automatic algorithm decision, pyNNDescent or hsnwlib based on k)
-        knn_indices, knn_dists = _NN(X[:, :n_pcs], k)
+        knn_indices, knn_dists = _NN(X[:, :n_components], k)
 
         # Compute connectivities as fuzzy simplicial set, then stored as a sparse fuzzy graph.
         connectivities = fuzzy_simplicial_set(
@@ -260,11 +326,11 @@ class GE_space:
     and their associated (possibly dimensionality-reduced) representations (i.e., PCA spaces, 
     or other batch-corrected representations). NB, an adata must always been loaded. 
     '''
-    def __init__(self):
+    def __init__(self, adata):
         '''
         Instantiate the main class attributes.
         '''
-        self.matrix = None
+        self.matrix = adata
         self.PCA = None
         self.Harmony = None
         self.scVI = None
@@ -274,14 +340,7 @@ class GE_space:
         self.original_kNNs = {}
         self.integrated_kNNs = {}
 
-    def load(self, adata):
-        '''
-        Load the input counts matrix.
-        '''
-        self.matrix = adata.copy()
-        return self
-
-        ##
+    ##
 
     def red(self, mode='log-normalized'):
         '''
@@ -323,11 +382,12 @@ class GE_space:
         '''
         model = my_PCA()
         self.PCA = model.calculate_PCA(self.matrix.X, n_components=n_pcs)
+
         return self
 
         ##
 
-    def compute_Harmony(self, covariates='seq_run', n_pcs=30):
+    def compute_Harmony(self, covariates='seq_run', n_components=30):
         '''
         Compute the Hramony batch- (covariate) corrected representation of self.PCA.
         '''
@@ -336,7 +396,7 @@ class GE_space:
         self.int_methods.append('Harmony')
 
         self.Harmony = harmonize(
-            self.PCA.embs[:, :n_pcs],
+            self.PCA.embs[:, :n_components],
             self.matrix.obs,
             covariates,
             n_clusters=None,
@@ -405,7 +465,7 @@ class GE_space:
 
         ##
 
-    def compute_BBKNN(self, covariate='seq_run', k=30, n_pcs=30, trim=None):
+    def compute_BBKNN(self, covariate='seq_run', k=30, n_components=30, trim=None):
         '''
         Compute the BBKNN batch- (covariate) corrected kNN graph on self.PCA.
         '''
@@ -414,7 +474,7 @@ class GE_space:
         self.int_methods.append('BBKNN')
 
         self.BBKNN = bbknn(
-            self.PCA.embs[:, :n_pcs], 
+            self.PCA.embs[:, :n_components], 
             self.matrix.obs[covariate],
             use_annoy=False,
             neighbors_within_batch=k//len(self.matrix.obs[covariate].cat.categories),
@@ -443,13 +503,13 @@ class GE_space:
 
         ##
 
-    def compute_kNNs(self, k=15, n_pcs=30, key=None, only_index=False, only_int=False):
+    def compute_kNNs(self, k=15, n_components=30, key=None, only_index=False, only_int=False):
         '''
         Compute kNN indeces or kNN fuzzy graphs for all the available GE_space representations.
         '''
         # Define the right key and reps to calculate kNNs
         if key is None:
-            key = f'{k}_NN_{n_pcs}_PCs'
+            key = f'{k}_NN_{n_components}_components'
         if not only_int:
             reps = self.int_methods + ['original']
         else:
@@ -461,9 +521,9 @@ class GE_space:
             if r == 'original':
                 X = self.get_repr('original')
                 if only_index:
-                    self.original_kNNs[key] = _NN(X, k=k, n_pcs=n_pcs)[0]
+                    self.original_kNNs[key] = _NN(X, k=k, n_components=n_components)[0]
                 else:
-                    self.original_kNNs[key] = kNN_graph(X, k=k, n_pcs=n_pcs)
+                    self.original_kNNs[key] = kNN_graph(X, k=k, n_components=n_components)
             # Integrated
             else:
                 # Try to see if the representation dictionary has already been made
@@ -483,11 +543,46 @@ class GE_space:
                 else:
                     X = self.get_repr(r)
                     if only_index:
-                        self.integrated_kNNs[r][key] = _NN(X, k=k, n_pcs=n_pcs)[0]
+                        self.integrated_kNNs[r][key] = _NN(X, k=k, n_components=n_components)[0]
                     else:
-                        self.integrated_kNNs[r][key] = kNN_graph(X, k=k, n_pcs=n_pcs)
+                        self.integrated_kNNs[r][key] = kNN_graph(X, k=k, n_components=n_components)
 
             gc.collect()
+
+    ##
+
+    def to_adata(self, rep='original', key='15_NN_30_components'):
+        '''
+        Convert a GE_space back to an adata.
+        '''
+        if rep == 'scVI':
+            self.pca()
+
+        adata = self.matrix.copy()
+
+        if rep == 'scVI':
+            try:
+                adata.X = adata.layers['lognorm']
+                del adata.layers['lognorm']
+                del adata.layers['counts']
+            except:
+                raise ValueError('No adata.layers "lognorm" found')
+
+        adata.obsm['X_pca'] = self.PCA.embs
+
+        if rep not in ['BBKNN', 'original']:
+            adata.obsm['X_corrected'] = self.get_repr(rep)
+
+        if rep != 'original':
+            adata.uns['neighbors'] = { 'neighbors' : list(self.integrated_kNNs[rep].keys()) }
+            for key in self.integrated_kNNs[rep].keys():
+                adata.obsp[key + '_connectivities'] = self.integrated_kNNs[rep][key]['connectivities']
+        else:
+            adata.uns['neighbors'] = { 'neighbors' : list(self.original_kNNs.keys()) }
+            for key in self.original_kNNs.keys():
+                adata.obsp[key + '_connectivities'] = self.original_kNNs[key]['connectivities']
+
+        return adata
         
 
 ##

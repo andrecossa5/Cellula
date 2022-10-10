@@ -35,7 +35,6 @@ import seaborn as sns
 sys.path.append('/Users/IEO5505/Desktop/pipeline/code/Cellula/') # Path to pipeline code in docker image
 from _utils import *
 from _plotting import *
-from _pp import *
 from _ML import *
 from _Results import *
 from _Results_app import *
@@ -483,13 +482,15 @@ def one_hot_from_labels(y):
 
 ##
 
+#adata = sc.read(path_main + 'data/adata.h5ad')
+
 
 class Dist_features:
     '''
     A class to retrieve (and annotate) gene sets distinguishing cell groups in data.
     '''
 
-    def __init__(self, adata, contrasts, jobs=None, signatures=None, scale=True, app=False):
+    def __init__(self, adata, contrasts, jobs=None, signatures=None, app=False):
         '''
         Extract features and features metadata from input adata. Prep other attributes.
         '''
@@ -502,10 +503,9 @@ class Dist_features:
         )
 
         # PCs
-        if scale:
-            g = GE_space().load(adata).red().scale().pca()
-        else:
-            g = GE_space().load(adata).red().pca()
+        from _pp import GE_space
+        g = GE_space(adata).red().scale().pca()
+
         PCs = pd.DataFrame(
             data=g.PCA.embs,
             columns=[ f'PC{x}' for x in range(1, g.PCA.loads.shape[1]+1)], 
@@ -558,13 +558,13 @@ class Dist_features:
         Add these filtered matrix self.genes.
         '''
         original_genes = self.genes['original']
-        genes_meta = self.features_meta['genes'].reset_index() # Need to map lambda afterwards
+        genes_meta = self.features_meta['genes'] # Need to map lambda afterwards
 
         # Prep individual tests
         test_perc = genes_meta['percent_cells'] > cell_perc
         if no_miribo:
-            t = lambda x: not ( x.startswith('MT-') | x.startswith('RPL') | x.startswith('RPS') )
-            test_miribo = genes_meta['featurekey'].map(t)
+            idx = genes_meta.index
+            test_miribo = idx.str.startswith('MT-') | idx.str.startswith('RPL') | idx.str.startswith('RPS') 
         if only_HVGs:
             test_HVGs = genes_meta['highly_variable_features']
         

@@ -137,7 +137,7 @@ def Harmony():
         pass
         t.start()
         logger.info(f'Begin Harmony for {k} GE_space...')
-        GE_spaces[k].compute_Harmony(covariates=covariates, n_pcs=n_pcs)
+        GE_spaces[k].compute_Harmony(covariates=covariates, n_components=n_pcs)
         logger.info(f'Harmony completed for {k} GE_space: {t.stop()} s.')
         
     # Save temporary results

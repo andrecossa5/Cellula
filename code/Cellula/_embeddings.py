@@ -14,53 +14,23 @@ from joblib import cpu_count
 # Utils for embeddings calculations
 
 
-def prep_for_embeddings(g, n_components=30, k=15, method='original'):
-    '''
-    Reformat GE_space to adata, with a kNN graph calculated with sc.pp.neighbors. This is done 
-    to for scanpy visualization tools (i.e., PAGA, fa2, umap, tsne...) compatibility. N.B. Graphs computed via sc.pp.neighbors and 
-    GE_space.compute_kNNs() are identical for k < 250 and random_state=1234, so it is just comfort to use different utilities 
-    for either manipulating GE_spaces (need indeces, and separation among original and integrated graphs) or use vizualization tools.
-    '''
-
-    adata_embs = g.matrix.copy()
-
-    if method == 'original':
-        adata_embs.obsm['X_rep'] = g.PCA.embs
-
-    # Calculate graphs
-    sc.pp.neighbors(
-        adata_embs, 
-        n_neighbors=k, 
-        n_pcs=n_components,
-        use_rep='X_rep', 
-        random_state=1234, 
-        key_added=f'{k}_NN_{n_components}_components'
-    )
-
-    return adata_embs
-
-
-# adata = prep_for_embeddings(g, n_pcs=30)
-
-
-##
-
-
-def embeddings(adata, paga_groups='sample', key='15_NN_30_components', umap_only=False):
+def embeddings(adata, paga_groups='sample', rep='original', key='15_NN_30_components', umap_only=True):
     '''
     Compute paga, paga initialized umap, fa and tSNE embeddings. Return them in a df of embeddings cooridinates,
     with the top 5 PCs coordinates.
     '''
+    neighbors_key = '_'.join([rep, key])
+
     # Store first 5 'primary' cell embeddings components
     df = pd.DataFrame(
-        data=adata.obsm['X_rep'][:,:5], 
+        data=adata.obsm['X_pca'][:,:5], 
         columns=[ f'PC{i}' for i in range(1, 6) ], 
         index=adata.obs_names
     )
 
     # Calculate paga over some kNN graph
-    sc.tl.paga(adata, groups=paga_groups, neighbors_key=key)
-    sc.pl.paga(adata, show=False)
+    sc.tl.paga(adata, groups=paga_groups, neighbors_key=neighbors_key)
+    sc.pl.paga(adata, show=False, plot=False)
     
     # Embs calculation
     if not umap_only:
@@ -78,7 +48,7 @@ def embeddings(adata, paga_groups='sample', key='15_NN_30_components', umap_only
     
     # Fast, only umap
     else:
-        sc.tl.umap(adata, init_pos='paga', random_state=1234, neighbors_key=key)
+        sc.tl.umap(adata, init_pos='paga', random_state=1234, neighbors_key=neighbors_key)
         umap = pd.DataFrame(data=adata.obsm['X_umap'], columns=['UMAP1', 'UMAP2'], index=adata.obs_names)
 
         df = df.join([umap])

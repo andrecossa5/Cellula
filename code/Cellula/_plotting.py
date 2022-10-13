@@ -23,6 +23,7 @@ matplotlib.use('MacOSX')
 path_code = '/Users/IEO5505/Desktop/pipeline/code/Cellula/'
 sys.path.append(path_code) # Path to local-system, user-defined custom code
 from _plotting_base import *
+from _embeddings import *
 
 ########################################################################
 
@@ -30,7 +31,7 @@ from _plotting_base import *
 ## General purpose
 
 
-def plot_clustermap(df, row_colors, palette='mako', title=None, label=None, 
+def plot_clustermap(df, row_colors=None, palette='mako', title=None, label=None, 
                 no_cluster=False, figsize=(11, 10), annot=False, annot_size=5,
                 colors_ratio=0.5
                 ):
@@ -45,8 +46,8 @@ def plot_clustermap(df, row_colors, palette='mako', title=None, label=None,
     fig = sns.clustermap(df, cmap=palette, yticklabels=True, xticklabels=False, dendrogram_ratio=(.1, .04),
         figsize=figsize, row_cluster=row_cluster, col_cluster=col_cluster, annot=True,
         cbar_kws={'use_gridspec' : False, 'orientation': 'horizontal'}, colors_ratio=colors_ratio,
-        annot_kws={'size':annot_size},
-        row_colors=row_colors)
+        annot_kws={'size':annot_size}, row_colors=row_colors
+    )
     fig.ax_col_dendrogram.set_visible(False) 
     fig.fig.subplots_adjust(bottom=0.1)
     fig.fig.suptitle(title)
@@ -277,61 +278,96 @@ def plot_biplot_PCs(g, covariate='sample', colors=None):
 ##
 
 
-
-def plot_embeddings(adata, df, covariate='nUMIs', colors=None, a=1, s=0.1, umap_only=False, axis=True):
+def plot_embeddings(g, rep='original', colors=None, a=1, s=0.1, umap_only=True):
     '''
-    Plot a covariate of interest on cells embeddings.
+    Plot QC covariates in the UMAP embeddings obtained from original data.
     '''
-    # Data
-    df_ = df.join(adata.obs.loc[:, covariate])
-    
-    # Colors
-    c = colors[covariate] if colors is not None and covariate in colors else 'viridis'
 
-    # Fig 
-    if not umap_only:
-        fig, axs = plt.subplots(1, 3, figsize=(15,5))
-        # Axes
-        scatter(df_, 'UMAP1', 'UMAP2', by=covariate, c=c, a=a, s=s, ax=axs[0])
-        format_ax(df_, axs[0], xlabel='UMAP1', ylabel='UMAP2')
-        scatter(df_, 'FA1', 'FA2', by=covariate, c=c, a=a, s=s, ax=axs[1])
-        format_ax(df_, axs[1], xlabel='FA1', ylabel='FA2')
-        scatter(df_, 'tSNE1', 'tSNE2', by=covariate, c=c, a=a, s=s, ax=axs[2])
-        format_ax(df_, axs[2], xlabel='tSNE1', ylabel='tSNE2')
-    else:
-        fig, ax = plt.subplots(figsize=(5,5))
-        scatter(df_, 'UMAP1', 'UMAP2', by=covariate, c=c, a=a, s=s, ax=ax)
-        format_ax(df_, ax, xlabel='UMAP1', ylabel='UMAP2')
-        if not axis:
-            ax.axis('off')
+    # Prep data
+    adata = g.to_adata(rep=rep)
+    df = embeddings(adata, paga_groups='sample', rep=rep, umap_only=umap_only).loc[:, ['UMAP1', 'UMAP2']]
+    df = df.join(adata.obs)
 
-    # Legend/colorbar
-    if colors is not None and covariate in colors:
-        if not umap_only:
-            ncols = len(colors)
-        else: 
-            ncols = len(colors) // 2 + 1
-        cats = df_[covariate].cat.categories
-        handles = create_handles(cats, colors=colors[covariate].values())
-        fig.subplots_adjust(top=0.8, wspace=0.3, bottom=0.1, left=0.2, right=0.9)
-        fig.legend(handles, cats, frameon=False, fontsize='x-small', loc='center', 
-            ncol=ncols, title=covariate.capitalize(), bbox_to_anchor=(0.5, 0.92)
-        )
+    covariates = ['seq_run', 'sample', 'nUMIs', 'cycle_diff']
 
-    else:
-        viridis = matplotlib.colormaps['viridis']
-        norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
-        fig.subplots_adjust(top=0.8, wspace=0.3, bottom=0.1, left=0.2, right=0.9)
-        if not umap_only:
-            axins = inset_axes(axs[1], width="30%", height="1%", loc="upper right") #, #bbox_to_anchor=(0.01, 1.0, 0, 0))
+    # Fig
+    fig, axs = plt.subplots(1,4, figsize=(12,4))
+
+    for i, cov in enumerate(covariates):
+        
+        # Set covariate color(s)
+        c = colors[cov] if colors is not None and cov in colors else 'viridis'
+
+        # Orig, first row
+        scatter(df, 'UMAP1', 'UMAP2', by=cov, c=c, a=a, s=s, ax=axs[i])
+        format_ax(df, ax=axs[i], xlabel='UMAP1', ylabel='UMAP2')
+        axs[i].axis('off')
+
+        if c == 'viridis':
+            add_cbar(cov, ax=axs[i], fig=fig, color='viridis')
         else:
-            axins = inset_axes(ax, width="20%", height="1%", loc="upper right") #, #bbox_to_anchor=(0.01, 1.0, 0, 0))
-        axins.xaxis.set_ticks_position("bottom")
-        fig.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=viridis), 
-            cax=axins, orientation="horizontal", label=covariate
-        )
-    
+            add_legend(df, cov, ax=axs[i], colors=c)
+
+    fig.tight_layout()
+
     return fig
+
+
+
+# def plot_embeddings(adata, df, covariate='nUMIs', colors=None, a=1, s=0.1, umap_only=False, axis=True):
+#     '''
+#     Plot a covariate of interest on cells embeddings.
+#     '''
+#     # Data
+#     df_ = df.join(adata.obs.loc[:, covariate])
+#     
+#     # Colors
+#     c = colors[covariate] if colors is not None and covariate in colors else 'viridis'
+# 
+#     # Fig 
+#     if not umap_only:
+#         fig, axs = plt.subplots(1, 3, figsize=(15,5))
+#         # Axes
+#         scatter(df_, 'UMAP1', 'UMAP2', by=covariate, c=c, a=a, s=s, ax=axs[0])
+#         format_ax(df_, axs[0], xlabel='UMAP1', ylabel='UMAP2')
+#         scatter(df_, 'FA1', 'FA2', by=covariate, c=c, a=a, s=s, ax=axs[1])
+#         format_ax(df_, axs[1], xlabel='FA1', ylabel='FA2')
+#         scatter(df_, 'tSNE1', 'tSNE2', by=covariate, c=c, a=a, s=s, ax=axs[2])
+#         format_ax(df_, axs[2], xlabel='tSNE1', ylabel='tSNE2')
+#     else:
+#         fig, ax = plt.subplots(figsize=(5,5))
+#         scatter(df_, 'UMAP1', 'UMAP2', by=covariate, c=c, a=a, s=s, ax=ax)
+#         format_ax(df_, ax, xlabel='UMAP1', ylabel='UMAP2')
+#         if not axis:
+#             ax.axis('off')
+# 
+#     # Legend/colorbar
+#     if colors is not None and covariate in colors:
+#         if not umap_only:
+#             ncols = len(colors)
+#         else: 
+#             ncols = len(colors) // 2 + 1
+#         cats = df_[covariate].cat.categories
+#         handles = create_handles(cats, colors=colors[covariate].values())
+#         fig.subplots_adjust(top=0.8, wspace=0.3, bottom=0.1, left=0.2, right=0.9)
+#         fig.legend(handles, cats, frameon=False, fontsize='x-small', loc='center', 
+#             ncol=ncols, title=covariate.capitalize(), bbox_to_anchor=(0.5, 0.92)
+#         )
+# 
+#     else:
+#         viridis = matplotlib.colormaps['viridis']
+#         norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+#         fig.subplots_adjust(top=0.8, wspace=0.3, bottom=0.1, left=0.2, right=0.9)
+#         if not umap_only:
+#             axins = inset_axes(axs[1], width="30%", height="1%", loc="upper right") #, #bbox_to_anchor=(0.01, 1.0, 0, 0))
+#         else:
+#             axins = inset_axes(ax, width="20%", height="1%", loc="upper right") #, #bbox_to_anchor=(0.01, 1.0, 0, 0))
+#         axins.xaxis.set_ticks_position("bottom")
+#         fig.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=viridis), 
+#             cax=axins, orientation="horizontal", label=covariate
+#         )
+#     
+#     return fig
 
 
 ##
@@ -343,20 +379,46 @@ def plot_embeddings(adata, df, covariate='nUMIs', colors=None, a=1, s=0.1, umap_
 # Integration diagnostics plots
 
 
+def plot_orig_int_embeddings(g, rep_1='original', rep_2='BBKNN', colors=None, a=1, s=0.1):
+    '''
+    Plot QC covariates in the UMAP embeddings obtained from original and integrated data.
+    '''
 
+    # Prep data
+    orig = g.to_adata(rep=rep_1)
+    integrated = g.to_adata(rep=rep_2)
+    umap_orig = embeddings(orig, paga_groups='sample', rep=rep_1, umap_only=True).loc[:, ['UMAP1', 'UMAP2']]
+    umap_int = embeddings(integrated, paga_groups='sample', rep=rep_2, umap_only=True).loc[:, ['UMAP1', 'UMAP2']]
+    umap_orig = umap_orig.join(orig.obs)
+    umap_int = umap_int.join(integrated.obs)
+    covariates = ['seq_run', 'sample', 'nUMIs', 'cycle_diff']
 
+    # Fig
+    fig, axs = plt.subplots(2,4,figsize=(12,6))
 
+    for i, cov in enumerate(covariates):
+        
+        # Set covariate color(s)
+        c = colors[cov] if colors is not None and cov in colors else 'viridis'
 
+        # Orig, first row
+        scatter(umap_orig, 'UMAP1', 'UMAP2', by=cov, c=c, a=a, s=s, ax=axs[0, i])
+        format_ax(umap_orig, ax=axs[0, i], xlabel='UMAP1', ylabel='UMAP2')
+        axs[0, i].axis('off')
 
+        if c == 'viridis':
+            add_cbar(cov, ax=axs[0, i], fig=fig, color='viridis')
+        else:
+            add_legend(umap_orig, cov, ax=axs[0, i], colors=c)
 
+        # Integrated, second row
+        scatter(umap_int, 'UMAP1', 'UMAP2', by=cov, c=c, a=a, s=s, ax=axs[1, i])
+        format_ax(umap_int, ax=axs[1, i], xlabel='UMAP1', ylabel='UMAP2')
+        axs[1, i].axis('off')
 
+    fig.tight_layout()
 
-
-
-
-
-
-
+    return fig
 
 
 ##
@@ -365,46 +427,8 @@ def plot_embeddings(adata, df, covariate='nUMIs', colors=None, a=1, s=0.1, umap_
 ########################################################################
 
 
-
-
 # Clustering plots
 
-
-def cluster_relationships_plot(meta, couples, size=10, figsize=(15,13)):
-    '''
-    Visualize clustering solutions relationships.
-    '''
-
-    def heat_clusters(meta, sol_1, sol_2, size=None, ax=None):
-        '''
-        Heatmap cluster crosstab.
-        '''
-        # Prepare data: 
-        d_ = pd.crosstab(meta[sol_1], meta[sol_2])
-        d_.inded = meta[sol_1].cat.categories.to_list()
-        d_.columns = meta[sol_2].cat.categories.to_list()
-
-        # Ax
-        ax = sns.heatmap(data=d_, ax=ax, annot=True, fmt='d', annot_kws={'size': size})
-        ax.set(title=sol_1 + ' by ' + sol_2, xlabel=sol_2, ylabel=sol_1)
-
-        return ax
-
-    # Figure 
-    nrow=2; ncol=2
-    fig, axs = plt.subplots(nrow, ncol, figsize=figsize)
-    # Axes
-    i=0; j=0
-    for couple in couples:
-        heat_clusters(meta, couple[0], couple[1], size=size, ax=axs[i,j])
-        j += 1
-        if j == ncol:
-            i+=1; j=0 
-    
-    return fig
-
-
-##
 
 
 def cluster_separation_plot(clustering_solutions, df_kNN):
@@ -412,12 +436,13 @@ def cluster_separation_plot(clustering_solutions, df_kNN):
     Visualize quality of all partitionings obtained from a certain kNN graph.
     '''
     # Prep data
-    NN = str(df_kNN['NN'].values[0])
+    NN = str(df_kNN['NN'].unique()[0])
     subsetted = clustering_solutions.loc[
         :, 
-        [ x for x in clustering_solutions.columns if re.search(f'^{NN}', x)]
+        [ x for x in clustering_solutions.columns if re.search(f'^{NN}_', x)]
     ]
     n_clusters = [ subsetted[x].cat.categories.size for x in subsetted.columns ]
+    solutions = [ x for x in subsetted.columns ]
 
     # Figure
     fig, axs = plt.subplots(1,2,figsize=(10, 5))
@@ -435,9 +460,9 @@ def cluster_separation_plot(clustering_solutions, df_kNN):
     axs[0].legend()
 
     # n clusters by resolution
-    axs[1].bar(x, n_clusters, 
-       linewidth=0.6, edgecolor='black', facecolor='#C0C0C0')
-    axs[1].set(title='n clusters by resolution', xlabel='Resolution', ylabel='n')
+    df_ = pd.DataFrame({'n':n_clusters, 'sol':solutions})
+    bar(df_, 'n', x='sol', c='#C0C0C0', s=0.7, ax=axs[1])
+    format_ax(df_, title='n clusters by resolution', xticks=solutions, rotx=90, ylabel='n', ax=axs[1])
 
     # Layout
     fig.tight_layout()
@@ -446,7 +471,203 @@ def cluster_separation_plot(clustering_solutions, df_kNN):
     return fig
 
 
+##
+
+
+def _prep_paga_umap(adata, clustering_solutions, sol=None, rep='original', color_fun=None):
+    '''
+    Compute paga and umap coordinates for a clustering solution.
+    '''
+    a = adata.copy()
+    a.obs[sol] = clustering_solutions[sol]
+    s_ = '_'.join(sol.split('_')[:-1])
+    key = f'{s_}_components'
+    df = embeddings(a, paga_groups=sol, rep=rep, key=key)
+    df[sol] = clustering_solutions[sol]
+    colors = color_fun(a.obs, chosen=sol)
+    a.uns[f'{sol}_colors'] = list(colors[sol].values())
+
+    return a, df, colors
+
+
+##
+
+
+def top_3_paga_umap(adata, clustering_solutions, top_sol, s=13, color_fun=None, figsize=(15,10)):
+    '''
+    Plot PAGA and umap embeddings of top3 ranked clustering solutions.
+    '''
+    # Data 
+    top_3 = clustering_solutions.loc[:, top_sol]
+
+    # Fig
+    fig, axs = plt.subplots(2,3,figsize=figsize)
+    
+    # Axes
+    for i in range(3):
+        a, df, colors = _prep_paga_umap(adata, clustering_solutions, sol=top_3.columns[i], color_fun=color_fun)
+        sc.pl.paga(a, frameon=False, show=False, ax=axs[0,i], title=top_3.columns[i])
+        scatter(df, 'UMAP1', 'UMAP2', by=top_3.columns[i], c=colors[top_3.columns[i]], ax=axs[1,i])
+        add_labels_on_loc(df, 'UMAP1', 'UMAP2', top_3.columns[i], ax=axs[1,i], s=s)
+        axs[1,i].axis('off')
+    
+    return fig
+
+
+##
+
+
+def ji(x, y):
+    return len(set(x)&set(y)) / len(set(x)|set(y))
+
+
+##
+
+
+def ji_cells_one_couple(sol, sol_1_name, sol_2_name, ax=None, x_names_size=10, y_names_size=10, annot_size=7):
+    '''
+    JI among clusters cells, considering two clustering solutions.
+    '''
+    sol_1 = sol[sol_1_name]
+    sol_2 = sol[sol_2_name]
+
+    JI = np.zeros((len(sol_1.cat.categories), len(sol_2.cat.categories)))
+    for i, l1 in enumerate(sol_1.cat.categories):
+        for j, l2 in enumerate(sol_2.cat.categories):
+            x = sol_1[sol_1 == l1].index.to_list()
+            y = sol_2[sol_2 == l2].index.to_list()
+            JI[i, j] = ji(x, y)
+
+    JI = pd.DataFrame(data=JI, index=sol_1.cat.categories, columns=sol_2.cat.categories)
+
+    plot_heatmap(JI, palette='mako', ax=ax, title=f'{sol_1_name} vs {sol_2_name}', 
+        x_names_size=x_names_size, y_names_size=y_names_size, annot=True, 
+        annot_size=annot_size, cb=True, label='JI cells'
+    )
+
+
+##
+
+
+def ji_markers_one_couple(markers, sol_1_name, sol_2_name, ax=None, x_names_size=10, y_names_size=10, annot_size=7):
+    '''
+    JI among clusters cells, considering two clustering solutions.
+    '''
+    markers_1 = markers[sol_1_name]
+    markers_2 = markers[sol_2_name]
+
+    cl_1 = markers_1['comparison'].unique()
+    cl_2 = markers_2['comparison'].unique()
+
+    JI = np.zeros((len(cl_1), len(cl_2)))
+    for i, c1 in enumerate(markers_1['comparison'].unique()):
+        for j, c2 in enumerate(markers_2['comparison'].unique()):
+            x = markers_1.query('comparison == @c1 and evidence < 0.1').index.to_list()[:100]
+            y = markers_2.query('comparison == @c2 and evidence < 0.1').index.to_list()[:100]
+            JI[i, j] = ji(x, y)
+
+    JI = pd.DataFrame(
+        data=JI, 
+        index=[ str(i) for i in range(len(cl_1))], 
+        columns=[ str(i) for i in range(len(cl_2))]
+    )
+
+    plot_heatmap(JI, palette='mako', ax=ax, title=f'{sol_1_name} vs {sol_2_name}', 
+        x_names_size=x_names_size, y_names_size=y_names_size, annot=True, 
+        annot_size=annot_size, cb=True, label='JI markers'
+    )
+
+
+##
+
+
+def top_3_ji_cells(markers, sol, title_size=10, figsize=(16, 10)):
+    '''Top 3 solutions cells JI, by cluster'''
+
+    fig, axs = plt.subplots(2,3, figsize=figsize)
+
+    ji_cells_one_couple(sol, sol.columns[0], sol.columns[1], ax=axs[0, 0])
+    ji_cells_one_couple(sol, sol.columns[0], sol.columns[2], ax=axs[0, 1])
+    ji_cells_one_couple(sol, sol.columns[1], sol.columns[2], ax=axs[0, 2])
+    ji_markers_one_couple(markers, sol.columns[0], sol.columns[1], ax=axs[1, 0])
+    ji_markers_one_couple(markers, sol.columns[0], sol.columns[2], ax=axs[1, 1])
+    ji_markers_one_couple(markers, sol.columns[1], sol.columns[2], ax=axs[1, 2])
+        
+    return fig
+
+
 ##    
+
+
+def genes_log2FC_and_perc(adata, genes, sol, g):
+    test_cells = adata.obs[sol] == g
+    log2FC = np.log2( 
+        adata[test_cells, genes].X.mean(axis=0) / \
+        adata[~test_cells, genes].X.mean(axis=0) + 0.0000001 
+    )
+    perc = np.sum(adata[test_cells, genes].X > 0, axis=0) / test_cells.sum()
+    return np.asarray(log2FC).flatten(), np.asarray(perc).flatten()
+
+
+##
+
+
+def dot_plot(adata, markers, s, n=5, ax=None, size=10, legend=True):
+    '''
+    Markers dotplot for a cluster solution.
+    '''
+    # Prep data
+    genes = []
+    clusters = adata.obs[s].cat.categories
+
+    for clus in clusters:
+        if len(clusters) == 2:
+            other = [ x for x in clusters if x != clus][0]
+            comparison = f'{clus}_vs_{other}'
+        else:
+            comparison = f'{clus}_vs_rest'
+        genes += markers[s].query('comparison == @comparison').index[:n].to_list()
+
+    df_ls = []
+    for cluster in adata.obs[s].cat.categories:
+        log2FC, perc = genes_log2FC_and_perc(adata, genes, s, cluster)
+        df_ls.append(pd.DataFrame({'gene' : genes, 'log2FC' : log2FC, 'perc' : perc}))
+    
+    df = pd.concat([ 
+                        d.assign(cluster=str(i)) \
+                        for i, d in enumerate(df_ls) 
+                    ], axis=0
+    )
+
+    #Clip 
+    df['log2FC'][df['log2FC'] <= np.percentile(df['log2FC'], 5)] = np.percentile(df['log2FC'], 5)
+    df['log2FC'][df['log2FC'] >= np.percentile(df['log2FC'], 95)] = np.percentile(df['log2FC'], 95)
+
+
+    sns.scatterplot(data=df, x='cluster', y='gene', size='perc', hue='log2FC', 
+        palette='viridis', ax=ax, sizes=(1, 100))
+
+    ax.set(title=s, ylabel='', xlabel='Cluster')
+    ax.tick_params(axis='both', which='both', labelsize=size)
+    ax.legend(loc='center left', bbox_to_anchor=(1.05, 0.5), frameon=False)
+
+
+##
+
+
+def top_3_dot_plots(adata, markers, top_3, figsize=(11, 8)):
+    '''
+    Dotplot top_3 clustering solutions.
+    '''
+    fig, axs = plt.subplots(1,3, figsize=figsize) 
+
+    dot_plot(adata, markers, top_3[0], n=3, ax=axs[0], size=8, legend=True)
+    dot_plot(adata, markers, top_3[1], n=3, ax=axs[1], size=8, legend=True)
+    dot_plot(adata, markers, top_3[2], n=3, ax=axs[2], size=8, legend=True)
+
+    return fig
+
+##
 
 
 ########################################################################

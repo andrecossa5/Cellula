@@ -76,7 +76,7 @@ def ARI_among_all_solutions(solutions, path):
     df = pd.DataFrame(data=M, index=solutions.columns, columns=solutions.columns)
     df.to_excel(path + 'ARI_all_solutions.xlsx')
 
-    return df
+    return df.fillna(1)
 
 
 ##
@@ -125,10 +125,15 @@ class Clust_evaluator:
         Instantiate the main class attributes, loading integrated GE_spaces.
         '''
         self.adata = adata
-        try:
-            self.space = self.adata.obsm['X_corrected']
-        except:
+        keys = list(adata.obsm.keys())
+        int_key = [ x for x in keys if x != 'X_pca' ]
+
+        if len(int_key)>0:
+            self.space = self.adata.obsm[int_key[0]]
+        else:
+            print('This dataset were not integrated in the end. Found only X_pca representation...')
             self.space = self.adata.obsm['X_pca']
+
         self.solutions = clustering_solutions
         self.scores = {}
         self.up_metrics = ['kNN_purity', 'silhouette'] # The higher, the better
@@ -178,17 +183,17 @@ class Clust_evaluator:
             elif metric == 'kNN_purity':
                 # Extract indices from adata
                 indices = {}
-                for kNN_key in self.adata.obsp:
-                    key = '_'.join(kNN_key.split('_')[:-1])
-                    k = int(key.split('_')[0])
-                    connectivities = self.adata.obsp[kNN_key]
-                    indices[key] = get_indices_from_connectivities(connectivities, k=k)
+                for kNN in self.adata.obsp:
+                    kNN_key = '_'.join(kNN.split('_')[1:-2])
+                    nn = int(kNN_key.split('_')[0])
+                    connectivities = self.adata.obsp[kNN]
+                    indices[kNN_key] = get_indices_from_connectivities(connectivities, k=nn)
                 # Compute kNN_purity
                 d = { 
                     k : kNN_purity(indices['_'.join(k.split('_')[:-1])], self.solutions[k]) \
                     for k in self.solutions.columns 
                 }
-            self.scores[metric] = d
+            self.scores[metric] = rescale(pd.Series(d)).to_dict()
             gc.collect()
 
     ##
@@ -216,6 +221,10 @@ class Clust_evaluator:
 
         # Top 3 runs
         top_3 = df_summary['run'][:3].to_list()
+        
+        # Print top_3
+        for x in top_3:
+            print(x)
 
         return df, df_summary, df_rankings, top_3
 

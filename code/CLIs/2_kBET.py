@@ -144,7 +144,7 @@ def kBET():
     for k in k_range:
         t.start()
         logger.info(f'Begin operations on all GE_spaces, for k {k}...')
-        I.compute_all_kNN_graphs(k=k, n_pcs=n_pcs)
+        I.compute_all_kNN_graphs(k=k, n_components=n_pcs)
         I.compute_metric(metric='kBET', covariate=covariate)
         logger.info(f'kBET calculations finished for k {k}: {t.stop()} s.')
 

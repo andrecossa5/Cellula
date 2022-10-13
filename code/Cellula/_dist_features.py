@@ -564,7 +564,7 @@ class Dist_features:
         test_perc = genes_meta['percent_cells'] > cell_perc
         if no_miribo:
             idx = genes_meta.index
-            test_miribo = idx.str.startswith('MT-') | idx.str.startswith('RPL') | idx.str.startswith('RPS') 
+            test_miribo = ~(idx.str.startswith('MT-') | idx.str.startswith('RPL') | idx.str.startswith('RPS'))
         if only_HVGs:
             test_HVGs = genes_meta['highly_variable_features']
         
@@ -841,7 +841,9 @@ class Dist_features:
                 t.start() 
 
                 if x['model'] == 'wilcoxon':
-                    de_results, gene_set_dict = self.compute_DE(contrast_key=k)
+                    de_results, gene_set_dict = self.compute_DE(contrast_key=k,
+                                                which='perc_0.15_no_miribo'
+                                                )
                     self.Results.add_job_results(de_results, gene_set_dict, job_key=job_key)
                 else:
                     ML_results, gene_set_dict = self.compute_ML(contrast_key=k, 

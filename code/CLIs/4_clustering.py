@@ -143,7 +143,12 @@ def clustering():
     resolution_range = np.linspace(range_[0], range_[1], n)
 
     # Here we go
-    for kNN in adata.obsp.keys():
+    kNNs = [ 
+        '_'.join(x.split('_')[:-1]) for x in adata.obsp.keys() \
+        if bool(re.search('_connectivities', x)) 
+    ]
+
+    for kNN in kNNs:
 
         t = Timer()
         t.start()
@@ -151,10 +156,11 @@ def clustering():
 
         for r in resolution_range:
             r = round(r, 2)
-            key_to_add = '_'.join(kNN.split('_')[:-1] + [str(r)])
+            key_to_add = '_'.join(kNN.split('_')[1:-1] + [str(r)])
+
             sc.tl.leiden(
                 adata, 
-                obsp=kNN,
+                neighbors_key=kNN,
                 key_added=key_to_add,
                 resolution=r, 
                 random_state=1234
@@ -165,7 +171,7 @@ def clustering():
     # Save clustered data
     clustering_solutions = adata.obs.loc[
         :, 
-        [ x for x in adata.obs.columns if re.search('_PCs_', x)] 
+        [ x for x in adata.obs.columns if re.search('_NN_', x)] 
     ]
     clustering_solutions.to_csv(path_results + 'clustering_solutions.csv')
 
@@ -197,13 +203,14 @@ def markers_all():
     contrasts = {
         k: Contrast(clustering_solutions, k) for k in clustering_solutions.columns
     }
+
     jobs = {
         k: [{ 'features': 'genes', 'model' : 'wilcoxon', 'mode' : 'None' }] \
         for k in clustering_solutions.columns
     }
 
     # Here we go
-    adata = sc.read(path_data + 'adata.h5ad')   # Full log-normalized matrix required
+    adata = sc.read(path_data + 'lognorm.h5ad')   # Full log-normalized matrix required
     D = Dist_features(adata, contrasts, jobs=jobs)   # Job mode here
     D.run_all_jobs()
 

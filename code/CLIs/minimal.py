@@ -60,7 +60,6 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set other paths 
-    path_QC = path_main + '/QC/'
     path_data = path_main + '/data/'
     path_results = path_main + '/results_and_plots/' # For now, only preprocessed_minimal.h5ad as output.
     path_runs = path_main + '/runs/'
@@ -92,9 +91,10 @@ def minimal():
     t.start()
     logger.info('Execute 0_minimal...')
 
-    # Read adata other operations should be moved to 0_QC.py
-    adata = read_from_QC_dirs(path_QC) # Deprecated. Needs to be substituted by sc.read('original.h5ad')
-    adata.obs = meta_format(adata.obs)
+    # Read QC
+    adata = sc.read(path_data + 'QC.h5ad') 
+    adata.obs = meta_format(adata.obs) 
+    colors = create_colors(adata.obs) 
 
     logger.info(f'Data merging and formatting operations: {t.stop()} s.')
 
@@ -105,46 +105,38 @@ def minimal():
     # Log-normalization, hvg selection, (first) signatures scoring
     t.start()
     adata.raw = adata.copy()
-    adata = pp(adata, mode='default', target_sum=50*1e4, n_HVGs=2000, score_method='scanpy')
+    adata = pp(adata) # Default: library size (log)-normalization + some signatures scoring
 
     # Subset, scale, PCA and NN
-    g = GE_space(adata).red().scale().pca()
-    g.compute_kNNs(k=15, n_components=30) # Default
+    g = GE_space(adata).red().scale().pca() # Default: 2000 HVGs, pegasus HVG selection
+    g.compute_kNNs() # Default: k=15, n_components=30
     g.matrix = adata
-    adata = g.to_adata(rep='original')
+    adata = g.to_adata()
+
     logger.info(f'Pre-processing: {t.stop()} s.')
 
     # Clustering 
     t.start()
-    sc.tl.leiden(adata, obsp='15_NN_30_components_connectivities', resolution=0.5) # Default
+    sc.tl.leiden(adata, neighbors_key='original_15_NN_30_components', resolution=0.5) # Default
+    g.matrix.obs = adata.obs # Update GE_space matrix obs with leiden clusters
     logger.info(f'Clustering: {t.stop()} s.')
 
     # DE: leiden and samples
     t.start()
     D = Dist_features(adata, {'leiden' : Contrast(adata.obs, 'leiden')})
     D.select_genes() # Default, > 15% cells, no MT and Ribo
-    markers = D.compute_DE(contrast_key='leiden')[1]
+    markers = D.compute_DE(contrast_key='leiden')[1] # Default, pegasus wilcoxon
     logger.info(f'DE: {t.stop()} s.')
 
     # Viz: UMAP samples and clusters, barplot clusters/samples, markers bubble.
-    logger.info(f'Basic viz...')
-    
     t.start()
 
-    # Compute UMAP
-    g.matrix.obs = adata.obs # Update GE_space cell annotations
-    adata = prep_for_embeddings(g, n_components=30, k=15)
-    df = embeddings(adata, paga_groups='leiden', umap_only=True)
-
-    # Viz in a single pdf
-    colors = create_colors(adata.obs, chosen='leiden')
-
     # Fig
-    with PdfPages('/Users/IEO5505/Desktop/minimal_viz.pdf') as pdf:
-
-        for cov in ['seq_run', 'sample', 'nUMIs', 'mito_perc', 'cycle_diff']:
-            fig = plot_embeddings(adata, df, covariate=cov, colors=colors, umap_only=True)
-            pdf.savefig()  
+    with PdfPages(path_results + 'viz.pdf') as pdf:
+        fig = plot_embeddings(g, rep='original', colors=colors)
+        fig.suptitle('Minimal embeddings')
+        pdf.savefig()  
+        plt.close()
         
         #fig = compo_plot(sample, leiden) 
         #fig = compo_plot(sample, seq_run)
@@ -154,7 +146,6 @@ def minimal():
         #fig = plot_embeddings(adata, df, covariate='leiden', colors=colors, umap_only=True)
         #fig = dotplot(markers)
 
-        plt.close()
 
     logger.info(f'Basic viz: {t.stop()} s.')
 

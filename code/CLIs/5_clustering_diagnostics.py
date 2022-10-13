@@ -133,8 +133,7 @@ def clustering_diagnostics():
 
     # Diagnostics 1: QC 
 
-    # De novo
-    if chosen is None:
+    if chosen is None: # De novo
 
         T = Timer()
         T.start()
@@ -158,7 +157,7 @@ def clustering_diagnostics():
         summary_QC.to_excel(path_results + 'summary_QC.xlsx')
 
         # Assess if there are some very bad partitions
-        q = f'nUMIs < {300} and detected_genes < {1000} and mito_perc > {20}'
+        q = f'nUMIs < {250} and detected_genes < {500} and mito_perc > {0.2}'
         very_bad_boys = summary_QC.query(q).loc[:, ['solution', 'partition']]
 
         if len(very_bad_boys.index) > 0:
@@ -171,8 +170,7 @@ def clustering_diagnostics():
 
     ##
 
-    # Chosen
-    if chosen is not None:
+    if chosen is not None: # Only chosen 
 
         t = Timer()
         t.start()
@@ -187,7 +185,7 @@ def clustering_diagnostics():
             QC_covariates, 
             colors, 
             figsize=(12, 10),
-            legend=False, 
+            legend=True, 
             labels=True,
         )
 
@@ -197,10 +195,9 @@ def clustering_diagnostics():
 
     #-----------------------------------------------------------------#
 
-    # Dignostics 2: cluster concordance separation and purity
+    # Dignostics 2: cluster concordance, separation and purity. Top solutions
 
-    # De novo 
-    if chosen is None:
+    if chosen is None: # De novo 
 
         t.start()
         logger.info('Diagnostics 2: cluster concordance, separation and purity.')
@@ -212,6 +209,7 @@ def clustering_diagnostics():
             palette='mako', 
             title='ARI among solutions', 
             label='ARI', 
+            annot_size=3,
             figsize=(11, 10)
         )
         fig.savefig(path_viz + 'ARI_among_solutions.pdf')
@@ -245,7 +243,7 @@ def clustering_diagnostics():
             df_rankings, 
             feature='score', 
             by='ranking', 
-            figsize=(8,5)
+            figsize=(15,5)
         )
         fig.savefig(path_viz + 'clustering_solutions_rankings.pdf')
 
@@ -255,7 +253,7 @@ def clustering_diagnostics():
         df = df.assign(
             NN = df['run'].map(lambda x: int(x.split('_')[0])),
             PCs = df['run'].map(lambda x: int(x.split('_')[2])),
-            resolution = df['run'].map(lambda x: float(x.split('_')[4]))
+            resolution = df['run'].map(lambda x: float(x.split('_')[3]))
         )
 
         # Plots
@@ -272,56 +270,57 @@ def clustering_diagnostics():
         # Write final exec time (no chosen steps)
         logger.info(f'Execution was completed successfully in total {T.stop()} s.')
 
-    ##
+    #-----------------------------------------------------------------#
 
-    # Chosen
-    if chosen is not None:
+    # Dignostics 3: top_3 clustering solutions relationships
+
+    if chosen is None: # De novo 
 
         t.start()
+        logger.info('Diagnostics 3: Top clustering solutions relationships.')
 
-        # Retrieve other clustering solutions to compare with
-        kNN = '_'.join(chosen.split('_')[:-1])
-        resolution = chosen.split('_')[-1]
-        same_kNN = [ x for x in clustering_solutions.columns if re.search(kNN, x) ]
-        chosen_idx = same_kNN.index(chosen)
-        couples = [
-                    (chosen, same_kNN[chosen_idx-1]), # Immediately before
-                    (chosen, same_kNN[chosen_idx+1]), # Immediately after
-                    (chosen, same_kNN[0]), # First
-                    (chosen, same_kNN[-1]) # Last
-                ]
+        # Load markers
+        with open(path_main + f'results_and_plots/dist_features/{step}/clusters_markers.txt', mode='rb') as f:
+            markers = pickle.load(f)
 
-        # Fig
-        fig = cluster_relationships_plot(
-            clustering_solutions, 
-            couples, 
-            size=6, 
-            figsize=(14,13)
-        )
-        fig.savefig(path_viz + f'{chosen}_solution_relationships.pdf')
+        # Subset 
+        sol = clustering_solutions.loc[:, top_3]
+        markers = {
+            k.split('|')[0] : markers[k]['df'] for k in markers if any([ k.split('|')[0] == x for x in top_3 ])
+        }
 
-        logger.info(f'Adding relatioship among solutions to {chosen} one: {t.stop()} s.')
+        # Get full matrix
+        lognorm = sc.read(path_data + 'lognorm.h5ad')
+        lognorm.obs = lognorm.obs.join(sol) # add top3
+
+        # Here we go
+        with PdfPages(path_viz + 'top_3.pdf') as pdf:
+            # Paga and umap
+            fig = top_3_paga_umap(adata, clustering_solutions, top_3, s=13, color_fun=create_colors)
+            fig.tight_layout()
+            pdf.savefig()  
+            # JI
+            fig = top_3_ji_cells(markers, sol)
+            fig.tight_layout()
+            pdf.savefig()  
+            # Dot plots
+            fig = top_3_dot_plots(lognorm, markers, top_3)
+            fig.tight_layout()
+            pdf.savefig()  
+            plt.close()
+
+        logger.info(f'Adding relationship among solutions to {chosen} one: {t.stop()} s.')
 
     #-----------------------------------------------------------------#
 
-    # Diagnostics 3: markers overlap (only chosen)
-    if chosen is not None:
+    # Final choice: chosen viz + write clustered adata
 
-        t.start()
-        
-        # Print markers and overlaps...
-
-        logger.info(f'Adding markers overlap among solutions to {chosen} one: {t.stop()} s.')
-
-    #-----------------------------------------------------------------#
-
-    # Final choice: write clustered adata
-    if chosen is not None:
+    if chosen is not None: # Only chosen
 
         t.start()
 
         # Read pre-processed and log-normalized adata
-        lognorm = sc.read(path_data + 'adata.h5ad')
+        lognorm = sc.read(path_data + 'lognorm.h5ad')
         pp = sc.read(path_data + 'preprocessed.h5ad')
 
         # Merge info 
@@ -331,9 +330,11 @@ def clustering_diagnostics():
             adata.obsm['X_corrected'] = pp.obsm['X_corrected']
         except:
             pass
+        
         for k in adata.obsp.keys():
             adata.obsp[k] = pp.obsp[k]
-        adata.uns['neighbors'] = pp.uns['neighbors'] 
+        for k in adata.uns.keys():
+            adata.uns[k] = pp.uns[k]
 
         # Add leiden column and save
         adata.obs['leiden'] = clustering_solutions[chosen].astype('category')
@@ -344,7 +345,7 @@ def clustering_diagnostics():
 
 #######################################################################
 
-# Remove partition
+# Remove partition, if necessary
 def remove_partition():
 
     T = Timer()
@@ -368,7 +369,7 @@ def remove_partition():
         data=to_remove, 
         index=to_remove, 
         columns=['cell']
-        ).to_csv(path_remove + f'/{step}/removed.csv')
+    ).to_csv(path_remove + f'/{step}/removed.csv')
 
     # Print exec time and exit
     logger.info(f'Remove cells from {remove}: {T.stop()} s.')

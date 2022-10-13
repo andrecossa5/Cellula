@@ -28,17 +28,56 @@ from sklearn.decomposition import PCA
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from matplotlib.backends.backend_pdf import PdfPages
 import seaborn as sns
+
+sys.path.append('/Users/IEO5505/Desktop/pipeline/code/Cellula/') 
+from _plotting_base import *
 
 ########################################################################
 
 ## 0_QC functions
 
 
-# IO and QC
+def adata_name_formatter(adata):
+    '''
+    A function to reformat the obs df of each adata, before adatas merging.
+    '''
+    sample_name = adata.obs['sample'].unique()[0]
+    new_names = [ n[:16] + '_' + sample_name for n in adata.obs_names ]
+    adata.obs_names = new_names
 
-# read_matrices here...
-# adatas = read_matrices(path_to_matrices)
+    return adata
+
+
+##
+
+
+def read_matrices(path, mode='raw'):
+        '''
+        Read matrices, filter CBC_GBCs if necessary and reformat cell names. Add GBC and sample columns.
+        '''
+        adatas = {}
+        if mode == 'raw':
+                for s in os.listdir(path):
+                        print(s)
+                        a = sc.read_10x_mtx(path + f'/{s}/{mode}_gene_bc_matrix')
+                        cells = pd.read_csv(path + f'/{s}/summary_sheet_cells.csv', index_col=0)
+                        cells = cells.loc[:, ['GBC']]
+                        cells_to_retain = [ x for x in cells.index if x in a.obs_names ]
+                        cells = cells.loc[cells_to_retain, :]
+                        a = a[cells_to_retain, :].copy()
+                        a.obs = a.obs.assign(GBC=cells['GBC'], sample=s)
+                        a = adata_name_formatter(a)
+                        adatas[s] = a
+        else:
+                for s in os.listdir(path):
+                        a = sc.read_10x_mtx(path + f'/{s}/{mode}_gene_bc_matrix')
+                        a.obs = a.obs.assign(sample=s)
+                        a = adata_name_formatter(a)
+                        adatas[s] = a
+                        adatas[s] = a
+        return adatas
 
 
 ##
@@ -78,45 +117,45 @@ def QC(adatas, mode='seurat', min_cells=3, min_genes=200, n_mads=5, path_viz=Non
 
                 for s, adata in adatas.items():
                         
-                        fig, axs = plt.subplots(1,3,figsize=(13,5))
+                        fig, axs = plt.subplots(1,3,figsize=(15,5))
 
                         # QC metrics
                         adata.var_names_make_unique()
                         adata.var["mt"] = adata.var_names.str.startswith("MT-")
-                        adata.obs['n_UMIs'] = adata.X.toarray().sum(axis=1)  
-                        adata.obs['perc_MT'] = adata[:, adata.var["mt"]].X.toarray().sum(axis=1) / adata.obs['n_UMIs']
-                        adata.obs['n_genes'] = (adata.X.toarray() > 0).sum(axis=1)  
-                        adata.obs['cell_complexity'] = adata.obs['n_genes'] / adata.obs['n_UMIs']
+                        adata.obs['nUMIs'] = adata.X.toarray().sum(axis=1)  
+                        adata.obs['mito_perc'] = adata[:, adata.var["mt"]].X.toarray().sum(axis=1) / adata.obs['nUMIs']
+                        adata.obs['detected_genes'] = (adata.X.toarray() > 0).sum(axis=1)  
+                        adata.obs['cell_complexity'] = adata.obs['detected_genes'] / adata.obs['nUMIs']
 
                         n0 = adata.shape[0]
                         print(f'Original n cells sample {s}: {n0}')
 
                         # Original
                         QC_plot(adata, axs[0], title='Original')
-                        axs[0].text(np.quantile(adata.obs['n_UMIs'], 0.992), 1000, f'n:{n0}')
+                        axs[0].text(np.quantile(adata.obs['nUMIs'], 0.992), 1000, f'n:{n0}')
 
                         # Remove potential doublets
                         sc.external.pp.scrublet(adata, random_state=1234)
                         adata = adata[~adata.obs['predicted_doublet'], :]
 
                         n1 = adata.shape[0]
-                        print(f'n cells sample {sample} after scrublet: {n1}, {round((n0-n1)/n0, 3)}% removed.')
+                        print(f'n cells sample {s} after scrublet: {n1}, {n0-n1} removed.')
 
                         # After scrublet
                         QC_plot(adata, axs[1], title='After scublet')
-                        axs[1].text(np.quantile(adata.obs['n_UMIs'], 0.992), 1000, f'n:{n1}')
+                        axs[1].text(np.quantile(adata.obs['nUMIs'], 0.992), 1000, f'n:{n1}')
 
                         # Prep filters
                         if mode == 'seurat':
-                                MT_t=0.5; nUMIs_t=500; n_genes_t=250; ccomp_t=0.8;
-                                adata.obs['outlier_mt'] = adata.obs['perc_MT'] > MT_t
-                                adata.obs['outlier_total'] = adata.obs['n_UMIs'] > nUMIs_t
-                                adata.obs['outlier_ngenes'] = adata.obs['n_genes'] > n_genes_t
+                                MT_t=0.15; nUMIs_t=500; n_genes_t=250; ccomp_t=0.8;
+                                adata.obs['outlier_mt'] = adata.obs['mito_perc'] > MT_t
+                                adata.obs['outlier_total'] = adata.obs['nUMIs'] > nUMIs_t
+                                adata.obs['outlier_ngenes'] = adata.obs['detected_genes'] > n_genes_t
                                 adata.obs['outlier_ccomp'] = adata.obs['cell_complexity'] > ccomp_t
                         elif mode == 'mads':
-                                adata.obs['outlier_mt'] = mads_test(adata.obs['perc_MT'], n_mads=n_mads)
-                                adata.obs['outlier_total'] = mads_test(adata.obs['n_UMIs'], n_mads=n_mads)
-                                adata.obs['outlier_ngenes'] = mads_test(adata.obs['n_genes'], n_mads=n_mads)
+                                adata.obs['outlier_mt'] = mads_test(adata.obs['mito_perc'], n_mads=n_mads)
+                                adata.obs['outlier_total'] = mads_test(adata.obs['nUMIs'], n_mads=n_mads)
+                                adata.obs['outlier_ngenes'] = mads_test(adata.obs['detected_genes'], n_mads=n_mads)
                                 adata.obs['outlier_ccomp'] = mads_test(adata.obs['cell_complexity'], n_mads=n_mads)
 
                         # After filtering
@@ -125,18 +164,18 @@ def QC(adatas, mode='seurat', min_cells=3, min_genes=200, n_mads=5, path_viz=Non
                         adata = adata[QC_test, :]
 
                         n2 = adata.shape[0]
-                        print(f'n cells sample {sample} after scrublet: {n2}, {round((n2-n0)/n0, 3)}% removed.')
+                        print(f'n cells sample {s} after scrublet and QC: {n2}, {n2-n0} removed.')
                         
                         # Final
                         QC_plot(adata, axs[2], title='Final')
-                        axs[2].text(np.quantile(adata.obs['n_UMIs'], 0.992), 1000, f'n:{n2}')
+                        axs[2].text(np.quantile(adata.obs['nUMIs'], 0.992), 1000, f'n:{n2}')
                         
-                        if mode == 'seurat'
+                        if mode == 'seurat':
                                 axs[2].axvline(nUMIs_t, color='r')
                                 axs[2].axhline(n_genes_t, color='r')
                         elif mode == 'mads':
-                                nUMIs_t = mads(adata.obs['n_UMIs'], n_mads=n_mads)
-                                n_genes_t = mads(adata.obs['n_genes'], n_mads=n_mads)
+                                nUMIs_t = mads(adata.obs['nUMIs'], n_mads=n_mads)
+                                n_genes_t = mads(adata.obs['detected_genes'], n_mads=n_mads)
                                 if nUMIs_t[0] > 0:
                                         axs[2].axvline(nUMIs_t[0], color='r')
                                 axs[2].axvline(nUMIs_t[1], color='r')
@@ -145,10 +184,11 @@ def QC(adatas, mode='seurat', min_cells=3, min_genes=200, n_mads=5, path_viz=Non
                                 axs[2].axhline(n_genes_t[1], color='r')
                         
                         # Has the current adata been QCed and modified in place??
-                        # Control adatas...
+                        adatas[s] = adata
+                        print(adatas[s])
 
                         # Close current fig
-                        fig.suptitle(sample)
+                        fig.suptitle(s)
                         fig.tight_layout()
                         pdf.savefig()  
                         plt.close()

@@ -351,12 +351,12 @@ class Int_evaluator:
 
     ##
 
-    def compute_all_kNN_graphs(self, k=15, n_pcs=30, key=None, only_index=False):
+    def compute_all_kNN_graphs(self, k=15, n_components=30, key=None, only_index=False):
         '''
         Compute all GE_spaces kNN graphs, calling their internal method.
         ''' 
         for v in self.GE_spaces.values():
-            v.compute_kNNs(k=k, n_pcs=n_pcs, key=key, only_index=only_index)
+            v.compute_kNNs(k=k, n_components=n_components, key=key, only_index=only_index)
 
     ##
 
@@ -407,6 +407,15 @@ class Int_evaluator:
             return original_kNN, integrated
 
     ## 
+
+
+
+    # ...
+
+
+
+
+    ##
 
     def compute_batch(self, g, kNN, batch, pp=None, int_method=None, key=None, metric=None, labels=None):
         '''

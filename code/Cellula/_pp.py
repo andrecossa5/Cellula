@@ -263,6 +263,7 @@ def kNN_graph(X, k=15, n_components=30):
         # Import code 
         from umap.umap_ import fuzzy_simplicial_set
         from scipy.sparse import coo_matrix
+        from scanpy.neighbors import _get_sparse_matrix_from_indices_distances_umap
 
         # kNN search (automatic algorithm decision, pyNNDescent or hsnwlib based on k)
         knn_indices, knn_dists = _NN(X[:, :n_components], k)
@@ -279,10 +280,16 @@ def kNN_graph(X, k=15, n_components=30):
             local_connectivity=1.0,
         )
         connectivities = connectivities[0]
+        
+        # Make knn_dists sparse
+        distances = _get_sparse_matrix_from_indices_distances_umap(
+            knn_indices, knn_dists, X.shape[0], k
+        )
 
         # Prep results
         results = { 
             'indices' : knn_indices,  
+            'distances' : distances, 
             'connectivities' : connectivities,  
         }
 
@@ -538,6 +545,7 @@ class GE_space:
                     else:
                         self.integrated_kNNs[r][key] = {
                             'indices' : get_indices_from_connectivities(self.BBKNN[1], k),
+                            'distances' : self.BBKNN[0],
                             'connectivities' : self.BBKNN[1]
                         }
                 else:
@@ -555,6 +563,8 @@ class GE_space:
         '''
         Convert a GE_space back to an adata.
         '''
+        NN = int(key.split('_')[0])
+
         if rep == 'scVI':
             self.pca()
 
@@ -574,13 +584,27 @@ class GE_space:
             adata.obsm['X_corrected'] = self.get_repr(rep)
 
         if rep != 'original':
-            adata.uns['neighbors'] = { 'neighbors' : list(self.integrated_kNNs[rep].keys()) }
             for key in self.integrated_kNNs[rep].keys():
-                adata.obsp[key + '_connectivities'] = self.integrated_kNNs[rep][key]['connectivities']
+                neighbors_key = '_'.join([rep, key])
+                d = {
+                        'connectivities_key': f'{neighbors_key}_connectivities',
+                        'distances_key': f'{neighbors_key}_distances', 
+                        'params' : { 'n_neighbors' : NN, 'method' : 'umap' }
+                }
+                adata.uns[neighbors_key] = d
+                adata.obsp[f'{neighbors_key}_distances'] = self.integrated_kNNs[rep][key]['distances']
+                adata.obsp[f'{neighbors_key}_connectivities'] = self.integrated_kNNs[rep][key]['connectivities']
         else:
-            adata.uns['neighbors'] = { 'neighbors' : list(self.original_kNNs.keys()) }
             for key in self.original_kNNs.keys():
-                adata.obsp[key + '_connectivities'] = self.original_kNNs[key]['connectivities']
+                neighbors_key = '_'.join([rep, key])
+                d = {
+                        'connectivities_key': f'{neighbors_key}_connectivities',
+                        'distances_key': f'{neighbors_key}_distances', 
+                        'params' : { 'n_neighbors' : NN, 'method' : 'umap' }
+                }
+                adata.uns[neighbors_key] = d
+                adata.obsp[f'{neighbors_key}_distances'] = self.original_kNNs[key]['distances']
+                adata.obsp[f'{neighbors_key}_connectivities'] = self.original_kNNs[key]['connectivities']
 
         return adata
         

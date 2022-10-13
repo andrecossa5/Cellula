@@ -28,8 +28,7 @@ plt.style.use('default')
 ########################################################################
 
 
-# Axes
-
+# Utils
 
 def create_handles(categories, marker='o', colors=None, size=10, width=0.5):
     '''
@@ -56,6 +55,40 @@ def create_handles(categories, marker='o', colors=None, size=10, width=0.5):
 ##
 
 
+def add_cbar(cov, color='viridis', ax=None, fig=None, loc='upper right', label_size=7, ticks_size=5, width="20%", height="1%"):
+    '''
+    Draw cbar on an axes object inset.
+    '''
+    cmap = matplotlib.colormaps[color]
+    norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+    axins = inset_axes(ax, width="20%", height="1%", loc=loc) 
+    axins.xaxis.set_ticks_position("bottom")
+    cb = fig.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap), 
+        cax=axins, orientation="horizontal"
+    )
+    cb.set_label(label=cov, size=label_size)
+    cb.ax.tick_params(axis="x", labelsize=ticks_size)
+    
+
+##
+
+
+
+def add_legend(df, cov, colors=None, ax=None, loc='center', artists_size=7, label_size=7, ticks_size=5):
+    '''
+    Draw legend on axes object.
+    '''
+    ncols = len(colors) // 2 + 1
+    cats = df[cov].cat.categories
+    handles = create_handles(cats, colors=colors.values(), size=artists_size)
+    ax.legend(handles, cats, frameon=False, loc=loc, fontsize=ticks_size, title_fontsize=label_size,
+        ncol=ncols, title=cov.capitalize(), bbox_to_anchor=(0.5, 1.1)
+    )
+
+
+##
+
+
 def add_wilcox(df, x, y, pairs, ax, order=None):
     '''Add statisticatl annotation.'''
     annotator = Annotator(ax, pairs, data=df, x=x, y=y, order=order)
@@ -68,7 +101,7 @@ def add_wilcox(df, x, y, pairs, ax, order=None):
 
 
 def format_ax(df, ax, title='', xlabel='', ylabel='', xticks=None, yticks=None, rotx=0, roty=0, 
-            xsize=None, ysize=None, log=False):
+            xsize=None, ysize=None, title_size=None, log=False):
     '''
     Tune ticks and stuffs.
     '''
@@ -84,9 +117,29 @@ def format_ax(df, ax, title='', xlabel='', ylabel='', xticks=None, yticks=None, 
         ax.set_yticklabels(yticks)
     ax.tick_params(axis='x', labelrotation = rotx)
     ax.tick_params(axis='y', labelrotation = roty)
+    if title_size is not None:
+        ax.set_title(title, fontdict={'fontsize': title_size})
 
     return ax
 
+
+##
+
+
+def add_labels_on_loc(df, x, y, by, ax=None, s=10):
+    '''
+    Add categorical labels on loc on a scatterplot.
+    '''
+    coords = df.loc[:, [x, y, by]].groupby(by).median()
+    for label in coords.index:
+        x, y = coords.loc[label, :].tolist()
+        ax.text(x, y, label, fontsize=s, weight="bold")
+
+
+##
+
+
+########################################################################
 
 # Basic axes plots
 

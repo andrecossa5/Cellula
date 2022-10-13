@@ -110,6 +110,7 @@ if not args.skip:
     # Code. To be fixed...
     sys.path.append('/Users/IEO5505/Desktop/pipeline/code/Cellula/') # Path to pipeline code in docker image
     from _plotting import *
+    from _embeddings import *
     from _utils import *
     from _pp import *
     from _integration import *
@@ -181,8 +182,21 @@ def integration_diagnostics():
 
     # Compute kNN graphs for all (original and integrated) representation
     t.start()
-    I.compute_all_kNN_graphs(k=k, only_index=False) # k=15, default from scib
+    I.compute_all_kNN_graphs(k=15) # k=15, default from scib
     logger.info(f'kNN calculations: {t.stop()} s.')
+
+    # Compute and compare embeddings
+    colors = create_colors(I.GE_spaces['red'].matrix.obs)
+
+    t.start()
+    for pp in I.GE_spaces:
+        g = I.GE_spaces[pp]
+        with PdfPages(path_viz + f'orig_int_embeddings_{pp}.pdf') as pdf:
+            for int_rep in g.int_methods:
+                fig = plot_orig_int_embeddings(g, rep_1='original', rep_2=int_rep, colors=colors)
+                pdf.savefig()  
+                plt.close()
+    logger.info(f'Embeddings visualization: {t.stop()} s.')
 
     # Batch removal metrics
     t.start()
@@ -239,11 +253,11 @@ def choose_preprocessing_option():
     # Assemble adata
     g = pp_out[pp] if chosen_int != 'scVI' else pp_out
     only_int = True if chosen_int != 'original' else False
-    for k in [ 15, 30, 50, 100 ]:
-        g.compute_kNNs(k=k, n_pcs=30, key=None, only_index=False, only_int=only_int)
-    adata = GE_space_to_adata(g, chosen_int)
+    for k in [5, 10, 15, 30, 50, 100]:
+        g.compute_kNNs(k=k, n_components=30) # 6 kNN graphs
 
     # Save
+    adata = g.to_adata()
     adata.write(path_data + 'preprocessed.h5ad')
 
     # Free disk memory and clean integration folders (if requested)

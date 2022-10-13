@@ -60,13 +60,6 @@ my_parser.add_argument(
 
 # embs
 my_parser.add_argument(
-    '--umap_only', 
-    action='store_true',
-    help='Compute only UMAP dimred. Default: False.'
-)
-
-# embs
-my_parser.add_argument(
     '--no_biplot', 
     action='store_true',
     help='Skip biplot vizualization. Default: False.'
@@ -108,7 +101,6 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set other paths 
-    path_QC = path_main + '/QC/'
     path_data = path_main + '/data/'
     path_results = path_main + '/results_and_plots/pp/'
     path_runs = path_main + '/runs/'
@@ -132,7 +124,7 @@ if not args.skip:
 ########################################################################
 
 # pp script
-def pp():
+def preprocessing():
 
     T = Timer()
     T.start()
@@ -142,8 +134,8 @@ def pp():
     t.start()
     logger.info('Execute 1_pp...')
 
-    # Create a single adata (formatting cells names)
-    adata = read_from_QC_dirs(path_QC)
+    # Read QC
+    adata = sc.read(path_data + 'QC.h5ad')
 
     # Remove cells, if necessary
     if args.remove:
@@ -162,12 +154,11 @@ def pp():
 
     # Log-normalization, hvg selection, signatures scoring
     t.start()
-    adata.raw = adata 
-    pp_wrapper(adata, n_HVGs=n_HVGs)
-    cc_scores(adata)
+    adata.raw = adata.copy()
+    adata = pp(adata, mode='default', target_sum=50*1e4, n_HVGs=n_HVGs, score_method='scanpy')
 
     # Save 
-    adata.write(path_data + 'adata.h5ad')
+    adata.write(path_data + 'lognorm.h5ad')
 
     #-----------------------------------------------------------------#
 
@@ -208,10 +199,10 @@ def pp():
     t.start()
 
     GE_spaces = {
-        'red' : GE_space().load(adata).red().pca(),
-        'red_s' : GE_space().load(adata).red().scale().pca(),
-        'red_reg' : GE_space().load(adata).red().regress().pca(),
-        'red_reg_s' : GE_space().load(adata).red().regress().scale().pca()
+        'red' : GE_space(adata).red().pca(),
+        'red_s' : GE_space(adata).red().scale().pca(),
+        'red_reg' : GE_space(adata).red().regress().pca(),
+        'red_reg_s' : GE_space(adata).red().regress().scale().pca()
     }
 
     # Save
@@ -231,7 +222,7 @@ def pp():
         for k in GE_spaces:
             g = GE_spaces[k]
             with PdfPages(path_viz + f'PCs_{k}.pdf') as pdf:
-                for cov in ['seq_run', 'sample', 'nUMIs', 'mito_perc', 'cycle_diff']:
+                for cov in ['seq_run', 'sample', 'nUMIs', 'cycle_diff']:
                     fig = plot_biplot_PCs(g, covariate=cov, colors=colors)
                     pdf.savefig()  
                     plt.close()
@@ -243,40 +234,17 @@ def pp():
     # Compute original cell embeddings
     if args.embs:
 
+        # Visualize QC covariates in cell embeddings (umap only here)
         t.start()
-        logger.info(f'Begin cell embeddings computation...')
-
-        EMBs = {}
-        for k in GE_spaces:
-            g = GE_spaces[k]
-            adata = prep_for_embeddings(g, n_pcs=30, k=15)
-            df = embeddings(adata, paga_groups='sample', umap_only=args.umap_only)
-            EMBs[k] = df
-
-        # Save
-        with open(path_results + 'embeddings.txt', 'wb') as f:
-            pickle.dump(EMBs, f)
-
-        logger.info(f'Original cell embeddings computation: {t.stop()} s.')
-
-        #-----------------------------------------------------------------#
-
-        # Visualize covariate of interest in cell embeddings
         logger.info(f'Begin cell embeddings vizualization...')
-        t.start()
 
-        # Load embs
-        with open(path_results + 'embeddings.txt', 'rb') as f:
-            EMBs = pickle.load(f)
-
-        for k in EMBs:
-            adata = GE_spaces[k].matrix
-            df = EMBs[k]
-            with PdfPages(path_viz + f'original_embeddings_{k}.pdf') as pdf:
-                for cov in ['seq_run', 'sample', 'nUMIs', 'mito_perc', 'cycle_diff']:
-                    fig = plot_embeddings(adata, df, covariate=cov, colors=colors, umap_only=args.umap_only)
-                    pdf.savefig()  
-                    plt.close()
+        with PdfPages(path_viz + f'original_embeddings.pdf') as pdf:
+            for k in GE_spaces:
+                g = GE_spaces[k]
+                g.compute_kNNs(k=15) # Default here
+                fig = plot_embeddings(g, rep='original', colors=colors)
+                pdf.savefig()  
+                plt.close()
 
         logger.info(f'Original cell embeddings vizualization: {t.stop()} s.')
 
@@ -290,7 +258,7 @@ def pp():
 # Run program
 if __name__ == "__main__":
     if not args.skip:
-        pp()
+        preprocessing()
 
 #######################################################################
 

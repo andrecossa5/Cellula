@@ -6,16 +6,31 @@ A collection of script for semi-automatic, seamless single-cell analysis (soon a
 
 This folder is organized as follows:
 
-* ./envs contain the .yml file of the conda environment with all the software needed (macOS)
-* ./to_be_added and ./old contain various modules that might be (re-)integrated in the future. 
-* ./code contains all the actual code needed.
+```bash
+.
+├── code
+│   ├── apps
+│   ├── Cellula
+│   ├── CLIs
+│   └── tests
+├── envs
+├── old
+└── to_be_added
+    ├── viz
+    └── wot
+```
 
-The ./code folder is organized as follows:
+* `envs` contains the .yml file of the conda environment with all the software needed (macOS)
+* `to_be_added` and `old` contain various modules that might be (re-)integrated in the future. 
+* `code` contains all the actual code needed.
 
-* ./code/Cellula contains the modules with functions and classes called by the CLIs.
-* ./code/CLIs contains all the python CLIs that at the time being constitute the 'pipeline'.
-* ./code/apps contains the .py script that opens the GUI used to visualize the results of the 7_dist_features.py script, the last CLI that has to be called for a 'complete' Cellula analysis.
-* ./code/tests contains the tests for particularly important functions/scripts.
+The `code` folder is organized as follows:
+
+
+* `code/Cellula` contains the modules with functions and classes called by the CLIs.
+* `code/CLIs` contains all the python CLIs that at the time being constitute the 'pipeline'.
+* `code/apps` contains the .py script that opens the GUI used to visualize the results of the 7_dist_features.py script, the last CLI that has to be called for a 'complete' Cellula analysis.
+* `code/tests` contains the tests for particularly important functions/scripts.
 
 ### Comments for now
 1. This is still a preliminary version of this project. 

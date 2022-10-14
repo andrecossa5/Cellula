@@ -21,14 +21,16 @@ dependencies:
   - umap-learn=0.5.3
   - cmake
   - lightgbm
+  - pip
+  - python-annoy
   - pip:
-    - annoy==1.17.1
+    - streamlit 
+    - git+https://github.com/YosefLab/Hotspot.git@c8bc56d689cc0b770ca59080e194a2d9e93f3c5e
     - bbknn==1.5.1
     - cython==0.29.32
     - gseapy==0.13.0
     - harmony-pytorch==0.1.7
     - hnswlib==0.6.2
-    - hotspotsc==1.1.1
     - louvain==0.7.1
     - markdown==3.4.1
     - pandas==1.4.4

@@ -22,7 +22,6 @@ import matplotlib.cm as cm
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import matplotlib
 
-matplotlib.use('MacOSX')
 plt.style.use('default')
 
 ########################################################################

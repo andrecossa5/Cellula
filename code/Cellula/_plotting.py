@@ -18,7 +18,6 @@ from matplotlib.lines import Line2D
 from matplotlib.backends.backend_pdf import PdfPages
 import seaborn as sns
 import matplotlib.cm as cm
-matplotlib.use('MacOSX')
 
 path_code = '/Users/IEO5505/Desktop/pipeline/code/Cellula/'
 sys.path.append(path_code) # Path to local-system, user-defined custom code

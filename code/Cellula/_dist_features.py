@@ -40,7 +40,7 @@ from _Results import *
 from _Results_app import *
 
 ########################################################################
-
+ 
 # Distinguishing features
 
 
@@ -55,7 +55,9 @@ def prep_jobs_contrasts(adata, path, contrasts_name):
     contrasts = {}
 
     for f in d:
+        print(f)
         for k in d[f]:
+            print(k)
             D = d[f][k]
             jobs[k], contrasts[k] = prep_one_contrast_jobs(adata, D)
 
@@ -657,6 +659,7 @@ class Dist_features:
                 feature_type='genes', 
                 comparison=comparison
             )
+
             one_df['es_rescaled'] = rescale(one_df['effect_size']) # Rescaled for within methods comparisons
             idx = rank_top(one_df['effect_size']) 
             one_df = one_df.iloc[idx, :].assign(rank=[ i for i in range(1, one_df.shape[0]+1) ])

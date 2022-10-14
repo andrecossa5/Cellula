@@ -128,6 +128,8 @@ def dist_features():
 
     # Load adata, singatures and prep contrasts and jobs
     adata = sc.read(path_data + 'clustered.h5ad')
+    adata.obs = meta_format(adata.obs)
+
     with open(path_signatures + 'signatures.txt', 'rb') as f:
         signatures = pickle.load(f)
     jobs, contrasts = prep_jobs_contrasts(adata, path_main + 'custom/', 'contrasts')

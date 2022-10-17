@@ -1,0 +1,92 @@
+"""
+_dist_features.py: utils for Dist_features.
+"""
+
+import yaml
+import numpy as np
+import pandas as pd
+import scanpy as sc
+from itertools import product
+
+from ._Contrast import Contrast
+
+
+##
+
+
+def prep_one_contrast_jobs(adata, D):
+    """
+    Prep all the jobs for one contrast. Put em in a list and return it.
+    """
+    query = D['query']
+    c = Contrast(adata.obs, query=query)
+
+    features = []
+    models = []
+    params = []
+
+    for k, v in D['methods'].items():
+        if k == 'DE':
+            features.append('genes')
+            models.append('wilcoxon')
+            params.append(None)
+        else:
+            ml_pars = v 
+            feat_ = ml_pars['features']
+            models_ = ml_pars['models']
+            mode_ = ml_pars['mode']
+
+            combos = list(product(feat_, models_, [mode_]))
+
+            for combo in combos:
+                features.append(combo[0])
+                models.append(combo[1])
+                params.append(combo[2])
+
+    L = [ 
+        { 'features': x, 'model' : y, 'mode' : z} \
+        for x, y, z in zip(features, models, params) 
+    ]
+
+    return L, c
+
+
+##
+
+
+def prep_jobs_contrasts(adata, path, contrasts_name):
+    """
+    Load contrasts, specified in a .yml file at path_contrasts.
+    """
+    with open(path + f'{contrasts_name}.yml', 'r') as f:
+        d = yaml.load(f, Loader=yaml.FullLoader)
+    
+    jobs = {}
+    contrasts = {}
+
+    for f in d:
+        print(f)
+        for k in d[f]:
+            print(k)
+            D = d[f][k]
+            jobs[k], contrasts[k] = prep_one_contrast_jobs(adata, D)
+
+    return jobs, contrasts
+
+
+##
+
+
+def one_hot_from_labels(y):
+    """
+    My one_hot encoder from a categorical variable.
+    """
+    if len(y.categories) > 2:
+        Y = np.concatenate(
+            [ np.where(y == x, 1, 0)[:, np.newaxis] for x in y.categories ],
+            axis=1
+        )
+    else:
+        Y = np.where(y == y.categories[0], 1, 0)
+    
+    return Y

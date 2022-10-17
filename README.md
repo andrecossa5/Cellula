@@ -8,31 +8,22 @@ This folder is organized as follows:
 
 ```bash
 .
-├── code
-│   ├── apps
-│   ├── Cellula
-│   ├── CLIs
-│   └── tests
+├── Cellula
+├── apps
+├── docs
 ├── envs
-├── old
-└── to_be_added
-    ├── viz
-    └── wot
+├── scripts
+└── tests
 ```
 
-* `envs` contains the .yml file of the conda environment with all the software needed (macOS)
-* `to_be_added` and `old` contain various modules that might be (re-)integrated in the future. 
-* `code` contains all the actual code needed.
-
-The `code` folder is organized as follows:
-
-
-* `code/Cellula` contains the modules with functions and classes called by the CLIs.
-* `code/CLIs` contains all the python CLIs that at the time being constitute the 'pipeline'.
-* `code/apps` contains the .py script that opens the GUI used to visualize the results of the 7_dist_features.py script, the last CLI that has to be called for a 'complete' Cellula analysis.
-* `code/tests` contains the tests for particularly important functions/scripts.
+* `envs` contains the .yml file of the conda environment needed for package setup.
+* `docs` contais all documentations files.
+* `tests` contains all package unit tests.
+* `apps` contains the .py scripts that launch `streamlit` GUIs.  
+* `scripts` contains all the CLIs which produce Cellula workflow. 
+* `Cellula` contains all the modules needed by `scripts`.
 
 ### Comments for now
 1. This is still a preliminary version of this project. 
-2. The Cellula.drawio.png sketch should represent the logic flow with which Cellula CLIs should be called. It is a simple draft, for now.
-3. Modules import has not being cured so much so far. Basically, all modules import everything.
+2. The Cellula.drawio.png sketch should represent the logic flow with which Cellula CLIs pipe one into the other, along with their main modules dependencies.
+3. `tests`, `docs` and `setup.py` needs to be implemented yet.

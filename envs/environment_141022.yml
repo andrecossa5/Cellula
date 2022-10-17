@@ -4,6 +4,8 @@ channels:
   - bioconda
   - defaults
 dependencies:
+  - R
+  - rust=1.63.0
   - igraph=0.9.10
   - jax=0.3.16
   - jaxlib=0.3.15

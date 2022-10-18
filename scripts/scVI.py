@@ -81,9 +81,8 @@ if not args.skip:
 
     #-----------------------------------------------------------------#
 
-    # Set other paths 
-    path_QC = path_main + '/QC/'
-    path_data = path_main + '/data/'
+    # Set other paths
+    path_data = path_main + f'/data/{step}'
     path_results = path_main + '/results_and_plots/pp/'
     path_runs = path_main + '/runs/'
     path_viz = path_main + '/results_and_plots/vizualization/pp/'

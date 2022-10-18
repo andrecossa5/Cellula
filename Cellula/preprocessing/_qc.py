@@ -43,15 +43,17 @@ def read_matrices(path, mode='raw'):
         adatas = {}
         if mode == 'raw':
                 for s in os.listdir(path):
-                        a = sc.read_10x_mtx(path + f'/{s}/{mode}_gene_bc_matrix')
-                        cells = pd.read_csv(path + f'/{s}/summary_sheet_cells.csv', index_col=0)
-                        cells = cells.loc[:, ['GBC']]
-                        cells_to_retain = [ x for x in cells.index if x in a.obs_names ]
-                        cells = cells.loc[cells_to_retain, :]
-                        a = a[cells_to_retain, :].copy()
-                        a.obs = a.obs.assign(GBC=cells['GBC'], sample=s)
-                        a = adata_name_formatter(a)
-                        adatas[s] = a
+                        print(s)
+                        if s != '.DS_Store':
+                                a = sc.read_10x_mtx(path + f'/{s}/{mode}_gene_bc_matrix')
+                                cells = pd.read_csv(path + f'/{s}/summary_sheet_cells.csv', index_col=0)
+                                cells = cells.loc[:, ['GBC']]
+                                cells_to_retain = [ x for x in cells.index if x in a.obs_names ]
+                                cells = cells.loc[cells_to_retain, :]
+                                a = a[cells_to_retain, :].copy()
+                                a.obs = a.obs.assign(GBC=cells['GBC'], sample=s)
+                                a = adata_name_formatter(a)
+                                adatas[s] = a
         else:
                 for s in os.listdir(path):
                         a = sc.read_10x_mtx(path + f'/{s}/{mode}_gene_bc_matrix')

@@ -4,6 +4,7 @@ channels:
   - bioconda
   - defaults
 dependencies:
+  - conda-build
   - R
   - rust=1.63.0
   - igraph=0.9.10
@@ -14,6 +15,7 @@ dependencies:
   - networkx=2.8.6
   - numba=0.55.2
   - numpy=1.22.4
+  - scrublet=0.2.3
   - python=3.10.6
   - scanpy=1.9.1
   - scikit-learn=1.1.2
@@ -21,13 +23,13 @@ dependencies:
   - seaborn=0.12.0
   - statsmodels=0.13.2
   - umap-learn=0.5.3
-  - gseapy=0.13.0
   - cmake
   - lightgbm
   - pip
   - python-annoy
   - pip:
     - streamlit 
+    - gseapy==0.13.0
     - git+https://github.com/YosefLab/Hotspot.git@c8bc56d689cc0b770ca59080e194a2d9e93f3c5e
     - bbknn==1.5.1
     - cython==0.29.32

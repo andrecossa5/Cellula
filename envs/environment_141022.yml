@@ -5,6 +5,7 @@ channels:
   - defaults
 dependencies:
   - conda-build
+  - setuptools-rust
   - R
   - rust=1.63.0
   - igraph=0.9.10
@@ -28,8 +29,8 @@ dependencies:
   - pip
   - python-annoy
   - pip:
-    - streamlit 
     - gseapy==0.13.0
+    - streamlit 
     - git+https://github.com/YosefLab/Hotspot.git@c8bc56d689cc0b770ca59080e194a2d9e93f3c5e
     - bbknn==1.5.1
     - cython==0.29.32

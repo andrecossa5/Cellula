@@ -21,7 +21,7 @@ mkdir pp clustering vizualization dist_features signatures
 
 # Update vizualization
 cd vizualization
-mkdir pp clustering dist_features signatures 
+mkdir pp clustering dist_features signatures QC
 
 # # Trajectories
 # cd ../trajectories

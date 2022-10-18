@@ -68,12 +68,10 @@ path_main = args.path_main
 # Preparing run: import code, set logger, prepare directories
 if not args.skip:
 
-    # Code. To be fixed...
-    sys.path.append('/Users/IEO5505/Desktop/pipeline/code/Cellula/') # Path to pipeline code in docker image
-    from _plotting import *
-    from _utils import *
-    from _qc import *
-    from _plotting import *
+    # Code
+    from Cellula._utils import *
+    from Cellula.plotting._plotting import *
+    from Cellula.preprocessing._qc import *
 
     # Custom code 
     sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
@@ -89,11 +87,12 @@ if not args.skip:
     path_viz = path_main + '/results_and_plots/vizualization/QC/'
 
     # Create step_{i} folders. Overwrite, if they have already been created
-    to_make = [ (path_runs, step), (path_viz, step) ]
+    to_make = [ (path_runs, step), (path_viz, step), (path_data, step) ]
     for x, y in to_make:
         make_folder(x, y, overwrite=True)
 
     # Update paths
+    path_data += f'/{step}/'
     path_runs += f'/{step}/'
     path_viz += f'/{step}/' 
 

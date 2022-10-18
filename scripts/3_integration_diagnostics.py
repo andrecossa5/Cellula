@@ -83,6 +83,14 @@ my_parser.add_argument(
     help='The preprocessing option to choose. Default: None. Example: red_s:original.'
 )
 
+# n_comps
+my_parser.add_argument(
+    '--n_comps', 
+    type=int,
+    default=30,
+    help='Number of latent embeddings components to compute kNNs on. Default: 30.'
+)
+
 # Skip
 my_parser.add_argument(
     '--skip', 
@@ -101,20 +109,20 @@ covariate = args.covariate
 resolution = args.resolution
 delete = args.delete
 chosen = args.chosen
+n_comps = args.n_comps
 
 ########################################################################
 
 # Preparing run: import code, prepare directories, set logger
 if not args.skip:
 
-    # Code. To be fixed...
-    sys.path.append('/Users/IEO5505/Desktop/pipeline/code/Cellula/') # Path to pipeline code in docker image
-    from _plotting import *
-    from _embeddings import *
-    from _utils import *
-    from _pp import *
-    from _integration import *
-
+    # Code
+    import pickle
+    from Cellula._utils import *
+    from Cellula.plotting._plotting import *
+    from Cellula.preprocessing._integration import fill_from_integration_dirs
+    from Cellula.preprocessing._Int_evaluator import Int_evaluator
+    
     # Custom code 
     sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
     from colors import *
@@ -122,9 +130,8 @@ if not args.skip:
 
     #-----------------------------------------------------------------#
 
-    # Set other paths 
-    path_QC = path_main + '/QC/'
-    path_data = path_main + '/data/'
+    # Set other paths
+    path_data = path_main + f'/data/{step}/'
     path_results = path_main + '/results_and_plots/pp/'
     path_runs = path_main + '/runs/'
     path_viz = path_main + '/results_and_plots/vizualization/pp/'
@@ -138,7 +145,7 @@ if not args.skip:
     # along with the GE_space dictionary in ./data
     to_check = [ (path_data, 'GE_spaces.txt'), (path_results, 'integration') ]
     if not any([ os.path.exists(path) for path in [ ''.join(x) for x in to_check ] ]):
-        print('Apply integration algorithm(s) beforehand!')
+        print('Run 1_pp or integration algorithm(s) beforehand!')
         sys.exit()
     else:
         path_results += '/integration/'
@@ -254,7 +261,7 @@ def choose_preprocessing_option():
     g = pp_out[pp] if chosen_int != 'scVI' else pp_out
     only_int = True if chosen_int != 'original' else False
     for k in [5, 10, 15, 30, 50, 100]:
-        g.compute_kNNs(k=k, n_components=30) # 6 kNN graphs
+        g.compute_kNNs(k=k, n_components=n_comps) # 6 kNN graphs
 
     # Save
     adata = g.to_adata()

@@ -110,7 +110,7 @@ class Int_evaluator:
 
     def compute_bio(self, g, original_kNN, integrated_kNN, pp=None, int_method=None, key=None, resolution=0.2, metric=None, labels=None):
         """
-        Compute one  of the available bio conservation metrics.
+        Compute one of the available bio conservation metrics.
         """
         if metric == 'kNN_retention_perc':
             score = kNN_retention_perc(original_kNN, integrated_kNN)

@@ -8,4 +8,4 @@ cd $begin
 
 rm -r report.txt runs results_and_plots
 rm -r data/removed_cells
-rm data/*
+rm -r data/step_*

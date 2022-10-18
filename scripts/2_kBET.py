@@ -71,12 +71,11 @@ covariate = args.covariate
 # Preparing run: import code, prepare directories, set logger
 if not args.skip:
 
-    # Code. To be fixed...
-    sys.path.append('//Users/IEO5505/Desktop/pipeline/code/Cellula/') # Path to pipeline code in docker image
-    from _plotting import *
-    from _utils import *
-    from _pp import *
-    from _integration import *
+    # Code
+    import pickle
+    from Cellula._utils import *
+    from Cellula.preprocessing._Int_evaluator import Int_evaluator
+    from Cellula.preprocessing._metrics import choose_K_for_kBET
 
     # Custom code 
     sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
@@ -86,19 +85,18 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set other paths 
-    path_QC = path_main + '/QC/'
-    path_data = path_main + '/data/'
+    path_data = path_main + f'/data/{step}/' # Set here, do not overwrite
     path_results = path_main + '/results_and_plots/pp/'
     path_runs = path_main + '/runs/'
     path_viz = path_main + '/results_and_plots/vizualization/pp/'
 
     # Update paths
-    path_runs += f'/{step}/'
-    path_results += f'/{step}/' 
+    path_results += f'/{step}/'
+    path_runs += f'/{step}/' 
     path_viz += f'/{step}/' 
 
     # Check if the ./runs/step_{i}/logs_1_pp.txt are present, 
-    # along with the GE_space dictionary in ./data
+    # along with the GE_space dictionary in path_data
     to_check = [ (path_data, 'GE_spaces.txt'), (path_runs, 'logs_1_pp.txt') ]
     if not all([ os.path.exists(path) for path in [ ''.join(x) for x in to_check ] ]):
         print('Run 1_pp.py beforehand!')

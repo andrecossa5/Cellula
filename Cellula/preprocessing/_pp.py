@@ -68,7 +68,7 @@ def _sig_scores(adata, score_method='scanpy'):
 ##
 
 
-def pp(adata, mode='default', target_sum=50*1e4, n_HVGs=2000, score_method='scanpy'):
+def pp(adata, mode='scanpy', target_sum=50*1e4, n_HVGs=2000, score_method='scanpy'):
     """
     Pre-processing pp_wrapper on QCed and merged adata.
     """
@@ -77,7 +77,7 @@ def pp(adata, mode='default', target_sum=50*1e4, n_HVGs=2000, score_method='scan
     pg.identify_robust_genes(adata, percent_cells=0.05)
     adata = adata[:, adata.var['robust']]
 
-    if mode == 'default': # Size normalization + pegasus batch aware HVGs selection
+    if mode == 'scanpy': # Size normalization + pegasus batch aware HVGs selection
             sc.pp.normalize_total(
                     adata, 
                     target_sum=target_sum,

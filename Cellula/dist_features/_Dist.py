@@ -2,6 +2,7 @@
 _Scores.py: The Dist_features class. The most important class of Cellula.
 """
 
+import pickle
 import logging
 import re
 import gc
@@ -43,7 +44,7 @@ class Dist_features:
         )
 
         # PCs
-        g = _GE_space.GE_space(adata).red().scale().pca()
+        g = ge.GE_space(adata).red().scale().pca() # FIX STRANGE BEHAVIOUR
 
         PCs = pd.DataFrame(
             data=g.PCA.embs,

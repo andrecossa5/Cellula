@@ -43,6 +43,22 @@ my_parser.add_argument(
     help='Remove cells in path_main/data/removed_cells/. Default: False.'
 )
 
+# norm
+my_parser.add_argument(
+    '--norm', 
+    type=str,
+    default='scanpy',
+    help='Normalization method. Default: scanpy.'
+)
+
+# score
+my_parser.add_argument(
+    '--score', 
+    type=str,
+    default='scanpy',
+    help='QC and cell cycle signatures scoring method. Default: scanpy.'
+)
+
 # n_HVGs
 my_parser.add_argument(
     '--n_HVGs', 
@@ -77,6 +93,8 @@ args = my_parser.parse_args()
 
 path_main = args.path_main
 step = f'step_{args.step}'
+normalization_method = args.norm
+scoring_method = args.score
 n_HVGs = args.n_HVGs
 
 ########################################################################
@@ -84,14 +102,15 @@ n_HVGs = args.n_HVGs
 # Preparing run: import code, prepare directories, set logger
 if not args.skip:
 
-    # Code. To be fixed...
-    sys.path.append('/Users/IEO5505/Desktop/pipeline/code/Cellula/') # Path to pipeline code in docker image
-    from _plotting import *
-    from _utils import *
-    from _pp import *
-    from _embeddings import *
-    from _plotting import *
-    from _plotting_base import *
+    # Code
+    import pickle
+    import Cellula.plotting._plotting_base
+    from glob import glob
+    from Cellula._utils import *
+    from Cellula.preprocessing._pp import *
+    from Cellula.preprocessing._GE_space import GE_space
+    from Cellula.preprocessing._embeddings import *
+    from Cellula.plotting._plotting import *
 
     # Custom code 
     sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
@@ -107,11 +126,15 @@ if not args.skip:
     path_viz = path_main + '/results_and_plots/vizualization/pp/'
 
     # Create step_{i} folders. Overwrite, if they have already been created
-    to_make = [ (path_runs, step), (path_results, step), (path_viz, step) ]
+    to_make = [ (path_runs, step), (path_results, step), (path_viz, step), (path_data, step) ]
     for x, y in to_make:
-        make_folder(x, y, overwrite=True)
+        if bool(re.search('data', x)):
+            make_folder(x, y, overwrite=False)
+        else:
+            make_folder(x, y, overwrite=True)
 
     # Update paths
+    path_data += f'/{step}/'
     path_runs += f'/{step}/'
     path_results += f'/{step}/' 
     path_viz += f'/{step}/' 
@@ -155,7 +178,13 @@ def preprocessing():
     # Log-normalization, hvg selection, signatures scoring
     t.start()
     adata.raw = adata.copy()
-    adata = pp(adata, mode='default', target_sum=50*1e4, n_HVGs=n_HVGs, score_method='scanpy')
+    adata = pp(
+        adata, 
+        mode=normalization_method, 
+        target_sum=50*1e4, 
+        n_HVGs=n_HVGs, 
+        score_method=scoring_method
+    )
 
     # Save 
     adata.write(path_data + 'lognorm.h5ad')

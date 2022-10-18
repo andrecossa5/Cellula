@@ -80,14 +80,11 @@ contrasts_name = args.contrasts
 # Preparing run: import code, prepare directories, set logger
 if not args.skip:
 
-    # Code. To be fixed...
-    sys.path.append('/Users/IEO5505/Desktop/pipeline/code/Cellula/') # Path to pipeline code in docker image
-    from _plotting import *
-    from _utils import *
-    from _pp import *
-    from _integration import *
-    from _clustering import *
-    from _dist_features import *
+    # Code
+    import pickle
+    from Cellula._utils import *
+    from Cellula.dist_features._dist_features import prep_jobs_contrasts
+    from Cellula.dist_features._Dist import Dist_features
 
     # Custom code 
     sys.path.append(path_main + 'custom/') # Path to local-system, user-defined custom code
@@ -97,7 +94,7 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set other paths 
-    path_data = path_main + '/data/'
+    path_data = path_main + f'/data/{step}/'
     path_results = path_main + '/results_and_plots/dist_features/'
     path_runs = path_main + '/runs/'
     path_viz = path_main + '/results_and_plots/vizualization/dist_features/'
@@ -120,8 +117,8 @@ if not args.skip:
 
 ########################################################################
 
-# dist_features
-def dist_features():
+# main
+def main():
 
     T = Timer()
     T.start()
@@ -156,6 +153,6 @@ def dist_features():
 # Run program
 if __name__ == "__main__":
     if not args.skip:
-        dist_features()
+        main()
 
 #######################################################################

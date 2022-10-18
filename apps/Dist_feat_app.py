@@ -3,7 +3,7 @@
 import pickle
 import pandas as pd
 import numpy as np
-from Cellula.dist_features._Results_app import Results_app
+import streamlit as st
 
 
 ##

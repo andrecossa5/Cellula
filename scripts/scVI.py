@@ -69,13 +69,10 @@ continuous = args.continuous
 # Preparing run: import code, prepare directories, set logger
 if not args.skip:
 
-    # Code. To be fixed...
-    sys.path.append('/Users/IEO5505/Desktop/pipeline/code/Cellula/') # Path to pipeline code in docker image
-    from _plotting import *
-    from _utils import *
-    from _pp import *
-    from _integration import *
-    from _plotting import *
+    # Code
+    from Cellula._utils import *
+    from Cellula.preprocessing._pp import *
+    from Cellula.preprocessing._GE_space import GE_space
 
     # Custom code 
     sys.path.append(path_main + 'custom/') # Path to local-system, user-defined custom code

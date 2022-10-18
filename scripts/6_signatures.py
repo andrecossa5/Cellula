@@ -81,25 +81,23 @@ args = my_parser.parse_args()
 
 path_main = args.path_main
 step = f'step_{args.step}'
-Hotspot = 'Hotpsot' if args.Hotspot else None
+Hotspot = 'Hotspot' if args.Hotspot else None
 wu = 'wu' if args.wu else None
 barkley = 'barkley' if args.barkley else None
 scoring = args.scoring
 
 which = [ Hotspot, wu, barkley ]
+# which = [None, 'wu', None]
 
 ########################################################################
 
 # Preparing run: import code, prepare directories, set logger
 if not args.skip:
 
-    # Code. To be fixed...
-    sys.path.append('/Users/IEO5505/Desktop/pipeline/code/Cellula/') # Path to pipeline code in docker image
-    from _plotting import *
-    from _utils import *
-    from _pp import *
-    from _dist_features import *
-    from _signatures import *
+    # Code
+    import pickle
+    from Cellula._utils import *
+    from Cellula.dist_features._Scores import Scores
 
     # Custom code 
     sys.path.append(path_main + 'custom/') # Path to local-system, user-defined custom code
@@ -110,7 +108,7 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set other paths 
-    path_data = path_main + '/data/'
+    path_data = path_main + f'/data/{step}/'
     path_clusters = path_main + f'results_and_plots/clustering/{step}/'
     path_markers = path_main + f'results_and_plots/dist_features/{step}/'
     path_results = path_main + '/results_and_plots/signatures/'
@@ -134,7 +132,7 @@ if not args.skip:
 ########################################################################
 
 # Signatures
-def signatures():
+def Signatures():
 
     T = Timer()
     T.start()
@@ -178,6 +176,6 @@ def signatures():
 # Run program
 if __name__ == "__main__":
     if not args.skip:
-        signatures()
+        Signatures()
 
 #######################################################################

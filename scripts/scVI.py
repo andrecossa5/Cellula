@@ -70,6 +70,7 @@ continuous = args.continuous
 if not args.skip:
 
     # Code
+    import pickle
     from Cellula._utils import *
     from Cellula.preprocessing._pp import *
     from Cellula.preprocessing._GE_space import GE_space

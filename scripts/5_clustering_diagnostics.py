@@ -42,6 +42,22 @@ my_parser.add_argument(
     help='The clustering solution to choose. Default: None.'
 )
 
+# rep
+my_parser.add_argument( 
+    '--rep', 
+    type=str,
+    default='original',
+    help='Final representation to use for cell embeddings. Default: original.'
+)
+
+# Chosen 
+my_parser.add_argument( 
+    '--kNN', 
+    type=str,
+    default=None,
+    help='Final kNN to use for cell embeddings. Default: 15_NN_30_components.'
+)
+
 # Remove cell subsets
 my_parser.add_argument( 
     '--remove', 
@@ -64,6 +80,8 @@ path_main = args.path_main
 step = f'step_{args.step}'
 chosen = args.chosen
 remove = args.remove
+rep = args.rep
+kNN = args.kNN
 
 ########################################################################
 
@@ -72,10 +90,12 @@ if not args.skip:
 
     # Code
     import pickle
+    import Cellula.preprocessing
     from Cellula._utils import *
     from Cellula.clustering._clustering import *
     from Cellula.clustering._Clust_evaluator import *
     from Cellula.plotting._plotting import *
+    from Cellula.preprocessing._embeddings import embeddings
 
     # Custom code 
     sys.path.append(path_main + 'custom/') # Path to local-system, user-defined custom code
@@ -332,11 +352,15 @@ def clustering_diagnostics():
         adata.obsm = pp.obsm 
         adata.obsp = pp.obsp
         adata.uns = pp.uns
-
         adata.obs['leiden'] = clustering_solutions[chosen].astype('category')
-    
+
+        # Compute final embeddings
+        df = embeddings(adata, paga_groups='leiden', rep=rep, key=kNN)
+
+        # Save clustered and cells_embeddings
         print(adata)
         adata.write(path_data + 'clustered.h5ad')
+        df.to_csv(path_data + 'embeddings.csv')
 
         logger.info(f'Creating final clustered adata: {t.stop()} s.')
 

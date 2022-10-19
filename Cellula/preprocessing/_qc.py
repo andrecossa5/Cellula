@@ -6,6 +6,7 @@ It implements functions for matrix reading and formatting, filtering and vizuali
 
 import os
 import pandas as pd 
+from functools import reduce
 import numpy as np 
 from random import seed, sample
 import scanpy as sc

@@ -5,7 +5,6 @@ channels:
   - defaults
 dependencies:
   - conda-build
-  - setuptools-rust
   - R
   - rust=1.63.0
   - gseapy==0.13.0
@@ -26,6 +25,7 @@ dependencies:
   - statsmodels=0.13.2
   - umap-learn=0.5.3
   - cmake
+  - git
   - lightgbm
   - pip
   - python-annoy

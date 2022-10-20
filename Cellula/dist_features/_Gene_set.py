@@ -11,7 +11,7 @@ from gseapy import enrichr, prerank
 
 
 ##
-
+ 
 
 def rank_top(x, n=None, lowest=False):
     """
@@ -198,7 +198,8 @@ class Gene_set:
 
     ##
 
-    def compute_ORA(self, key='Default_ORA', by='Adjusted P-value', n_out=50):
+    def compute_ORA(self, key='Default_ORA', by='Adjusted P-value', 
+        collection='GO_Biological_Process_2021', n_out=50):
         """
         Perform ORA (Over-Representation Analysis)
         """
@@ -207,13 +208,9 @@ class Gene_set:
         else:
             gene_list = self.stats.index.to_list()
 
-        collections = [
-            'GO_Biological_Process_2021'                 # For now...
-        ]
-
         results = enrichr(
             gene_list=gene_list,
-            gene_sets=collections,
+            gene_sets=[collection],
             organism='human', 
             outdir=None, 
         ).results
@@ -234,7 +231,8 @@ class Gene_set:
 
     ##
 
-    def compute_GSEA(self, covariate='effect_size', by='Adjusted P-value', n_out=50):
+    def compute_GSEA(self, covariate='effect_size', by='Adjusted P-value', 
+        collection='GO_Biological_Process_2021', n_out=50):
         """
         Perform GSEA (Gene-Set Enrichment Anlysis).
         """
@@ -243,13 +241,9 @@ class Gene_set:
         else:
             raise ValueError('GSEA can be performed only on ordered gene sets.')
 
-        collections = [
-            'GO_Biological_Process_2021'                 # For now...
-        ]
-
         results = prerank(
             rnk=ranked_gene_list,
-            gene_sets=collections,
+            gene_sets=[collection],
             threads=cpu_count(),
             min_size=50,
             max_size=1000,

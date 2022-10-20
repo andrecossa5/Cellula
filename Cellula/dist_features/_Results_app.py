@@ -13,7 +13,7 @@ from ._Contrast import Contrast
 
 
 def restyle(df, mode='GSA'):
-    """
+    """ 
     Restyle df.
     """
     if mode == 'GSA':
@@ -35,7 +35,8 @@ def restyle(df, mode='GSA'):
 ##
 
 
-def report_one(df, gs, comparison_key=None, contrast=None, model=None, n=10, show_genes=False, print_last=True):
+def report_one(df, gs, comparison_key=None, contrast=None, model=None, n=10, 
+    collection='GO_Biological_Process_2021', show_genes=False, print_last=True):
     """
     Report ranked features and matched gene sets. If ordered show top10, top5 ORA and GSEA.
     """
@@ -67,7 +68,7 @@ def report_one(df, gs, comparison_key=None, contrast=None, model=None, n=10, sho
                 st.write('')
                 st.markdown(f'Ranked genes enrichment: __GSEA__')
                 st.write('')
-                g.compute_GSEA()
+                g.compute_GSEA(collection=collection)
                 gsa = g.GSEA['original'].loc[:, ['Adjusted P-value', 'Lead_genes']].head(n)
                 if show_genes:
                     for x in gsa.index:
@@ -117,7 +118,7 @@ def report_one(df, gs, comparison_key=None, contrast=None, model=None, n=10, sho
                         st.write('')
                         st.write(f'{top_feat} associated gene set enrichment: __GSEA__')
                         st.write('') 
-                        g.compute_GSEA()
+                        g.compute_GSEA(collection=collection)
                         gsa = g.GSEA['original'].loc[:, ['Lead_genes']].head(n)
                         if show_genes:
                             for x in gsa.index:
@@ -130,7 +131,7 @@ def report_one(df, gs, comparison_key=None, contrast=None, model=None, n=10, sho
                         g_type = 'unordered' 
                         st.write(f'{top_feat} gene set type: {g_type}. Associated stats are not displayed.')
                         st.write('')
-                        g.compute_ORA()
+                        g.compute_ORA(collection=collection)
                         st.markdown(f'{top_feat} associated gene set enrichment: __ORA__')
                         st.write('')
                         gsa = g.ORA['Default_ORA'].loc[:, ['Genes']].head(n)
@@ -213,7 +214,7 @@ class Results_app:
 
     ##
 
-    def summary_one_comparison(self, job_key='sample|genes|wilcoxon', 
+    def summary_one_comparison(self, job_key='sample|genes|wilcoxon', collection='GO_Biological_Process_2021',
         comparison_key='bulk_d5_tr_vs_rest', n=10, show_genes=False, show_contrast=True, print_last=True):
         """
         Print summary one comparison.
@@ -248,7 +249,7 @@ class Results_app:
 
         # Show ranked features and associated Gene_sets
         report_one(df, gs, comparison_key=comparison_key, contrast=contrast, 
-            model=model, show_genes=show_genes, print_last=print_last, n=n
+            model=model, show_genes=show_genes, print_last=print_last, n=n, collection=collection
         )
         st.write('')
 
@@ -256,7 +257,8 @@ class Results_app:
 
     # summary_one_comparison(results, job_key='leiden|genes|wilcoxon', comparison_key='1_vs_others', n=10)
 
-    def summary_one_job(self, job_key='leiden|genes|wilcoxon', n=10, show_genes=False):
+    def summary_one_job(self, job_key='leiden|genes|wilcoxon', n=10, show_genes=False,
+        collection='GO_Biological_Process_2021'):
         '''
         Print summary one entire job.
         '''
@@ -292,7 +294,7 @@ class Results_app:
         last = len(list(gs.keys()))-1
         for i, k in enumerate(gs):
             report_one(df, gs, comparison_key=k, contrast=contrast, model=model, 
-                show_genes=show_genes, n=n
+                show_genes=show_genes, n=n, collection=collection
             )
             st.write('')
             if i != last:
@@ -306,7 +308,7 @@ class Results_app:
     ##
 
     def summary_one_comparison_multiple_jobs(self, contrast_key='leiden', feat_key='PCs', model_key=None,
-        comparison_key=None, show_genes=True, n=10):
+        collection='GO_Biological_Process_2021', comparison_key=None, show_genes=True, n=10):
         """
         Summary all results for a single comparison and a defined set of jobs.
         """
@@ -350,5 +352,6 @@ class Results_app:
                 show_genes=show_genes,
                 show_contrast=False, 
                 print_last=print_last,
-                n=5
+                n=5,
+                collection=collection
             )

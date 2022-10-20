@@ -311,6 +311,10 @@ def strip(df, x, y, by=None, c=None, a=1, l=None, s=5, ax=None, with_stats=False
     if isinstance(c, str):
         ax = sns.stripplot(data=df, x=x, y=y, color=c, ax=ax, size=s) 
         ax.set(xlabel='')
+    
+    elif isinstance(c, str) and by is not None:
+        g = sns.stripplot(data=df, x=x, y=y, hue=by, palette=c, ax=ax)
+        g.legend_.remove()
 
     elif isinstance(c, dict) and by is None:
         if all([ True if k in df[x].unique() else False for k in c.keys() ]):

@@ -1,5 +1,6 @@
 #/usr/bin/python
 
+import gseapy
 import pickle
 import pandas as pd
 import numpy as np
@@ -17,6 +18,7 @@ path_results = '/Users/IEO5505/Desktop/sc_pipeline_prova/results_and_plots/dist_
 
 with open(path_results + 'dist_features.txt', 'rb') as f:
     results = pickle.load(f)
+collections = list(gseapy.get_library_name())
 
 # Here we go
 st.write(f'Choose navigation mode.')
@@ -68,6 +70,11 @@ if query == 'one comparison and job':
         list(np.arange(5, 55, 5)),
         key='n'
     )
+    collection = form_2.selectbox(
+        'Gene set collections for GSEA/ORA',
+        collections,
+        key='collection'
+    )
 
     submit_2 = form_2.form_submit_button('Run')
 
@@ -75,7 +82,8 @@ if query == 'one comparison and job':
         results.summary_one_comparison(
             job_key=job_key, 
             comparison_key=comparison, 
-            show_genes=show_genes, show_contrast=show_contrast, print_last=False, n=n
+            show_genes=show_genes, show_contrast=show_contrast, print_last=False, 
+            n=n, collection=collection
         )
 
 
@@ -91,7 +99,6 @@ elif query == 'one job':
         'Analysis',
         list(results.results.keys())
     )
-
     show_genes = form_2.selectbox(
         'Print enriched pathways gene names in extended mode',
         [False, True]
@@ -102,10 +109,15 @@ elif query == 'one job':
         list(np.arange(5, 55, 5))
     )
 
+    collection = form_2.selectbox(
+        'Gene set collections for GSEA/ORA',
+        collections,
+    )
+
     submit_2 = form_2.form_submit_button('Run')
 
     if submit_2:
-        results.summary_one_job(job_key=job_key, n=n, show_genes=show_genes)
+        results.summary_one_job(job_key=job_key, n=n, show_genes=show_genes, collection=collection)
 
 
 ##
@@ -114,7 +126,7 @@ elif query == 'one job':
 # One comparison multiple jobs form
 elif query == 'one comparison multiple jobs':
     
-    col_1, col_2, col_3, col_4, col_5 = st.columns(5)
+    col_1, col_2, col_3, col_4, col_5, col_6 = st.columns(6)
 
     with col_1:
         form_3 = st.form(key='Contrast')
@@ -172,10 +184,18 @@ elif query == 'one comparison multiple jobs':
         )
         submit_7 = form_7.form_submit_button('Choose')
 
-    if submit_7:
+    with col_6:
+        form_8 = st.form(key='Collection')
+        collection = st.electbox(
+            'Gene set collections for GSEA/ORA',
+            collections,
+        )
+        submit_8 = form_8.form_submit_button('Choose')
+
+    if submit_8:
         if model_key == 'All':
             model_key = None
         results.summary_one_comparison_multiple_jobs(
         contrast_key=contrast, feat_key=feat_key, model_key=model_key,
-        comparison_key=comparison, show_genes=show_genes
+        comparison_key=comparison, show_genes=show_genes, collection=collection
     )

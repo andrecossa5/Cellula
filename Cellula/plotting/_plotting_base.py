@@ -279,6 +279,67 @@ def box(df, x, y, by=None, c=None, a=1, l=None, ax=None, with_stats=False, pairs
 ##
 
 
+# Box
+    sns.boxplot(
+        data=df_viz, 
+        x='run', 
+        y=feature, 
+        order=order,
+        saturation=0.9, 
+        fliersize=1,
+        **{
+            'boxprops':{'facecolor':'#C0C0C0', 'edgecolor':'black'}, 
+            'medianprops':{'color':'black'}, 'whiskerprops':{'color':'black'}, 'capprops':{'color':'black'}
+        }
+    )
+    # Swarm on top
+    sns.swarmplot(
+        data=df_viz, 
+        x='run', 
+        y=feature, 
+        hue='type',
+        order=order, 
+        palette=colors
+    )
+
+
+
+def strip(df, x, y, by=None, c=None, a=1, l=None, s=5, ax=None, with_stats=False, pairs=None):
+    """
+    Base stripplot.
+    """
+    if isinstance(c, str):
+        ax = sns.stripplot(data=df, x=x, y=y, color=c, ax=ax, size=s) 
+        ax.set(xlabel='')
+    
+    elif isinstance(c, str) and by is not None:
+        g = sns.stripplot(data=df, x=x, y=y, hue=by, palette=c, ax=ax)
+        g.legend_.remove()
+
+    elif isinstance(c, dict) and by is None:
+        if all([ True if k in df[x].unique() else False for k in c.keys() ]):
+            ax = sns.stripplot(data=df, x=x, y=y, palette=c.values(), ax=ax, size=s)
+            ax.set(xlabel='')
+            
+    elif isinstance(c, dict) and by is not None:
+        if all([ True if col in cat else False for col, cat in zip(list(c.keys()), df[by].unique()) ]):
+            ax = sns.stripplot(data=df, x=x, y=y, palette=c.values(), hue=by, 
+                ax=ax, size=s)
+            ax.legend([], [], frameon=False)
+            ax.set(xlabel='')
+
+    else:
+        raise ValueError(f'{by} categories do not match provided colors keys')
+
+    if with_stats:
+        add_wilcox(df, x, y, pairs, ax, order=None)
+
+    return ax
+
+
+##
+
+
 def violin(df, x, y, by=None, c=None, a=1, l=None, ax=None, with_stats=False, pairs=None):
     """
     Base violinplot.

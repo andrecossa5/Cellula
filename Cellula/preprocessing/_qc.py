@@ -7,6 +7,7 @@ It implements functions for matrix reading and formatting, filtering and vizuali
 import os
 import pandas as pd 
 from functools import reduce
+import anndata
 import numpy as np 
 from random import seed, sample
 import scanpy as sc
@@ -57,6 +58,7 @@ def read_matrices(path, mode='raw'):
                                 adatas[s] = a
         else:
                 for s in os.listdir(path):
+			
                         a = sc.read_10x_mtx(path + f'/{s}/{mode}_gene_bc_matrix')
                         a.obs = a.obs.assign(sample=s)
                         a = adata_name_formatter(a)

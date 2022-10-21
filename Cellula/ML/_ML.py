@@ -55,7 +55,7 @@ params = {
 
 
 def classification(X, y, features_names, key='xgboost', GS=True, n_combos=5, 
-                score='f1', cores_GS=cpu_count()):
+                score='f1', cores_GS=1):
     """
     Given some input data X y, run a classification analysis in several flavours.
     """

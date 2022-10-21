@@ -73,10 +73,10 @@ if not args.skip:
     from Cellula.plotting._plotting import *
     from Cellula.preprocessing._qc import *
 
-    # Custom code 
-    sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
+    # Custom code: NOT HERE...
+    # sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
     # from colors import *
-    from meta_formatting import *
+    # from meta_formatting import *
 
     #-----------------------------------------------------------------#
 
@@ -121,7 +121,7 @@ def qc():
     adata = QC(adatas, mode=qc_mode, min_cells=3, min_genes=200, path_viz=path_viz)
 
     # Reformat cells metadata
-    adata.obs = meta_format(adata.obs)
+    # adata.obs = meta_format(adata.obs)
 
     # Save adata 
     print(adata)

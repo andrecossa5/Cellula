@@ -18,6 +18,14 @@ my_parser = argparse.ArgumentParser(
 
 # Path_main
 my_parser.add_argument(
+    '--path_main',
+    '-p',
+    type=str,
+    default=None,
+    help='Path to main project. Default: None.'
+)
+
+my_parser.add_argument(
     '--model', 
     type=str,
     default=None,
@@ -74,6 +82,7 @@ my_parser.add_argument(
 
 args = my_parser.parse_args()
 
+path_main = args.path_main
 model = args.model
 n_model = args.n_model
 n_CV = args.n_CV
@@ -85,13 +94,12 @@ n_combos = args.n_combos
 ########################################################################
 
 # Libraries
-path_code = '/Users/IEO5505/Desktop/pipeline/code/Cellula/'
-sys.path.append(path_code) # Path to pipeline code in docker image
 
+import Cellula
 import random
-from _utils import *
-from _dist_features import *
-from _ML import *
+from Cellula._utils import *
+from Cellula.dist_features._dist_features import *
+from Cellula.ML._ML import *
 
 # Params
 models = {
@@ -129,8 +137,7 @@ params = {
 def test():
 
     # Data
-    path_main = '/Users/IEO5505/Desktop/sc_pipeline_prova/'
-    adata = sc.read(path_main + 'data/clustered.h5ad')
+    adata = sc.read(path_main + 'data/step_0/lognorm.h5ad')
 
     # X, y, features_names
     if feat_type == 'genes':
@@ -165,9 +172,9 @@ def test():
 
 
     # Here we go
-    logs_path = '/Users/IEO5505/Desktop/pipeline/code/tests/'
+    logs_path = path_main + '/runs/'
     mode = 'w' if not os.path.exists(logs_path + 'logs_classification_test.txt') else 'a'
-    logger = set_logger(logs_path, 'logs_classification_test.txt', mode='w')
+    logger = set_logger(logs_path, 'logs_classification_test.txt', mode=mode)
 
     t = Timer()
     t.start()

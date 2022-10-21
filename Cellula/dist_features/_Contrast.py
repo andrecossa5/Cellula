@@ -69,7 +69,8 @@ class Contrast:
                 s = np.full(meta.shape[0], fill_value='to_exclude', dtype='O')
                 for value_to_add, positions in groups_indices.items():
                     s[positions] = value_to_add
-                s = pd.Series(s, index=meta['barcodekey']).astype('category')
+                s = pd.Series(s, index=meta['index']).astype('category')
+		# s = pd.Series(s, index=meta['index']).astype('category')
                 self.n_cells = s[s!='to_exclude'].size
                 self.status = 'new'
                 self.query = query

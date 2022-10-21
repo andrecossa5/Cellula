@@ -128,7 +128,7 @@ if not args.skip:
     # Create step_{i} folders. Overwrite, if they have already been created
     to_make = [ (path_runs, step), (path_results, step), (path_viz, step), (path_data, step) ]
     for x, y in to_make:
-        if bool(re.search('data', x)):
+        if x == path_data or x == path_runs:
             make_folder(x, y, overwrite=False)
         else:
             make_folder(x, y, overwrite=True)

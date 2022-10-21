@@ -275,7 +275,7 @@ class Dist_features:
     ##
 
     def compute_ML(self, contrast_key=None, feat_type='PCs', which='original', 
-                model='xgboost', mode='fast', n_combos=50, n_jobs=cpu_count(), score='f1'):
+                model='xgboost', mode='fast', n_combos=50, n_jobs=1, score='f1'):
         """
         Train and fit a classification with X feature and y labels arrays.
         """
@@ -315,7 +315,7 @@ class Dist_features:
             comparison_ab = f'{y.categories[0]}_vs_{y.categories[1]}' 
             y_ab = one_hot_from_labels(y) # Only one column is ok
             df = classification(X, y_ab, feature_names, score=score,
-                        key=model, GS=GS, n_combos=n_combos, cores_GS=cpu_count())
+                        key=model, GS=GS, n_combos=n_combos, cores_GS=n_jobs)
             df = df.assign(comparison=comparison_ab, feature_type=feat_type)
             df = df.loc[:,
                 ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'es_rescaled',
@@ -329,7 +329,7 @@ class Dist_features:
             comparison_ba = f'{y.categories[1]}_vs_{y.categories[0]}' 
             y_ba = np.where(one_hot_from_labels(y) == 0, 1, 0)
             df = classification(X, y_ba, feature_names, score=score,
-                        key=model, GS=GS, n_combos=n_combos, cores_GS=cpu_count())
+                        key=model, GS=GS, n_combos=n_combos, cores_GS=n_jobs)
             df = df.assign(comparison=comparison_ba, feature_type=feat_type)
             df = df.loc[:,
                 ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'es_rescaled',

@@ -55,3 +55,4 @@ dependencies:
     - torch==1.12.1
     - torchmetrics==0.9.3
     - wot==1.0.8.post2
+    - scarches

@@ -299,7 +299,7 @@ class Dist_features:
                 comparison = f'{y.categories[i]}_vs_rest' 
                 y_ = Y[:, i]
 
-                df = classification(X, y_, features_names, key=model, GS=GS, 
+                df = classification(X, y_, feature_names, key=model, GS=GS, 
                         score=score, n_combos=n_combos, cores_model=self.n_cores, cores_GS=1)
 
                 df = df.assign(comparison=comparison, feature_type=feat_type)          
@@ -317,7 +317,7 @@ class Dist_features:
             comparison_ab = f'{y.categories[0]}_vs_{y.categories[1]}' 
             y_ab = one_hot_from_labels(y) # Only one column is ok
 
-            df = classification(X, y_ab, features_names, key=model, GS=GS, 
+            df = classification(X, y_ab, feature_names, key=model, GS=GS, 
                         score=score, n_combos=n_combos, cores_model=self.n_cores, cores_GS=1)
 
             df = df.assign(comparison=comparison_ab, feature_type=feat_type)
@@ -333,7 +333,7 @@ class Dist_features:
             comparison_ba = f'{y.categories[1]}_vs_{y.categories[0]}' 
             y_ba = np.where(one_hot_from_labels(y) == 0, 1, 0)
 
-            df = classification(X, y_ba, ffeatures_names, key=model, GS=GS, 
+            df = classification(X, y_ba, feature_names, key=model, GS=GS, 
                         score=score, n_combos=n_combos, cores_model=self.n_cores, cores_GS=1)
 
             df = df.assign(comparison=comparison_ba, feature_type=feat_type)

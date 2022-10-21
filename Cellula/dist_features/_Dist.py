@@ -17,7 +17,7 @@ from pegasus.tools.diff_expr import _de_test as DE
 from ..preprocessing import _GE_space as ge
 from .._utils import rescale, Timer
 from ._dist_features import one_hot_from_labels
-from ..ML._ML import models, params, classification
+from ..ML._ML import classification
 from ._Gene_set import Gene_set, rank_top
 from ._Results import Results
 from ._Results_app import Results_app
@@ -31,7 +31,7 @@ class Dist_features:
     A class to retrieve (and annotate) gene sets distinguishing cell groups in data.
     """
 
-    def __init__(self, adata, contrasts, jobs=None, signatures=None, app=False):
+    def __init__(self, adata, contrasts, jobs=None, signatures=None, app=False, n_cores=8):
         """
         Extract features and features metadata from input adata. Prep other attributes.
         """
@@ -77,7 +77,7 @@ class Dist_features:
         # Others
         self.contrasts = contrasts
         self.jobs = jobs
-        self.n_jobs = cpu_count()
+        self.n_cores = n_cores
 
         # Results data structure
         if jobs is not None:
@@ -232,7 +232,7 @@ class Dist_features:
             X=X,
             cluster_labels=y,
             gene_names=feature_names,
-            n_jobs=self.n_jobs
+            n_jobs=self.n_cores
         )
 
         df, gene_set_dict = self.format_de(de_raw, y, contrast_type)  
@@ -275,7 +275,7 @@ class Dist_features:
     ##
 
     def compute_ML(self, contrast_key=None, feat_type='PCs', which='original', 
-                model='xgboost', mode='fast', n_combos=50, n_jobs=1, score='f1'):
+                model='xgboost', mode='fast', n_combos=50, score='f1'):
         """
         Train and fit a classification with X feature and y labels arrays.
         """
@@ -298,8 +298,10 @@ class Dist_features:
             for i in range(Y.shape[1]):
                 comparison = f'{y.categories[i]}_vs_rest' 
                 y_ = Y[:, i]
-                df = classification(X, y_, feature_names, score=score,
-                            key=model, GS=GS, n_combos=n_combos, cores_GS=n_jobs)
+
+                df = classification(X, y_, feature_names, key=model, GS=GS, 
+                        score=score, n_combos=n_combos, cores_model=self.n_cores, cores_GS=1)
+
                 df = df.assign(comparison=comparison, feature_type=feat_type)          
                 df = df.loc[:,
                     ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'es_rescaled',
@@ -314,8 +316,10 @@ class Dist_features:
         elif len(y.categories) == 2:
             comparison_ab = f'{y.categories[0]}_vs_{y.categories[1]}' 
             y_ab = one_hot_from_labels(y) # Only one column is ok
-            df = classification(X, y_ab, feature_names, score=score,
-                        key=model, GS=GS, n_combos=n_combos, cores_GS=n_jobs)
+
+            df = classification(X, y_ab, feature_names, key=model, GS=GS, 
+                        score=score, n_combos=n_combos, cores_model=self.n_cores, cores_GS=1)
+
             df = df.assign(comparison=comparison_ab, feature_type=feat_type)
             df = df.loc[:,
                 ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'es_rescaled',
@@ -328,8 +332,10 @@ class Dist_features:
 
             comparison_ba = f'{y.categories[1]}_vs_{y.categories[0]}' 
             y_ba = np.where(one_hot_from_labels(y) == 0, 1, 0)
-            df = classification(X, y_ba, feature_names, score=score,
-                        key=model, GS=GS, n_combos=n_combos, cores_GS=n_jobs)
+
+            df = classification(X, y_ba, feature_names, key=model, GS=GS, 
+                        score=score, n_combos=n_combos, cores_model=self.n_cores, cores_GS=1)
+
             df = df.assign(comparison=comparison_ba, feature_type=feat_type)
             df = df.loc[:,
                 ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'es_rescaled',

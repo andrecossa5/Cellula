@@ -20,45 +20,44 @@ from .._utils import rescale
 ##
 
 
-########### Params
-models = {
-
-    'logit' : 
-    LogisticRegression(penalty='l2', n_jobs=cpu_count(), max_iter=10000),
-
-    'xgboost' : 
-    LGBMClassifier(n_jobs=cpu_count(), learning_rate=0.01)
-}
-
-params = {
-
-    'logit' : 
-        
-    {
-        'logit__solver' : ['newton-cg', 'lbfgs', 'liblinear'],
-        'logit__C' : [100, 10, 1.0, 0.1, 0.01]
-    },
-
-    'xgboost' : 
-
-    {
-        "xgboost__n_estimators": np.arange(100, 600, 100),
-        "xgboost__max_depth": [4, 5, 6, 7, 8, 10],
-        "xgboost__importance_type": ["gain", "split"]
-    }
-
-}
-###########
-
-
-##
-
-
 def classification(X, y, features_names, key='xgboost', GS=True, n_combos=5, 
-                score='f1', cores_GS=1):
+                score='f1', cores_model=8, cores_GS=1):
     """
     Given some input data X y, run a classification analysis in several flavours.
     """
+
+    ########### Params
+    models = {
+
+        'logit' : 
+        LogisticRegression(penalty='l2', n_jobs=cores_model, max_iter=10000),
+
+        'xgboost' : 
+        LGBMClassifier(n_jobs=cores_model, learning_rate=0.01)
+    }
+
+    params = {
+
+        'logit' : 
+
+        {
+            'logit__solver' : ['newton-cg', 'lbfgs', 'liblinear'],
+            'logit__C' : [100, 10, 1.0, 0.1, 0.01]
+        },
+
+        'xgboost' : 
+
+        {
+            "xgboost__n_estimators": np.arange(100, 600, 100),
+            "xgboost__max_depth": [4, 5, 6, 7, 8, 10],
+            "xgboost__importance_type": ["gain", "split"]
+        }
+
+    }
+    ###########
+
+    ##
+
     # Train-test split 
     rng = np.random.RandomState(1234)
     sss = StratifiedShuffleSplit(n_splits=2, test_size=0.2, random_state=rng)

@@ -54,6 +54,14 @@ my_parser.add_argument(
     '''
 )
 
+# n_cores
+my_parser.add_argument( 
+    '--n_cores', 
+    type=int,
+    default=8,
+    help='The number of core to allocate for a given model.'
+)
+
 # Filter genes
 my_parser.add_argument( 
     '--skip_computation', 
@@ -74,6 +82,7 @@ args = my_parser.parse_args()
 path_main = args.path_main
 step = f'step_{args.step}'
 contrasts_name = args.contrasts
+n_cores = args.n_cores
 
 ########################################################################
 
@@ -135,7 +144,7 @@ def main():
     if not args.skip_computation:
 
         logger.info('Begin distinguishing features calculations...')
-        D = Dist_features(adata, contrasts, signatures=signatures, jobs=jobs, app=True) # To load on the app directly
+        D = Dist_features(adata, contrasts, signatures=signatures, jobs=jobs, n_cores=n_cores, app=True) # To load on the app directly
         D.run_all_jobs()
         D.to_pickle(path_results)
 

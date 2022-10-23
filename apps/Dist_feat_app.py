@@ -1,5 +1,5 @@
 #/usr/bin/python
-
+import os
 import gseapy
 import pickle
 import pandas as pd
@@ -14,16 +14,35 @@ import streamlit as st
 st.title('Distinguishing features')
 
 # Data
-path_results = '/Users/IEO5505/Desktop/sc_pipeline_prova/results_and_plots/dist_features//step_0/' # TO FIX! Must be specified from CL...
-
-with open(path_results + 'dist_features.txt', 'rb') as f:
-    results = pickle.load(f)
+path_results = '/Users/IEO5505/Desktop/sc_pipeline_prova/results_and_plots/dist_features/objects/' # TO FIX! Must be specified from CL...
 collections = list(gseapy.get_library_name())
+objects = [ x for x in os.listdir(path_results) if x != '.DS_Store' ]
 
-# Here we go
-st.write(f'Choose navigation mode.')
+
+##
+
+
+# Load data
+st.write(f'Choose data object.')
+
+form_data = st.form(key='Data object')
+obj_name = form_data.selectbox(
+    'Load results objects',
+    objects,
+    key='Results object'
+)
+submit_data = form_data.form_submit_button('Load')
+
+
+##
+
+
+    # Load 
+with open(path_results + obj_name, 'rb') as f:
+    results = pickle.load(f)
 
 # Query form 
+st.write(f'Choose navigation mode.')
 form = st.form(key='Mode')
 query = form.radio(
     'Mode',
@@ -35,6 +54,7 @@ if submit:
     st.write(f'{query} chosen.')
     st.write('Select options:')
 
+
 ##
 
 
@@ -42,6 +62,7 @@ if submit:
 if query == 'one comparison and job':
 
     form_1 = st.form(key='Analysis')
+
     job_key = form_1.selectbox(
         'Analysis',
         list(results.results.keys()), 
@@ -50,6 +71,7 @@ if query == 'one comparison and job':
     submit_1 = form_1.form_submit_button('Choose')
 
     form_2 = st.form(key='Comparison + other options')
+
     comparison = form_2.selectbox(
         'Comparison',
         list(results.results[job_key]['gs'].keys()), 
@@ -75,7 +97,6 @@ if query == 'one comparison and job':
         collections,
         key='collection'
     )
-
     submit_2 = form_2.form_submit_button('Run')
 
     if submit_2:
@@ -108,7 +129,6 @@ elif query == 'one job':
         'n features to show',
         list(np.arange(5, 55, 5))
     )
-
     collection = form_2.selectbox(
         'Gene set collections for GSEA/ORA',
         collections,
@@ -125,7 +145,7 @@ elif query == 'one job':
 
 # One comparison multiple jobs form
 elif query == 'one comparison multiple jobs':
-    
+
     col_1, col_2, col_3, col_4, col_5, col_6 = st.columns(6)
 
     with col_1:
@@ -135,8 +155,9 @@ elif query == 'one comparison multiple jobs':
             list(np.unique([ x.split('|')[0] for x in list(results.results.keys()) ]))
         )
         submit_3 = form_3.form_submit_button('Choose')
- 
+
     ##
+
 
     with col_2:
         form_4 = st.form(key='Features')
@@ -145,9 +166,11 @@ elif query == 'one comparison multiple jobs':
             list(np.unique([ x.split('|')[1] for x in list(results.results.keys()) if x.startswith(contrast) ])) + [None]
         )
         submit_4 = form_4.form_submit_button('Choose')
-
+    
+    
     ##
-
+    
+    
     with col_3:
         form_5 = st.form(key='Model')
         model_key = form_5.selectbox(
@@ -161,20 +184,23 @@ elif query == 'one comparison multiple jobs':
         )
         submit_5 = form_5.form_submit_button('Choose')
 
+
     ##
+
 
     with col_4:
         job_keys_contrast = [ x for x in results.results.keys() if x.split('|')[0] == contrast ][0]
         alternatives = list(results.results[job_keys_contrast]['gs'].keys())
-
         form_6 = st.form(key='Comparison')
         comparison = form_6.selectbox(
             'Comparison',
             alternatives
         )
         submit_6 = form_6.form_submit_button('Choose')
-    
+
+
     ##
+
 
     with col_5:
         form_7 = st.form(key='Genes')
@@ -184,6 +210,10 @@ elif query == 'one comparison multiple jobs':
         )
         submit_7 = form_7.form_submit_button('Choose')
 
+
+    ##
+
+
     with col_6:
         form_8 = st.form(key='Collection')
         collection = st.electbox(
@@ -191,6 +221,10 @@ elif query == 'one comparison multiple jobs':
             collections,
         )
         submit_8 = form_8.form_submit_button('Choose')
+
+    
+    ##
+
 
     if submit_8:
         if model_key == 'All':

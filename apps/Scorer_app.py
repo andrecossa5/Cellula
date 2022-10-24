@@ -91,19 +91,32 @@ def viz(embs, feature, adata, q1, q2):
 st.title('Gene Sets')
 
 # Data
-path_data = '/Users/IEO5505/Desktop/sc_pipeline_prova/data/step_0/' # TO FIX! Must be specified from CL...
-path_signatures = '/Users/IEO5505/Desktop/sc_pipeline_prova/results_and_plots/signatures/step_0/'
+path_main = '/Users/IEO5505/Desktop/sc_pipeline_prova/'
+path_data = path_main + '/data/'
+steps = [ x for x in os.listdir() if x != '.DS_Store' ]
 
 
 ##
 
 
 # Load data
-adata = sc.read(path_data + 'clustered.h5ad')
-embs = pd.read_csv(path_data + 'embeddings.csv', index_col=0)
-with open(path_signatures + 'signatures.txt', 'rb') as f:
-    signatures = pickle.load(f)
-plot = False
+st.write(f'Choose data object.')
+
+form_data = st.form(key='Data object')
+step_name = form_data.selectbox(
+    'Load a step data',
+    steps,
+    key='Step'
+)
+submit_data = form_data.form_submit_button('Load')
+
+if submit_data:
+    adata = sc.read(path_data + f'{step_name}/clustered.h5ad')
+    embs = pd.read_csv(path_data + f'{step_name}/embeddings.csv', index_col=0)
+    with open(path_signatures + f'{step_name}/signatures.txt', 'rb') as f:
+        signatures = pickle.load(f)
+    plot = False
+
 
 
 ##

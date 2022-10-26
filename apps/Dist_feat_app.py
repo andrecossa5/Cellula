@@ -8,41 +8,6 @@ import streamlit as st
 
 
 ##
-
-
-# Title
-# st.title('Distinguishing features')
-# 
-# # Data
-# path_results = '/Users/IEO5505/Desktop/sc_pipeline_prova/results_and_plots/dist_features/objects/' # TO FIX! Must be specified from CL...
-# collections = list(gseapy.get_library_name())
-# objects = [ x for x in os.listdir(path_results) if x != '.DS_Store' ]
-# 
-# 
-# ##
-# 
-# 
-# # Load data
-# st.write(f'Choose data object.')
-# 
-# form_data = st.form(key='Data object')
-# obj_name = form_data.selectbox(
-#     'Load results objects',
-#     objects,
-#     key='Results object'
-# )
-# submit_data = form_data.form_submit_button('Load')
-# 
-# 
-# ##
-# 
-# 
-#     # Load 
-# with open(path_results + obj_name, 'rb') as f:
-#     results = pickle.load(f)
-
-
-##
  
  
 # Title
@@ -72,11 +37,10 @@ submit_data = form_data.form_submit_button('Load')
  
 ##
  
- 
-# Load
-if submit_data:
-    with open(f'{path_objects}/{step}/dist_features.txt', 'rb') as f:
-        results = pickle.load(f)
+
+# Load 
+with open(f'{path_objects}/{step}/dist_features.txt', 'rb') as f:
+    results = pickle.load(f)
 
 # Query form 
 st.write(f'Choose navigation mode.')

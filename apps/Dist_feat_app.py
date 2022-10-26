@@ -218,7 +218,7 @@ elif query == 'one comparison multiple jobs':
 
     with col_6:
         form_8 = st.form(key='Collection')
-        collection = st.electbox(
+        collection = st.selectbox(
             'Gene set collections for GSEA/ORA',
             collections,
         )

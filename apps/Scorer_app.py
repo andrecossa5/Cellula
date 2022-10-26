@@ -128,11 +128,10 @@ submit_data = form_data.form_submit_button('Load')
 
 ##
 
-
 # Load data
-adata = sc.read(path_data + f'{step_name}/clustered.h5ad')
-embs = pd.read_csv(path_data + f'{step_name}/embeddings.csv', index_col=0)
-with open(path_data + f'{step_name}/signatures.txt', 'rb') as f:
+adata = sc.read(path_data + f'/{step_name}/clustered.h5ad')
+embs = pd.read_csv(path_data + f'/{step_name}/embeddings.csv', index_col=0)
+with open(path_data + f'/{step_name}/signatures.txt', 'rb') as f:
     signatures = pickle.load(f)
 plot = False
 

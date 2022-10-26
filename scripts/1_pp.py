@@ -13,8 +13,8 @@ import argparse
 # Create the parser
 my_parser = argparse.ArgumentParser(
     prog='1_pp',
-    description='''Pre-processing operations, from filtered adatas (one per sample) 
-                to differentially manipulated matrices and associated PCA spaces.'''
+    description='''Pre-processing operations, from QC.h5ad (filtered and concatenated raw matrices)
+                to differentially manipulated matrices and associated PCA spaces and kNN graphs.'''
 )
 
 # Add arguments

@@ -90,34 +90,6 @@ def viz(embs, feature, adata, q1, q2):
 # Title
 st.title('Gene Sets')
 
-# Data
-path_main = '/Users/IEO5505/Desktop/sc_pipeline_prova/'
-path_data = path_main + '/data/'
-steps = [ x for x in os.listdir() if x != '.DS_Store' ]
-
-
-##
-
-
-# Load data
-st.write(f'Choose data object.')
-
-form_data = st.form(key='Data object')
-step_name = form_data.selectbox(
-    'Load a step data',
-    steps,
-    key='Step'
-)
-submit_data = form_data.form_submit_button('Load')
-
-if submit_data:
-    adata = sc.read(path_data + f'{step_name}/clustered.h5ad')
-    embs = pd.read_csv(path_data + f'{step_name}/embeddings.csv', index_col=0)
-    with open(path_signatures + f'{step_name}/signatures.txt', 'rb') as f:
-        signatures = pickle.load(f)
-    plot = False
-
-
 
 ##
 
@@ -128,7 +100,6 @@ st.markdown(
     This is an app to explore the __expression__ of both __pre-computed__ 
     and __user-defined__ __gene sets__. This is coupled to __Differential Expression__ among user-defined
     groups of cells.
-    For this dataset, the available categorical variables and their associated categories are:
     '''
 )
 
@@ -136,7 +107,41 @@ st.markdown(
 ##
 
 
-# Show cat
+# Data prompt
+path_main = '/Users/IEO5505/Desktop/prova_apps/'
+path_data = path_main + '/data/'
+steps = []
+for x in os.listdir(path_data):
+    if (x != '.DS_Store') and (len(os.listdir(path_data + f'/{x}/')) > 0):
+        steps.append(x)
+
+st.write(f'Choose data object.')
+
+form_data = st.form(key='Data object')
+step_name = form_data.selectbox(
+    'Load a step data',
+    steps,
+    key='Step'
+)
+submit_data = form_data.form_submit_button('Load')
+
+
+##
+
+
+# Load data
+adata = sc.read(path_data + f'{step_name}/clustered.h5ad')
+embs = pd.read_csv(path_data + f'{step_name}/embeddings.csv', index_col=0)
+with open(path_data + f'{step_name}/signatures.txt', 'rb') as f:
+    signatures = pickle.load(f)
+plot = False
+
+# Show cats
+st.markdown(
+    '''
+    For this dataset, the __available categorical__ variables and their associated categories are:
+    '''
+)
 cats = adata.obs.loc[:, [ x for x in adata.obs.columns if adata.obs[x].dtype == 'category' ]]
 for x in cats.columns:
     cs = cats[x].value_counts().index
@@ -147,6 +152,10 @@ for x in cats.columns:
         to_show = cats[x].value_counts().head().index.to_list()
         st.markdown(f'__{x}__ : {to_show} + others {len(cs)-20}')
 
+
+##
+
+
 # Mode
 st.markdown(f'Choose mode.')
 form = st.form(key='Mode')
@@ -155,7 +164,6 @@ query = form.radio(
     ['pre-computed', 'user-defined', ]
 )
 submit = form.form_submit_button('Choose')
-
 if submit:
     st.write(f'{query} chosen.')
 
@@ -166,9 +174,7 @@ if submit:
 
 # Precomp
 if query == 'pre-computed':
-
     st.markdown('Choose a pre-computed gene set:')
-
     form_options = st.form(key='Signature')
     g = form_options.selectbox(
         'Signature',
@@ -183,7 +189,6 @@ if query == 'pre-computed':
         key='GSA'
     )
     submit = form_options.form_submit_button('Run')
-
     if submit:
         st.markdown(f'__{g}__ chosen.')
         feature = signatures['scores'][g].values
@@ -197,19 +202,15 @@ if query == 'pre-computed':
                 gs.compute_ORA()
                 st.dataframe(gs.ORA['Default_ORA'].head(10))
         plot = True
-
+        
 elif query == 'user-defined':
-
     st.markdown('Input gene or gene set (e.g., MYC for single genes or MYC;HES1;...; for a gene set.)')
     st.markdown('Input queries to define cell groups (e.g., query_1 (q1): leiden == "1"; query_2 (q1): rest)')
-
     form_options = st.form(key='Gene(s)')
     g = form_options.text_input('Gene(s)', '')
     q1 = form_options.text_input('Query 1', '')
     q2 = form_options.text_input('Query 2', '')
-
     submit = form_options.form_submit_button('Run')
-
     if submit:
         st.markdown(f'{g} chosen.')
         g = g.split(';')
@@ -225,7 +226,6 @@ elif query == 'user-defined':
 # Report
 if plot:
     p, x_median, y_median, fig = viz(embs, feature, adata, q1, q2)
-
     st.markdown('Compute DE among selected cells...')
     st.pyplot(fig)
     st.markdown(f"""
@@ -236,6 +236,4 @@ if plot:
         * pvalue: __{p:.3f}__
         """
     )
-
 ##############################################################
-

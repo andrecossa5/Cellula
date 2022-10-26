@@ -112,6 +112,8 @@ def main():
     adata = sc.read(path_data + 'clustered.h5ad')
     adata.obs = meta_format(adata.obs)
 
+    
+    
     # Write final exec time
     logger.info(f'Execution was completed successfully in total {T.stop()} s.')
 

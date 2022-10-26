@@ -13,11 +13,8 @@ import streamlit as st
 # Title
 st.title('Distinguishing features')
  
-# Data
+# Path main
 path_main = '/Users/IEO5505/Desktop/prova_apps/'
-path_objects = path_main + '/objects/' # TO FIX! Must be specified from CL...
-collections = list(gseapy.get_library_name())
-steps = [ x for x in os.listdir(path_objects) if x != '.DS_Store' ]
  
  
 ##
@@ -25,6 +22,10 @@ steps = [ x for x in os.listdir(path_objects) if x != '.DS_Store' ]
  
 # Load data
 st.write(f'Choose data object.')
+
+path_objects = path_main + '/objects/' # TO FIX! Must be specified from CL...
+collections = list(gseapy.get_library_name())
+steps = [ x for x in os.listdir(path_objects) if x != '.DS_Store' ]
  
 form_data = st.form(key='Data object')
 step = form_data.selectbox(

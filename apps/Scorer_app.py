@@ -15,6 +15,9 @@ import streamlit as st
 ##
 
 
+# Path main
+path_main = '/Users/IEO5505/Desktop/prova_apps/'
+
 ##############################################################
 
 # Utils for visualization
@@ -107,8 +110,7 @@ st.markdown(
 ##
 
 
-# Data prompt
-path_main = '/Users/IEO5505/Desktop/prova_apps/'
+# Load data
 path_data = path_main + '/data/'
 steps = []
 for x in os.listdir(path_data):

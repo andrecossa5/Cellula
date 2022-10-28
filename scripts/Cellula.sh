@@ -2,7 +2,6 @@
 
 # Default workflow. scanpy, 2000 HVGs, red_s:original, 30PCs, 15 NN, 0.2-0.6 res range.
 path_main=/Users/IE05505/Desktop/sc_pipeline_prova/
-
 bash prepare_folder.sh $path_main
 python 1_pp.py -p $path_main --step 0 --norm scanpy --n_HVGs 2000 --score scanpy
 python 3_integration_diagnostics.py -p $path_main --step 0 --chosen red_s:original 

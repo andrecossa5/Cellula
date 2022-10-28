@@ -10,7 +10,7 @@ pre-processing, integration, clustering and cell type annotation). This toolkit 
 * __Focus on classification models__, used as a tool to prioritize "distinguishing features" (i.e., transcriptional features with the higher discriminative power in a classification task over arbitrary categories derived from cells metadata) and validate clustering
 * __Automatic handling of folders creation/removal__, as individual CLIs are designed to create and populate folders at a user defined location, and to switch among analytical steps without the need for user to handle this manually
 * __Scalability__, to thousands of cells
-*__GUIs__, to visually explore results
+* __GUIs__, to visually explore results
 
 ## Repo organization
 

@@ -12,6 +12,11 @@ pre-processing, integration, clustering and cell type annotation). This toolkit 
 * __Scalability__, to thousands of cells
 * __GUIs__, to visually explore results
 
+## Cellula workflow
+
+
+
+
 ## Repo organization
 
 This folder is organized as follows:

@@ -32,10 +32,7 @@ A complete documentation, with nice tutorials and stuff, will be provided where 
 For now, it is provided here a simple usage example, 
 ### scRNA-seq, no-data-integration example
 
-
-
-
-'''bash
+```bash
 bash prepare_folder.sh $path_main
 python 1_pp.py -p $path_main --step 0 --norm scanpy --n_HVGs 2000 --score scanpy
 python 3_integration_diagnostics.py -p $path_main --step 0 --chosen red_s:original 
@@ -44,7 +41,7 @@ python 5_clustering_diagnostics.py -p $path_main --step 0
 python 5_clustering_diagnostics.py -p $path_main --step 0 --chosen ...
 python 6_signatures.py -p $path_main --step 0 --Hotspot --barkley --wu --scoring scanpy
 python 7_dist_features.py -p $path_main --step 0 
-'''
+```
 
 ## Repo organization (developers/contributors section)
 

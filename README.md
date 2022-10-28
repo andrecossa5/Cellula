@@ -1,5 +1,6 @@
 # Cellula
 
+
 A collection of script for semi-automatic, seamless single-cell analysis (soon a Nextflow pipeline). Aim of this project is to provide a toolkit for the exploration of scRNA-seq data (including tasks as
 pre-processing, integration, clustering and cell type annotation). This toolkit comes with the following, handy features:
 

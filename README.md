@@ -24,7 +24,7 @@ data pre-processing (`1_pp.py`) and batch effects assessment (`2_kBET.py`)
 * (Leiden) cell clustering at multiple, tunable resolutions, coupled to cluster markers computation (`4_clustering.py`)
 * Clustering solutions evaluation and choice (`5_clustering_diagnostics.py`)
 * Signatures (i.e., gene sets, either defined by the user or retrieved by data-driven approaches) scoring (`6_signatures.py`)
-* Distinguishing features ranking, through Differential Expression (DE) and classification methods (`7_dist_features.py')
+* Distinguishing features ranking, through Differential Expression (DE) and classification methods (`7_dist_features.py`)
 * Interactive:
     * visualization of gene expression programs (`Scorer_app.py`) 
     * distinguishing features interpetation (Gene Set Enrichment and Over-Representation analysis, `Dist_features_app.py`)

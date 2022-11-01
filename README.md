@@ -48,7 +48,7 @@ Then, `cd` to `./Cellula/envs` and create the conda environment for your operati
 For a Linux machine:
 
 ```bash
-cd Cellula/envs
+cd ./Cellula/envs
 mamba env create -f environment_Linux.yml -n cellula_example
 ```
 
@@ -63,58 +63,84 @@ That's it. If your fire up the newly installed python interpreter, you are able 
 
 ### Main folder setup
 
-To begin a new single-cell analysis, `cd` to a location of choice on your machine, and create a new folder that will host the entire project results. Then, `cd` to it. We will refer to this 'main folder' with its absolute path, and we will assign it to an environment variable, `$path_main`.
+To begin a new single-cell analysis, `cd` to a location of choice on your machine, and create a new folder, This folder will host all data and results of your project. We will refer to this __main folder__ with its absolute path, and we will assign this path to a bash environment variable, `$path_main`.
 
 ```bash
-cd user_path#
-mkdir Cellula_test
-cd Cellula_test
-path_main=path_to_cellula_test#
+cd #-- your choice here --#
+mkdir main_folder 
+cd main_folder
+path_main=#-- path_to_main_folder --#
 ```
 
-Once there, we need to initialize the project folder. At the bare minimum, Cellula requires a __two folders__ in $path_main, `matrices` and `data`:
+Once in `$path_main`, we need to setup this folder in order to begin with the analysis. At the bare minimum, Cellula requires __two folders__ in `$path_main`, `matrices` and `data`:
 
-* `matrices` hosts all the sample matrices for the project, as outputted by `CellRanger` or `STARsolo` (along with (optional) lentiviral-clones info, if one has to deal with sclt data). In this repo, the `test_data` folder contains a simple example on how `matrices` needs to be structured for a very simple scRNA-seq analysis, involving two samples _a_ and _b_. Please, follow the same structure for your data. 
+* `matrices` hosts all the sample matrices for the project (i.e., `CellRanger` or `STARsolo` outputs), along with lentiviral-clones info (optional, if one has to deal with sclt data). In this repo, the `test_data` folder contains a simple example on how the `matrices` folder needs to be structured for a very simple scRNA-seq analysis, involving two samples _a_ and _b_. 
 
-* `data` hosts all the main intermediate files for all `Cellula` analysis steps. In the most simple case, it can be initialized as an empty folder that will be automatically filled by each CLI. However, usually a user may want to include optional data that will be used throughout all the following anaysis "steps". For example, one may want to score a list of curated gene sets. In that case, just add this information with every gene set store in .csv format. In this repo, the `test_data` folder contains a simple example on how `data` needs to be structured in this case. Please, follow the same structure for your data.
+* `data` will host all the intermediate files from `Cellula` analysis steps. In the most simple case, one can just initialize this as an empty folder. However, one may want to include other project-specific data (e.g., one a list of curated gene sets to score). In that case, just add this information with every gene set store in `.txt` format. In this repo, the `test_data` folder contains a simple example on how `data` needs to be structured in this case.
 
-To setup your `$path_main` folder, first create correctly structured `matrices` and `data` folders. Then,
-`cd` to your repo clone, specifically in the `script` folder, and run:
+To setup your `$path_main` folder, first create and fill `matrices` and `data` folders. Then,
+`cd` to your Cellula repository clone, `cd` to the `scripts` folder, and run:
 
 ```bash
 bash prepare_folder.sh $path_main
 ```
 
 You should be able to see two new folders created at $path_main: `results_and_plots` and `runs`.
+A properly configured `$path_main` folder for a Cellula analysis should look something like this:
+
+```bash
+
+
+```
+
 With $path_main correctly configured, we can proceed with the analysis.
+
 
 ### scRNA-seq, no-data-integration example
 
-For this data, we will use data from the `matrices` example in the matrix folder.
-Once `$path_main` is ok, we will perform cell (and gene) Quality Control and matrix pre-processing, running
+For this data, we will use expression data from `matrices` in `test_data`.
+Once `$path_main` is set up, we will first perform Quality Control and matrix pre-processing.
 
-__N.B.__ Cellula works with an __analysis step__ logic. Namely, one Cellula workflow (with its CLIs calls and results) constitutes a step among all others possible single-cell data exploration data available. However, a user is commonly interested in vary these strategies without loosing previous __steps__ results . Therefore, `Cellula`'s CLIs all have the --step argument to activate and write on a specific _step_ folderS.
+__N.B. 1__ Cellula works with an __analysis step__ logic. Namely, one Cellula workflow (with its CLIs calls and results) constitutes only one step among all the other alternative single-cell workflows available. One is commonly interested in vary these data exploration strategies and compare their results without loosing previously precomputed runs. Therefore, `Cellula` CLIs all have a __--step__ argument to __activate and write on a__ specific _step_ folder. This way, a single place (i.e., the main folder) can store and organize all the results obtained on the same data with different, user-defined strategies. 
 
-To perform cell QC, just run
+__N.B. 2__ We are still reasoning about the extent to which `Cellula` needs to be automated. Single-cell analysis is explorative in nature, and therefore it may be biased by users subjective choices. Despite our efforts to __alleviate this "subjectivity" problem__, benchmarking methods to guide users choices, a lot of things may need to be adjusted on the go. One might want to inspect every output of a Cellula CLI before running the next one, or might want to run an entire analysis with the least number of CLIs calls possible, inspecting results only at the end. In this quickstart, we propose a recipe for the second scenario, but, now and after, __double checks are by all means suggested and encouraged__.
+
+For now, all CLIs must be called form the `script` directory (i.e., one still has to `cd` to this folder to launch these scripts in a batch job on a HPC cluster).
+
+To perform cell and gene QC followed by data preprocessing, run:
 
 ```bash
 python 0_qc.py -p $path_main --step 0 --mode seurat --qc_mode filtered_bc_data
+python 1_pp.py -p $path_main --step 0 --norm scanpy --n_HVGs 2000 --score scanpy
 ```
 
+Here we have specifically activated a "step_0" step. Notice how the related and folders and files have been created and filled within `path_main`. 
 
-THEN...
+After pre-processing, in this case we will skip batch effects evaluation and data integration sections, as _a_ and _b_ samples come from the same experiment, lab and sequencing run (tutorials on how to handle more complicated situations leveraging `Cellula` functionalities at full will be soon available). Here, we will choose to retain the original 'PCA' embedding obtained by reducing (and scaling) the full gene expression matrix to the top 2000 hyper-variable genes (HVGs), a common choice in single_cell analysis (see `1_pp.py`, `2_kBET.py` and integration scripts for further details and alternatives). This data representation will be used for kNN construction, multiple resolution clustering and markers computation. All clustering solutions will be then evaluated for their quality. These three steps (i.e., choice of a cell representation to go with, clustering and initial clustering diagnostics) can be obtained by running:
 
-
-python 1_pp.py -p $path_main --step 0 --norm scanpy --n_HVGs 2000 --score scanpy
+```bash
 python 3_integration_diagnostics.py -p $path_main --step 0 --chosen red_s:original 
 python 4_clustering.py -p $path_main --step 0 --range 0.2:1.0 --markers
 python 5_clustering_diagnostics.py -p $path_main --step 0  
-python 5_clustering_diagnostics.py -p $path_main --step 0 --chosen 1.0
+```
+
+The user can inspects the clustering and clustering visualization folder to visualize properties of the "best" clustering solutions obtained, and then choose one to perform the last steps of Cellula workflow. In this case we will select the ... solution:
+
+```bash
+python 5_clustering_diagnostics.py -p $path_main --step 0 --chosen ... --kNN ... --rep ...
+```
+
+Lastly, we will retrieve and score potentially meaningful gene sets in our data, and we will search for features (i.e., single genes, Principal Components or gene sets) able to distinguishing groups of cells in our data. Specifically, here we will look for distinguishing features discriminating individual __samples__ and __leiden clusters__ (chosen solution) with respect to all the other cells.
+
+```bash
 python 6_signatures.py -p $path_main --step 0 --Hotspot --barkley --wu --scoring scanpy
 python 7_dist_features.py -p $path_main --step 0 
 ```
 
-## Repo organization (for whoever wants to contribute :))
+### Setup GUIs to explore Cellula output
+...
+
+## Repo organization, for whoever wants to contribute :) 
 
 This folder is organized as follows:
 

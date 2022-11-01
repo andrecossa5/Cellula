@@ -88,10 +88,8 @@ bash prepare_folder.sh $path_main
 You should be able to see two new folders created at $path_main: `results_and_plots` and `runs`.
 A properly configured `$path_main` folder for a Cellula analysis should look something like this:
 
-```bash
 
-
-```
+...
 
 With $path_main correctly configured, we can proceed with the analysis.
 

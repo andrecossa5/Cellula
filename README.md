@@ -29,7 +29,7 @@ data pre-processing (`1_pp.py`) and batch effects assessment (`2_kBET.py`)
     * visualization of gene expression programs (`Scorer_app.py`) 
     * distinguishing features interpetation (Gene Set Enrichment and Over-Representation analysis, `Dist_features_app.py`)
 
-`Cellula` has been designed for command-line usage. However, individual functions and classes can be imported individually by users seeking for even more flexibility.
+`Cellula` has been designed for command-line usage. However, individual functions and classes can be imported individually by users that look for even more flexibility.
 A complete documentation (with nice tutorials and so on) will be provided when the project will reach sufficient stability for being packaged and released (we will get there soon :)).
 
 For now, the following serves as a simple quickstart, including instructions to install (*) and run `Cellula`. To get better understanding on individual CLIs, modules, classes and function features, consider CLIs help messages, source code comments and docstrings, and the (temporary) documentation provided in this repo. 

@@ -1,34 +1,4 @@
-#!/usr/bin/python
-
-# Cell QC afert perturb seq or STARsolo
-
-# ########################################################################
-# 
-# # Parsing CLI args 
-# 
-# # Libraries
-# import sys
-# import argparse
-# 
-# # Create the parser
-# my_parser = argparse.ArgumentParser(
-#     prog='0_qc',
-#     description='''Ciao'''
-# )
-
-# Cell QC. This tool takes CellRanger/STARsolo output from multiple samples alignment and counting 
-# (stored in the matrices folder of the main folder of the project, see this repo README.md for details on
-# main folder setup), and returns a single, quality controlled AnnData object.
-# This object stores minimal cell and gene metadata, along with raw gene expression counts for all genes and
-# cells passing a certain quality control (QC) procedure (specified by --qc mode). 
-# The same script performs QC for both simple scRNA-seq and (lentiviral-based) single-cell lineage tracing 
-# data. In the latter case, --mode needs to be set to 'raw', and the matrices folder need to store for each
-# sample an additional file, summary_sheet_cells.csv, a table storing the genomic barcode of cells robustly
-# assigned to a single Genomic Barcode (i.e., clone).
-   
-#!/usr/bin/python
-
-# Cell QC afert perturb seq or STARsolo
+# Cell QC after perturb seq or STARsolo
 
 ########################################################################
 

@@ -86,14 +86,16 @@ if not args.skip:
 
     # Code
     import pickle
+    import scanpy as sc
+    import re
     from Cellula._utils import *
     from Cellula.dist_features._Dist import Dist_features
     from Cellula.dist_features._Contrast import Contrast
 
-    # Custom code 
-    sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
-    from colors import *
-    from meta_formatting import * 
+    # # Custom code 
+    # sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
+    # from colors import *
+    # from meta_formatting import * 
 
     #-----------------------------------------------------------------#
 

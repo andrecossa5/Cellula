@@ -13,8 +13,20 @@ import argparse
 # Create the parser
 my_parser = argparse.ArgumentParser(
     prog='1_pp',
-    description='''Pre-processing operations, from QC.h5ad (filtered and concatenated raw matrices)
-                to differentially manipulated matrices and associated PCA spaces and kNN graphs.'''
+    description=
+        '''
+        Pre-processing operations.
+        Starting from $path_main/data/step/QC.h5ad (filtered and concatenated raw matrices)
+        this tool log-normalizes data, selects Hyper-variable Genes
+        (HVGs) and creates 4 pre-processed version of the original, full gene expression matrix: 
+        i) reduced (HVGs only); ii) reduced and scaled (HVGs expression is z-scored); 
+        iii) reduced and regressed (the contribute of nUMIs and mitochondrial percentage is 
+        regressed out from HVGs expression); iv) same as iii) but with
+        additional scaling of resulting values. 
+        The dimensionality of these matrices is then reduced with PCA. 
+        The resulting, alternative gene expression spaces are saved for later use. 
+        Visualization is produced along the way.
+        '''
 )
 
 # Add arguments
@@ -48,7 +60,7 @@ my_parser.add_argument(
     '--norm', 
     type=str,
     default='scanpy',
-    help='Normalization method. Default: scanpy.'
+    help='Normalization method. Default: scanpy. Other option available: sct.'
 )
 
 # score
@@ -56,7 +68,7 @@ my_parser.add_argument(
     '--score', 
     type=str,
     default='scanpy',
-    help='QC and cell cycle signatures scoring method. Default: scanpy.'
+    help='QC and cell cycle signatures scoring method. Default: scanpy. Other options available: wot_rank and wot_zscore.'
 )
 
 # n_HVGs
@@ -81,6 +93,14 @@ my_parser.add_argument(
     help='Skip biplot vizualization. Default: False.'
 )
 
+# custom
+my_parser.add_argument(
+    '--custom_format', 
+    type=str,
+    default=None,
+    help='Path to either: i) custom code for cells metadata formatting, or ii) already formatted cells metadata (.csv file)'
+)
+
 # Skip
 my_parser.add_argument(
     '--skip', 
@@ -96,6 +116,7 @@ step = f'step_{args.step}'
 normalization_method = args.norm
 scoring_method = args.score
 n_HVGs = args.n_HVGs
+custom_format = args.custom_format
 
 ########################################################################
 
@@ -111,11 +132,7 @@ if not args.skip:
     from Cellula.preprocessing._GE_space import GE_space
     from Cellula.preprocessing._embeddings import *
     from Cellula.plotting._plotting import *
-
-    # Custom code 
-    sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
-    from colors import *
-    from meta_formatting import *
+    from Cellula.plotting._colors import create_colors
 
     #-----------------------------------------------------------------#
 
@@ -168,9 +185,29 @@ def preprocessing():
         adata = adata[~adata.obs_names.isin(cells_to_remove), :]
 
     # Format adata.obs
-    adata.obs = meta_format(adata.obs)
-    # Create colors 
+    if custom_format is not None:
+        print('Custom not implemented yet.')
+        sys.exit()
+    #     if os.path.exists(args.custom)
+    #     
+    #     # Import custom code
+    #     sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
+    #     from colors import *
+    #     from meta_formatting import *
+    #     
+    #     adata.obs = meta_format(adata.obs)
+    #     # Create colors 
+    #     colors = create_colors(adata.obs)
+    # 
+    else:
+        adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.startswith('outlier')]
+        adata.obs['seq_run'] = 'run_1' # Assumed only one run of sequencing
+        adata.obs['seq_run'] = pd.Categorical(adata.obs['seq_run'])
+        adata.obs['sample'] = pd.Categorical(adata.obs['sample'])
+
+    # Create colors
     colors = create_colors(adata.obs)
+
     logger.info(f'Data merging and formatting operations: {t.stop()} s.')
 
     #-----------------------------------------------------------------#

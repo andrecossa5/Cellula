@@ -120,13 +120,14 @@ if not args.skip:
     import pickle
     from Cellula._utils import *
     from Cellula.plotting._plotting import *
+    from Cellula.plotting._colors import *
     from Cellula.preprocessing._integration import fill_from_integration_dirs
     from Cellula.preprocessing._Int_evaluator import Int_evaluator
     
     # Custom code 
-    sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
-    from colors import *
-    from meta_formatting import *
+    # sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
+    # from colors import *
+    # from meta_formatting import *
 
     #-----------------------------------------------------------------#
 

@@ -69,7 +69,7 @@ To begin a new single-cell analysis, `cd` to a location of choice on your machin
 cd #-- your choice here --#
 mkdir main_folder 
 cd main_folder
-path_main=#-- path_to_main_folder --#
+path_main=`pwd`/
 ```
 
 Once in `$path_main`, we need to setup this folder in order to begin with the analysis. At the bare minimum, Cellula requires __two folders__ in `$path_main`, `matrices` and `data`:
@@ -88,11 +88,42 @@ bash prepare_folder.sh $path_main
 You should be able to see two new folders created at $path_main: `results_and_plots` and `runs`.
 A properly configured `$path_main` folder for a Cellula analysis should look something like this:
 
-
-...
+```bash
+├── data
+│   ├── curated_signatures
+│   │   ├── Inflammation.txt
+│   │   ├── Invasion.txt
+│   │   ├── Metastasis.txt
+│   │   ├── Proliferation.txt
+│   │   ├── Quiescence.txt
+│   │   └── Stemness.txt
+│   └── removed_cells
+├── matrices
+│   ├── a
+│   │   └── filtered_gene_bc_matrix
+│   │       ├── barcodes.tsv.gz
+│   │       ├── features.tsv.gz
+│   │       └── matrix.mtx.gz
+│   └── b
+│       └── filtered_gene_bc_matrix
+│           ├── barcodes.tsv.gz
+│           ├── features.tsv.gz
+│           └── matrix.mtx.gz
+├── results_and_plots
+│   ├── clustering
+│   ├── dist_features
+│   ├── pp
+│   ├── signatures
+│   └── vizualization
+│       ├── QC
+│       ├── clustering
+│       ├── dist_features
+│       ├── pp
+│       └── signatures
+└── runs
+```
 
 With $path_main correctly configured, we can proceed with the analysis.
-
 
 ### scRNA-seq, no-data-integration example
 
@@ -108,7 +139,7 @@ For now, all CLIs must be called form the `script` directory (i.e., one still ha
 To perform cell and gene QC followed by data preprocessing, run:
 
 ```bash
-python 0_qc.py -p $path_main --step 0 --mode seurat --qc_mode filtered_bc_data
+python 0_qc.py -p $path_main --step 0 --mode filtered --qc_mode seurat
 python 1_pp.py -p $path_main --step 0 --norm scanpy --n_HVGs 2000 --score scanpy
 ```
 
@@ -122,10 +153,10 @@ python 4_clustering.py -p $path_main --step 0 --range 0.2:1.0 --markers
 python 5_clustering_diagnostics.py -p $path_main --step 0  
 ```
 
-The user can inspects the clustering and clustering visualization folder to visualize properties of the "best" clustering solutions obtained, and then choose one to perform the last steps of Cellula workflow. In this case we will select the ... solution:
+The user can inspects the clustering and clustering visualization folder to visualize properties of the "best" clustering solutions obtained, and then choose one to perform the last steps of Cellula workflow. In this case we will select the 30_NN_30_0.29 solution:
 
 ```bash
-python 5_clustering_diagnostics.py -p $path_main --step 0 --chosen ... --kNN ... --rep ...
+python 5_clustering_diagnostics.py -p $path_main --step 0 --chosen 30_NN_30_0.29 --kNN 30_NN_30_components --rep original
 ```
 
 Lastly, we will retrieve and score potentially meaningful gene sets in our data, and we will search for features (i.e., single genes, Principal Components or gene sets) able to distinguishing groups of cells in our data. Specifically, here we will look for distinguishing features discriminating individual __samples__ and __leiden clusters__ (chosen solution) with respect to all the other cells.

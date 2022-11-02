@@ -90,17 +90,18 @@ if not args.skip:
 
     # Code
     import pickle
-    import Cellula.preprocessing
+    import scanpy as sc
     from Cellula._utils import *
     from Cellula.clustering._clustering import *
     from Cellula.clustering._Clust_evaluator import *
     from Cellula.plotting._plotting import *
+    from Cellula.plotting._colors import *
     from Cellula.preprocessing._embeddings import embeddings
 
     # Custom code 
-    sys.path.append(path_main + 'custom/') # Path to local-system, user-defined custom code
-    from colors import *
-    from meta_formatting import * 
+    # sys.path.append(path_main + 'custom/') # Path to local-system, user-defined custom code
+    # from colors import *
+    # from meta_formatting import * 
 
     #-----------------------------------------------------------------#
 

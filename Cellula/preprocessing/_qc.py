@@ -58,12 +58,13 @@ def read_matrices(path, mode='raw'):
                                 adatas[s] = a
         else:
                 for s in os.listdir(path):
-			
-                        a = sc.read_10x_mtx(path + f'/{s}/{mode}_gene_bc_matrix')
-                        a.obs = a.obs.assign(sample=s)
-                        a = adata_name_formatter(a)
-                        adatas[s] = a
-                        adatas[s] = a
+                        print(s)
+                        if s != '.DS_Store':    
+                                a = sc.read_10x_mtx(path + f'/{s}/{mode}_gene_bc_matrix')
+                                a.obs = a.obs.assign(sample=s)
+                                a = adata_name_formatter(a)
+                                adatas[s] = a
+                                adatas[s] = a
         return adatas
 
 

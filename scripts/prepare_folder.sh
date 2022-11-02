@@ -7,7 +7,6 @@ begin=$1
 cd $begin 
 
 # Create a report.txt file and update data with the removed_cells folder
-touch report.txt
 cd data 
 mkdir removed_cells 
 

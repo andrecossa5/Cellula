@@ -2,6 +2,34 @@
 
 # Cell QC afert perturb seq or STARsolo
 
+# ########################################################################
+# 
+# # Parsing CLI args 
+# 
+# # Libraries
+# import sys
+# import argparse
+# 
+# # Create the parser
+# my_parser = argparse.ArgumentParser(
+#     prog='0_qc',
+#     description='''Ciao'''
+# )
+
+# Cell QC. This tool takes CellRanger/STARsolo output from multiple samples alignment and counting 
+# (stored in the matrices folder of the main folder of the project, see this repo README.md for details on
+# main folder setup), and returns a single, quality controlled AnnData object.
+# This object stores minimal cell and gene metadata, along with raw gene expression counts for all genes and
+# cells passing a certain quality control (QC) procedure (specified by --qc mode). 
+# The same script performs QC for both simple scRNA-seq and (lentiviral-based) single-cell lineage tracing 
+# data. In the latter case, --mode needs to be set to 'raw', and the matrices folder need to store for each
+# sample an additional file, summary_sheet_cells.csv, a table storing the genomic barcode of cells robustly
+# assigned to a single Genomic Barcode (i.e., clone).
+   
+#!/usr/bin/python
+
+# Cell QC afert perturb seq or STARsolo
+
 ########################################################################
 
 # Parsing CLI args 
@@ -13,16 +41,29 @@ import argparse
 # Create the parser
 my_parser = argparse.ArgumentParser(
     prog='0_qc',
-    description='''Cell QC.'''
+    description=
+    '''
+    Cell QC. \n
+    This tool takes CellRanger/STARsolo outputs (stored in $path_main/matrices, see this repo README 
+    for details on $path_main setup), and returns a single, quality controlled AnnData object. 
+    This object stores minimal cell and gene metadata, along with
+    raw gene expression counts for all genes and cells passing a certain quality control (QC) 
+    procedure (specified by --qc mode). \n
+    The same script performs QC for both simple scRNA-seq and (lentiviral-based) single-cell lineage tracing data. 
+    In the latter case, --mode needs to be set to 'raw', and the matrices folder need to store (for each
+    sample) an additional file, summary_sheet_cells.csv, a table storing the genomic barcode of all cells robustly
+    assigned to a single Genomic Barcode (i.e., clone).
+    '''
 )
 
 # Add arguments
+
 # Path_main
 my_parser.add_argument(
     '-p', 
     '--path_main', 
     type=str,
-    help='The path to the main project directory.'
+    help='The path to the main project directory (i.e., $path_main).'
 )
 
 # Step
@@ -38,7 +79,7 @@ my_parser.add_argument(
     '--mode', 
     type=str,
     default='filtered',
-    help='IO mode. Default: filtered.'
+    help='Input mode. Default: filtered. Other option available: raw (sclt data).'
 )
 
 # Path_main
@@ -46,7 +87,7 @@ my_parser.add_argument(
     '--qc_mode', 
     type=str,
     default='seurat',
-    help='Cell QC mode. Default: seurat.'
+    help='Cell QC mode. Default: seurat. Other option available: mads (adaptive tresholds).'
 )
 
 # Skip
@@ -62,6 +103,7 @@ mode = args.mode
 qc_mode = args.qc_mode
 step = f'step_{args.step}'
 path_main = args.path_main
+
 
 ########################################################################
 

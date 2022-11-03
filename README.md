@@ -42,6 +42,7 @@ In order to do that, first thing first, clone this repo locally:
 
 ```bash
 git clone git@github.com:andrecossa5/Cellula.git
+# or git clone https://github.com/andrecossa5/Cellula.git
 ```
 
 Then, `cd` to `./Cellula/envs` and create the conda environment for your operating system (N.B.: Cellula has been tested only on Linux and macOS machines. In `Cellula/envs` you can find two _.yml_ files, storing receipts for both environments. `mamba` is used here for performance reasons, but `conda` works fine as well). 

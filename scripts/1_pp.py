@@ -192,9 +192,13 @@ def preprocessing():
     if custom_format is not None:
         if os.path.exists(path_main + f'custom/{custom_format}') and custom_format.split('.')[-1] == '.csv': 
             adata.obs = pd.read_csv(path_main + f'custom/{custom_format}', index_col=0)
+
+        # Add .py specification for cells metadata formatting
+
         elif not os.path.exists(path_main + f'custom/{custom_format}'):
             logger.info(f'Path to {custom_format} does not exist.')
             sys.exit()
+
     else:
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.startswith('outlier')]
         adata.obs['seq_run'] = 'run_1' # Assumed only one run of sequencing

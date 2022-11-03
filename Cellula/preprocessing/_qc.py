@@ -34,7 +34,7 @@ def adata_name_formatter(adata):
 ##
 
 
-def read_matrices(path, mode='raw'):
+def read_matrices(path, mode='filtered'):
         """
         Read all .mtx matrices from a path to 'raw' or 'filtered' matrix, the STARsolo or CellRanger
         output. If mode == 'raw', it will search filter the summary_sheet_cells.csv file to filter 
@@ -47,7 +47,7 @@ def read_matrices(path, mode='raw'):
                 for s in os.listdir(path):
                         print(s)
                         if s != '.DS_Store':
-                                a = sc.read_10x_mtx(path + f'/{s}/{mode}_gene_bc_matrix')
+                                a = sc.read_10x_mtx(path + f'/{s}/{mode}_gene_bc_matrix/')
                                 cells = pd.read_csv(path + f'/{s}/summary_sheet_cells.csv', index_col=0)
                                 cells = cells.loc[:, ['GBC']]
                                 cells_to_retain = [ x for x in cells.index if x in a.obs_names ]
@@ -60,7 +60,7 @@ def read_matrices(path, mode='raw'):
                 for s in os.listdir(path):
                         print(s)
                         if s != '.DS_Store':    
-                                a = sc.read_10x_mtx(path + f'/{s}/{mode}_gene_bc_matrix')
+                                a = sc.read_10x_mtx(path + f'/{s}/{mode}_gene_bc_matrix/')
                                 a.obs = a.obs.assign(sample=s)
                                 a = adata_name_formatter(a)
                                 adatas[s] = a

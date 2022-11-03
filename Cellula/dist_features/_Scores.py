@@ -61,7 +61,7 @@ class Scores():
         # GMs as dict of Gene_sets
         GMs = { 
             f'Hotspot_{x}': \
-            Gene_set(GMs[GMs==x].index.to_list(), self.matrix.var, name=f'Hotspot_{x}') \
+            GMs[GMs==x].index.to_list() \
             for x in GMs.unique() if x != -1 
         }
 

@@ -1,13 +1,20 @@
-import Cellula 
-import os
-import scanpy as sc
 
-path_a = '/Users/IEO5505/Desktop/a/'
-path_b = '/Users/IEO5505/Desktop/b/'
+adata = sc.read(path_main + f'data/{step}/QC.h5ad')
 
-a = sc.read_10x_mtx(path_a)
-b = sc.read_10x_mtx(path_b)
+meta = adata.obs
 
+meta.describe()
+
+meta = meta.loc[:, ~meta.columns.str.startswith('outlier')]
+meta['seq_run'] = 'run_1'
+meta['condition'] = np.where(meta['sample'] == 'a', 'treated', 'untreated')
+meta['seq_run'] = pd.Categorical(meta['seq_run'])
+meta['condition'] = pd.Categorical(meta['condition'])
+
+meta.to_csv(path_main + 'cells_meta.csv')
+
+df = pd.read_csv(path_main + 'cells_meta.csv', index_col=0)
+df.dtypes
 
 
 

@@ -21,8 +21,8 @@ my_parser = argparse.ArgumentParser(
     procedure (specified by --qc mode). \n
     The same script performs QC for both simple scRNA-seq and (lentiviral-based) single-cell lineage tracing data. 
     In the latter case, --mode needs to be set to 'raw', and the matrices folder need to store (for each
-    sample) an additional file, summary_sheet_cells.csv, a table storing the genomic barcode of all cells robustly
-    assigned to a single Genomic Barcode (i.e., clone).
+    sample) an additional file, summary_sheet_cells.csv, a table storing the genomic barcode (i.e., clone) of all 
+    previously filtered cells. See Adamson et al., 2016 for details on this filtering procedure.
     '''
 )
 
@@ -85,11 +85,6 @@ if not args.skip:
     from Cellula.plotting._plotting import *
     from Cellula.preprocessing._qc import *
 
-    # Custom code: NOT HERE...
-    # sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
-    # from colors import *
-    # from meta_formatting import *
-
     #-----------------------------------------------------------------#
 
     # Set other paths 
@@ -131,9 +126,6 @@ def qc():
 
     # QC them
     adata = QC(adatas, mode=qc_mode, min_cells=3, min_genes=200, path_viz=path_viz)
-
-    # Reformat cells metadata
-    # adata.obs = meta_format(adata.obs)
 
     # Save adata 
     print(adata)

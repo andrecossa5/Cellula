@@ -16,16 +16,16 @@ my_parser = argparse.ArgumentParser(
     description=
         '''
         Pre-processing operations.
-        Starting from $path_main/data/step/QC.h5ad (filtered and concatenated raw matrices)
-        this tool log-normalizes data, selects Hyper-variable Genes
-        (HVGs) and creates 4 pre-processed version of the original, full gene expression matrix: 
+        Starting from the $path_main/data/step/QC.h5ad AnnData, (filtered and concatenated raw matrices)
+        this tool performs log-normalization, Hyper-variable Genes selection (HVGs) and scoring of gene sets 
+        useful to inspect cells quality (i.e., apoptosis, cell cycle, ribosomal genes...). 
+        Then, it creates 4 pre-processed version of the original, full gene expression matrix: 
         i) reduced (HVGs only); ii) reduced and scaled (HVGs expression is z-scored); 
         iii) reduced and regressed (the contribute of nUMIs and mitochondrial percentage is 
-        regressed out from HVGs expression); iv) same as iii) but with
-        additional scaling of resulting values. 
-        The dimensionality of these matrices is then reduced with PCA. 
-        The resulting, alternative gene expression spaces are saved for later use. 
-        Visualization is produced along the way.
+        regressed out from HVGs expression); iv) reduced, regressed and scaled (same as iii), but with
+        additional scaling of resulting values). 
+        The dimensionality of these matrices is reduced with PCA, and the resulting, alternative 
+        gene expression spaces are saved for later use. Visualization is produced along the way.
         '''
 )
 
@@ -98,7 +98,11 @@ my_parser.add_argument(
     '--custom_format', 
     type=str,
     default=None,
-    help='Path to either: i) custom code for cells metadata formatting, or ii) already formatted cells metadata (.csv file)'
+    help=
+        '''
+        Name of either already formatted cells metadata (.csv file). 
+        When provided, it needs to be placed in a new, "custom" folder in $path_main.
+        '''
 )
 
 # Skip
@@ -186,19 +190,11 @@ def preprocessing():
 
     # Format adata.obs
     if custom_format is not None:
-        print('Custom not implemented yet.')
-        sys.exit()
-    #     if os.path.exists(args.custom)
-    #     
-    #     # Import custom code
-    #     sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
-    #     from colors import *
-    #     from meta_formatting import *
-    #     
-    #     adata.obs = meta_format(adata.obs)
-    #     # Create colors 
-    #     colors = create_colors(adata.obs)
-    # 
+        if os.path.exists(path_main + f'custom/{custom_format}') and custom_format.split('.')[-1] == '.csv': 
+            adata.obs = pd.read_csv(path_main + f'custom/{custom_format}', index_col=0)
+        elif not os.path.exists(path_main + f'custom/{custom_format}'):
+            logger.info(f'Path to {custom_format} does not exist.')
+            sys.exit()
     else:
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.startswith('outlier')]
         adata.obs['seq_run'] = 'run_1' # Assumed only one run of sequencing

@@ -13,7 +13,16 @@ import argparse
 # Create the parser
 my_parser = argparse.ArgumentParser(
     prog='2_kBET',
-    description='''Integration check, with the kBET approach (Buttner et al., 2018).'''
+    description=
+    '''
+    This tool leverages the kBET method from Buttner et al., 2018, to evaluate the presence of 
+    batch effects. The kBET metric (i.e., kBET "acceptance rate", see the paper for details) 
+    quantifies the proportions of cells in a dataset having a "batch imbalanced" neighborhood on
+    a certain kNN graph. Here, alternative GE_spaces from 1_pp.py are evaluated for kNN mixing of a 
+    user-defined categorical covariate. The mean acceptance rate across all GE_spaces and their 
+    multiple kNN graphs is computed and reported. The user can decide wheater or not to proceed 
+    with data integration based on this results and experimental design considerations.
+    '''
 )
 
 # Add arguments

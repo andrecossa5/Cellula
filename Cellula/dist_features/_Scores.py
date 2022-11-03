@@ -5,6 +5,7 @@ _Scores.py: The Scores class
 import numpy as np
 import pandas as pd
 from scipy.sparse import csc_matrix
+from joblib import cpu_count
 from hotspot import Hotspot
 
 from ._Gene_set import Gene_set
@@ -36,7 +37,7 @@ class Scores():
         """
         Compute Hotspot modules.
         """
-        self.matrix.layers['raw'] = csc_matrix(self.matrix.raw.X)
+        self.matrix.layers['raw'] = csc_matrix(self.matrix.raw[:, self.matrix.var_names].X)
         
         if only_HVGs:
             self.matrix = self.matrix[:, self.matrix.var_names[self.matrix.var['highly_variable_features']]]

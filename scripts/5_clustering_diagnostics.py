@@ -13,7 +13,17 @@ import argparse
 # Create the parser
 my_parser = argparse.ArgumentParser(
     prog='5_clustering_diagnostics',
-    description='''Leiden clustering diagnostics. 3 main steps: cell QC (by cluster); cluster separation; markers overlap.'''
+    description=
+    '''
+    Leiden clustering diagnostics. This tool operates similar to 3_integration_diagnostics.
+    First, run the script without the --chosen option to evaluate each clustering solution.
+    Different angles are evaluated here. First each cell cluster is evaluated for QC metrics. 
+    Particularly bad, previosly unnoticed partitions are reported. Then, cluster purity and separation
+    metrics are computed for all solutions. For the top three solutions, their UMAP embedding, their 
+    relationship and their markers genes are reported. 
+    After this run, choosen a solution, this script has to be run again with the --chosen option
+    to build the final clustered.h5ad AnnData. 
+    '''
 )
 
 # Add arguments
@@ -97,11 +107,6 @@ if not args.skip:
     from Cellula.plotting._plotting import *
     from Cellula.plotting._colors import *
     from Cellula.preprocessing._embeddings import embeddings
-
-    # Custom code 
-    # sys.path.append(path_main + 'custom/') # Path to local-system, user-defined custom code
-    # from colors import *
-    # from meta_formatting import * 
 
     #-----------------------------------------------------------------#
 

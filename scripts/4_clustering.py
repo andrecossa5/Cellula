@@ -13,7 +13,13 @@ import argparse
 # Create the parser
 my_parser = argparse.ArgumentParser(
     prog='4_clustering',
-    description='''Leiden clustering. Starts from a preprocessed adata with pre-computed kNN graph(s).'''
+    description=
+    '''
+    This tool performs Leiden clustering. Starting from a pre-processed AnnData with pre-computed 
+    kNN graph(s), it will partition each of these graphs n times in a certain resolution range.
+    If --markers is on, it will also compute markers genes for each of these partitions 
+    (Wilcoxon Rank Sum test with FDR correction).
+    '''
 )
 
 # Add arguments
@@ -54,7 +60,7 @@ my_parser.add_argument(
 my_parser.add_argument( 
     '--skip_clustering', 
     action='store_true',
-    help='Calculate all clustering solutions. Default: False.'
+    help='Skip clustering (alredy done). Default: False.'
 )
 
 # Markers
@@ -91,11 +97,6 @@ if not args.skip:
     from Cellula._utils import *
     from Cellula.dist_features._Dist import Dist_features
     from Cellula.dist_features._Contrast import Contrast
-
-    # # Custom code 
-    # sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
-    # from colors import *
-    # from meta_formatting import * 
 
     #-----------------------------------------------------------------#
 

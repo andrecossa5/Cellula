@@ -2,6 +2,7 @@
 _signatures.py stores functions and utilities for scoring a Gene_set or a list of genes.
 """
 
+import os
 import pandas as pd 
 import numpy as np 
 from random import seed, sample
@@ -267,3 +268,22 @@ def wot_rank(M, g, key=None):
     scores = pd.Series(scores, index=M.obs_names)
 
     return scores
+
+
+##
+
+
+def format_curated(path_main):
+    """
+    Utils to load curated signatures as in $Path_main/data/curated_signatures.
+    Each .txt file must have 2 comlumns (the second one with Hugo Gene symbols).
+    """
+    curated = {}
+    for x in os.listdir(path_main + 'data/curated_signatures/'):
+        if x != '.DS_Store':
+            genes = pd.read_csv(
+                path_main + f'data/curated_signatures/{x}', sep='\t', index_col=0
+            ).iloc[:, 0].to_list()
+            curated[x] = genes
+
+    return curated

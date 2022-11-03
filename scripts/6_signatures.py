@@ -15,9 +15,10 @@ my_parser = argparse.ArgumentParser(
     prog='6_signatures',
     description=
     '''
-    Compute signature scores for dyfferent types of gene sets:
-    1) Data driven: Hotspot, Wu et al., 2021, Barkley et al., 2022 
-    2) Manually curated
+    This tool compute signature (or gene sets) scores for either data driven gene sets 
+    (Hotspot, Wu et al., 2021, Barkley et al., 2022 methods) or manually curated gene sets 
+    (stored in $path_main/data/curated_signatures/). Gene set scores can be calculated with 
+    3 available methods: scanpy, wot_rank and wot_z_score.
     '''
 )
 
@@ -66,7 +67,7 @@ my_parser.add_argument(
     '--scoring', 
     type=str,
     default='scanpy',
-    help='The scoring method. Default: scanpy.'
+    help='The scoring method. Default: scanpy. Other options: wot_z_score, wot_rank.'
 )
 
 # Skip
@@ -87,7 +88,6 @@ barkley = 'barkley' if args.barkley else None
 scoring = args.scoring
 
 which = [ Hotspot, wu, barkley ]
-# which = [None, 'wu', None]
 
 ########################################################################
 
@@ -96,14 +96,10 @@ if not args.skip:
 
     # Code
     import pickle
+    import scanpy as sc
     from Cellula._utils import *
     from Cellula.dist_features._Scores import Scores
-
-    # Custom code 
-    sys.path.append(path_main + 'custom/') # Path to local-system, user-defined custom code
-    from colors import *
-    from meta_formatting import * 
-    from curated import *
+    from Cellula.dist_features._signatures import *
 
     #-----------------------------------------------------------------#
 
@@ -147,7 +143,7 @@ def Signatures():
     clusters = pd.read_csv(path_clusters + 'clustering_solutions.csv', index_col=0)
     with open(path_markers + 'clusters_markers.txt', 'rb') as f:
         markers = pickle.load(f)
-    curated = format_signatures(path_main, others_to_add=['Van_galen'])
+    curated = format_curated(path_main)
 
     ##
 

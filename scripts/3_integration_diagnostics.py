@@ -13,8 +13,15 @@ import argparse
 # Create the parser
 my_parser = argparse.ArgumentParser(
     prog='3_integration_diagnostics',
-    description='''Evaluation metrics to choose one (potentially batch-corrected) representation for downstream analysis. 
-                Metrics and code were borrowed from the scib paper (Luecken et. al 2022).'''
+    description=
+    '''
+    This tool employs several evalutation metrics to choose one (potentially batch-corrected) 
+    GE_space representation for downstream analysis. Metrics, code and default values were borrowed or 
+    re-adapted from the scib paper (Luecken et. al 2022). First, run the evaluation. Then, after 
+    results inspection (visualization and tabular summaries are produced), 
+    re-run the script choosing the best GE_space representation (adding the --chosen option),
+    to build the final pre-processed AnnData that will be used for clustering.
+    '''
 )
 
 # Add arguments
@@ -51,14 +58,6 @@ my_parser.add_argument(
     default=0.2,
     help='Resolution used for coarse grained Leiden clustering. Default: 0.2.'
 )
-
-# # Step
-# my_parser.add_argument( 
-#     '--labels', 
-#     type=str,
-#     default='',
-#     help='Path to ground truth labels .csv files. Default: "".'
-# )
 
 # Step
 my_parser.add_argument( 
@@ -104,7 +103,6 @@ args = my_parser.parse_args()
 path_main = args.path_main
 step = 'step_' + args.step
 k = args.k
-# labels = args.labels
 covariate = args.covariate
 resolution = args.resolution
 delete = args.delete
@@ -123,11 +121,6 @@ if not args.skip:
     from Cellula.plotting._colors import *
     from Cellula.preprocessing._integration import fill_from_integration_dirs
     from Cellula.preprocessing._Int_evaluator import Int_evaluator
-    
-    # Custom code 
-    # sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
-    # from colors import *
-    # from meta_formatting import *
 
     #-----------------------------------------------------------------#
 

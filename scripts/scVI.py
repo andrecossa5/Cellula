@@ -13,7 +13,7 @@ import argparse
 # Create the parser
 my_parser = argparse.ArgumentParser(
     prog='scVI',
-    description='''Integrate dataset with scVI.'''
+    description='''Integrate dataset with scVI (Lopez et al., 2018).'''
 )
 
 # Add arguments

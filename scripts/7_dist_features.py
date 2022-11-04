@@ -62,6 +62,18 @@ my_parser.add_argument(
     help='The number of core to allocate for a given model.'
 )
 
+# custom
+my_parser.add_argument(
+    '--custom_format', 
+    type=str,
+    default=None,
+    help=
+        '''
+        Name of either already formatted cells metadata (.csv file). 
+        When provided, it needs to be placed in a new, "custom" folder in $path_main.
+        '''
+)
+
 # Filter genes
 my_parser.add_argument( 
     '--skip_computation', 
@@ -131,7 +143,23 @@ def main():
 
     # Load adata, singatures and prep contrasts and jobs
     adata = sc.read(path_data + 'clustered.h5ad')
-    adata.obs = meta_format(adata.obs)
+
+    # Meta format
+    if custom_format is not None:
+        if os.path.exists(path_main + f'custom/{custom_format}') and custom_format.split('.')[-1] == '.csv': 
+            adata.obs = pd.read_csv(path_main + f'custom/{custom_format}', index_col=0)
+
+        # Add .py specification for cells metadata formatting
+
+        elif not os.path.exists(path_main + f'custom/{custom_format}'):
+            logger.info(f'Path to {custom_format} does not exist.')
+            sys.exit()
+
+    else:
+        adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.startswith('outlier')]
+        adata.obs['seq_run'] = 'run_1' # Assumed only one run of sequencing
+        adata.obs['seq_run'] = pd.Categorical(adata.obs['seq_run'])
+        adata.obs['sample'] = pd.Categorical(adata.obs['sample'])
 
     with open(path_signatures + 'signatures.txt', 'rb') as f:
         signatures = pickle.load(f)

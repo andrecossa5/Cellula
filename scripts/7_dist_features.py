@@ -95,6 +95,7 @@ path_main = args.path_main
 step = f'step_{args.step}'
 contrasts_name = args.contrasts
 n_cores = args.n_cores
+custom_format = args.custom_format
 
 ########################################################################
 

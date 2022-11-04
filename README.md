@@ -12,7 +12,7 @@ Aim of this project is to provide a toolkit for the exploration of scRNA-seq. Th
 * __Utils for lentiviral-based single-cell lineage tracing data (sclt) analysis__   
 * __Scalability__, to thousands of cells
 * __Automatic handling of folders creation/removal__, as individual CLIs are designed to create and populate folders at some user defined location, and to switch among analysis versions (i.e., "steps") without the need for user to handle Input/Output operations manually
-* __GUIs__, to visually explore results
+* __Graphical User Interfaces (GUIs)__, to visually explore results
 
 ## Cellula workflow
 

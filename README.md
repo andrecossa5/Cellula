@@ -75,14 +75,14 @@ path_main=`pwd`/
 
 Once in `$path_main`, we need to setup this folder in order to begin with the analysis. At the bare minimum, Cellula requires __two folders__ in `$path_main`, `matrices` and `data`:
 
-* `matrices` hosts all the sample matrices for the project (i.e., `CellRanger` or `STARsolo` outputs), along with lentiviral-clones info (optional, if one has to deal with sclt data). In this repo, the `test_data` folder contains a simple example on how the `matrices` folder needs to be structured for a very simple scRNA-seq analysis, involving two samples _a_ and _b_. 
+* `matrices` hosts all sample matrices for the project (i.e., `CellRanger` or `STARsolo` outputs, including for each sample 3 files: barcodes.tsv.gz, features.tsv.gz and matrix.mtx.gz). If one has to deal with sclt data, each sample directory need to store lentiviral-clones info. In this repo, the `test_data` folder contains a simple example on how the `matrices` folder needs to be structured for a very simple scRNA-seq analysis, involving two samples _a_ and _b_. This folder will be directly used for the demo below. Please, use the same structure for your data.
 
-* `data` will host all the intermediate files from `Cellula` analysis steps. In the most simple case, one can just initialize this as an empty folder. However, one may want to include other project-specific data (e.g., one a list of curated gene sets to score). In that case, just add this information with every gene set store in `.txt` format. In this repo, the `test_data` folder contains a simple example on how `data` needs to be structured in this case.
+* `data` will host all the intermediate files from `Cellula` analysis steps. In the most simple case, one can just initialize this as an empty folder. However, one may want to include other project-specific data (e.g., one a list of curated gene sets to score). In that case, just add this information with every gene set store in `.txt` format. In this repo, the `test_data` folder contains a simple example on how `data` needs to be structured in this case. This folder will be directly used for the demo below. Please, use the same structure for your data.
 
 To setup your `$path_main` folder:
 
-1. __`cd` in `$path_main`__ 
-2. __create and fill__ `matrices` and `data` folders (see `test_data` for a template, or just copy in `$path_main` `test_data/matrices` and `test_data/data`). 
+1. __`cd` to `$path_main`__ 
+2. __create and fill__ `matrices` and `data` folders (or just copy in `$path_main` `test_data/matrices` and `test_data/data`, for the following demo). 
 3. `cd` to your Cellula repository clone, `cd` to the `scripts` folder, and run:
 
 ```bash

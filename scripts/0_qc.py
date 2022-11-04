@@ -13,12 +13,12 @@ my_parser = argparse.ArgumentParser(
     prog='0_qc',
     description=
     '''
-    Cell QC. \n
+    Cell QC. 
     This tool takes CellRanger/STARsolo outputs (stored in $path_main/matrices, see this repo README 
     for details on $path_main setup), and returns a single, quality controlled AnnData object. 
     This object stores minimal cell and gene metadata, along with
     raw gene expression counts for all genes and cells passing a certain quality control (QC) 
-    procedure (specified by --qc mode). \n
+    procedure (specified by --qc mode).
     The same script performs QC for both simple scRNA-seq and (lentiviral-based) single-cell lineage tracing data. 
     In the latter case, --mode needs to be set to 'raw', and the matrices folder need to store (for each
     sample) an additional file, summary_sheet_cells.csv, a table storing the genomic barcode (i.e., clone) of all 

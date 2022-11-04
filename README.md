@@ -67,15 +67,16 @@ That's it. If your fire up the newly installed python interpreter, you are able 
 To begin a new single-cell analysis, `cd` to a location of choice on your machine, and create a new folder, This folder will host all data and results of your project. We will refer to this __main folder__ with its absolute path, and we will assign this path to a bash environment variable, `$path_main`.
 
 ```bash
+export main_folder_name=choose your name
 cd #-- your choice here --#
-mkdir main_folder 
-cd main_folder
+mkdir $main_folder_name
+cd $main_folder_name
 path_main=`pwd`/
 ```
 
 Once in `$path_main`, we need to setup this folder in order to begin with the analysis. At the bare minimum, Cellula requires __two folders__ in `$path_main`, `matrices` and `data`:
 
-* `matrices` hosts all sample matrices for the project (i.e., `CellRanger` or `STARsolo` outputs, including for each sample 3 files: barcodes.tsv.gz, features.tsv.gz and matrix.mtx.gz). If one has to deal with sclt data, each sample directory need to store lentiviral-clones info. In this repo, the `test_data` folder contains a simple example on how the `matrices` folder needs to be structured for a very simple scRNA-seq analysis, involving two samples _a_ and _b_. This folder will be directly used for the demo below. Please, use the same structure for your data.
+* `matrices` hosts all sample matrices for the project (i.e., (CellRanger)[https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/what-is-cell-ranger] or (STARsolo)[https://github.com/alexdobin/STAR/blob/master/docs/STARsolo.md] outputs, including, for each sample, 3 files: barcodes.tsv.gz, features.tsv.gz and matrix.mtx.gz). If one has to deal with sclt data, each sample directory need to store lentiviral-clones info (see below). In this repo, the `test_data` folder contains a simple example on how the `matrices` folder needs to be structured for a very simple scRNA-seq analysis, involving two samples _a_ and _b_. This folder will be directly used for the demo below. Please, use the same structure for your data.
 
 * `data` will host all the intermediate files from `Cellula` analysis steps. In the most simple case, one can just initialize this as an empty folder. However, one may want to include other project-specific data (e.g., one a list of curated gene sets to score). In that case, just add this information with every gene set store in `.txt` format. In this repo, the `test_data` folder contains a simple example on how `data` needs to be structured in this case. This folder will be directly used for the demo below. Please, use the same structure for your data.
 
@@ -90,7 +91,7 @@ bash prepare_folder.sh $path_main
 ```
 
 You should be able to see two new folders created at $path_main: `results_and_plots` and `runs`.
-A properly configured `$path_main` folder for a Cellula analysis should look something like this:
+A properly configured `$path_main` folder for a Cellula analysis should look something like this (using `tree`):
 
 ```bash
 ├── data
@@ -131,11 +132,11 @@ With $path_main correctly configured, we can proceed with the analysis.
 
 ### scRNA-seq, no-data-integration example
 
-For this data, we will use expression data from `matrices` in `test_data`.
-Once `$path_main` is set up, we will first perform Quality Control and matrix pre-processing.
+We will first perform Quality Control and matrix pre-processing.
 
-__N.B. 1__ Cellula works with an __analysis step__ logic. Namely, one Cellula workflow (with its CLIs calls and results) constitutes only one step among all the other alternative single-cell workflows available. One is commonly interested in vary these data exploration strategies and compare their results without loosing previously precomputed runs. Therefore, `Cellula` CLIs all have a __--step__ argument to __activate and write on a__ specific _step_ folder. This way, a single place (i.e., the main folder) can store and organize all the results obtained on the same data with different, user-defined strategies. 
+__N.B. 1__ In a typical Cellula workflow (with all its CLIs calls and results) one choose ... . All these choices constitutes ... . . One is commonly interested in varying these data exploration strategies and compare their results without loosing previously precomputed runs. Therefore, `Cellula` CLIs all have a __--version__ argument to __activate and write on a__ specific _version_ folder. This way, a single place (i.e., the main folder) can store and organize all the results obtained on the same data with different, user-defined strategies/choices. 
 
+# Shrink...
 __N.B. 2__ We are still reasoning about the extent to which `Cellula` needs to be automated. Single-cell analysis is explorative in nature, and therefore it may be biased by users subjective choices. Despite our efforts to __alleviate this "subjectivity" problem__, benchmarking methods to guide users choices, a lot of things may need to be adjusted on the go. One might want to inspect every output of a Cellula CLI before running the next one, or might want to run an entire analysis with the least number of CLIs calls possible, inspecting results only at the end. In this quickstart, we propose a recipe for the second scenario, but, now and after, __double checks are by all means suggested and encouraged__.
 
 For now, all CLIs must be called form the `script` directory (i.e., one still has to `cd` to this folder to launch these scripts in a batch job on a HPC cluster).

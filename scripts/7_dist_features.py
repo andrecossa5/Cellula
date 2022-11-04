@@ -95,11 +95,6 @@ if not args.skip:
     from Cellula.dist_features._dist_features import prep_jobs_contrasts
     from Cellula.dist_features._Dist import Dist_features
 
-    # Custom code 
-    sys.path.append(path_main + 'custom/') # Path to local-system, user-defined custom code
-    from colors import *
-    from meta_formatting import * 
-
     #-----------------------------------------------------------------#
 
     # Set other paths 

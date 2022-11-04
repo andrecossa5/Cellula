@@ -15,7 +15,7 @@ st.title('Distinguishing features')
  
 # Path main
 path_main = '/Users/IEO5505/Desktop/prova_apps/'
- 
+
  
 ##
  

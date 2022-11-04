@@ -91,7 +91,7 @@ if not args.skip:
 
     # Code
     import pickle
-    import scanpy
+    import scanpy as sc
     import yaml
     from Cellula._utils import *
     from Cellula.dist_features._dist_features import prep_jobs_contrasts

@@ -1,8 +1,8 @@
 # Cellula
 
-A (python) scripts collection for semi-automatic, seamless single-cell analysis (soon a Nextflow pipeline). 
+A (python) scripts collection for semi-automatic, seamless single-cell analysis (soon a Nextflow pipeline. * denote features which are still pending in the current codebase).
 
-Aim of this project is to provide a toolkit for the exploration of scRNA-seq and (lentiviral-based) single-cell transcriptional lineage tracing data. These tools perform common single-cell analysis tasks (i.e., data pre-processing and integration, cell clustering and annotation (*)) with the following features:
+Aim of this project is to provide a toolkit for the exploration of scRNA-seq. These tools perform common single-cell analysis tasks (i.e., data pre-processing and integration, cell clustering and annotation (*)) with the following features:
 
 * __Multiple methods__ for each analytical step, to ensure that, for a given task, the best performing method have a fair chance of being selected 
 * __Evaluation steps__, to benchmark methods performance at some task (N.B., _without_ any ground truth reference available)

@@ -79,8 +79,11 @@ Once in `$path_main`, we need to setup this folder in order to begin with the an
 
 * `data` will host all the intermediate files from `Cellula` analysis steps. In the most simple case, one can just initialize this as an empty folder. However, one may want to include other project-specific data (e.g., one a list of curated gene sets to score). In that case, just add this information with every gene set store in `.txt` format. In this repo, the `test_data` folder contains a simple example on how `data` needs to be structured in this case.
 
-To setup your `$path_main` folder, __`cd` in `$path_main`__ and then __create and fill__ `matrices` and `data` folders (see `test_data` for a template.). Then,
-`cd` to your Cellula repository clone, `cd` to the `scripts` folder, and run:
+To setup your `$path_main` folder:
+
+1. __`cd` in `$path_main`__ 
+2. __create and fill__ `matrices` and `data` folders (see `test_data` for a template, or just copy in `$path_main` `test_data/matrices` and `test_data/data`). 
+3. `cd` to your Cellula repository clone, `cd` to the `scripts` folder, and run:
 
 ```bash
 bash prepare_folder.sh $path_main

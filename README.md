@@ -192,7 +192,7 @@ python signatures.py -p $path_main -v default --Hotspot --barkley --wu --scoring
 
 Then, we will look for distinguishing features. Specifically, here we will look for distinguishing features discriminating individual __samples__ and __leiden clusters__ (chosen solution) with respect to all the other cells. We will make use of DE and classification models for both tasks. In order to do that, we need to pass a configuration file to `dist_features.py`, encoding all the info needed to retrieve cell groups and specify the type of features and models one would like to use to rank distinguishing features. 
 
-For this demo, we will pass the example configuration file stored in `test_data/contrasts`, `samples_and_leiden.yml`. `dist_features.py` look at .yml files in `$path_data/contrasts/`, so:
+For this demo, we will pass the example configuration file stored in `test_data/contrasts`, `sample_and_leiden.yml`. `dist_features.py` look at .yml files in `$path_data/contrasts/`, so:
 
 1. Create a `contrasts` folder in `$path_main`
 2. Copy `test_data/contrasts/samples_and_leiden.yml` in `$path_main/contrasts/`
@@ -200,7 +200,7 @@ For this demo, we will pass the example configuration file stored in `test_data/
 and run
 
 ```bash
-python dist_features.py -p $path_main -v default --contrasts samples_and_leiden.yml
+python dist_features.py -p $path_main -v default --contrasts sample_and_leiden.yml
 ```
 
 If you want to explore other distinguishing features, just create and pass your own file. Arbitrary analyses can be specified by changing the provided .yml file.

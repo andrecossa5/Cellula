@@ -240,7 +240,7 @@ python prepare_archive.py -p $path_main -n <your-project-name-here>
 This will generate a `<your-project-name-here>.tar.gz` file, that contains all the info needed by the GUIs.
 
 2. Prepare the 'new' machine (i.e., the one on which we need to run the GUIs), as described in the installation section above 
-3. Upload the `<your-project-name-here>.tar.gz` file to <some-path-here> on this 'new' machine, and un-tar the archive
+3. Upload the `<your-project-name-here>.tar.gz` file to `<some-path-here>` on this 'new' machine, and un-tar the archive
 
 ```bash
 tar -xf `<your-project-name-here>.tar.gz`

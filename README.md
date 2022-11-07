@@ -227,10 +227,33 @@ custom: # Contrast "family" name
                     mode: fast # Training mode. For a full hyperparameters optimization, write 'full' here
 ```
 
-Save your custom .yml filse in `test_data/contrasts/ and pass it to `dist_features.py` to run your analyses.
+Save your custom .yml files in `test_data/contrasts/ and pass it to `dist_features.py` to run your analyses.
 
 ### Setup GUIs to explore Cellula output
-...
+Lastly, `Cellula` comes with two `streamlit` GUIs to interactivaly explore its outputs. This may be useful also for non-computational users exploration. Indeed, once `Cellula` has been setup on some machine and has been run on some data (see above demo), results can be shared and queried as follows:
+
+1. On the machine where the analysis has actually taken place, run 
+
+```bash 
+python prepare_archive.py -p $path_main 
+```
+This will generate a new `to_share` folder in `$path_main` with a `cellula.tar.gz` file.
+
+2. Prepare the new machine on which one wants to run the GUIs as in the installation section above 
+3. Upload the `cellula.tar.gz` file to <some_path> on the new machine and run ...
+4. From the new machine, `cd` to <some_path>/apps/ and lunch one of the two GUIs by running:
+
+```bash 
+streamlit run Scorer_app.py .
+```
+
+or 
+
+```bash 
+streamlit run Dist_features_app.py .
+```
+
+Each GUIs will automatically launch on your web browser.
 
 ## Repo organization, for whoever wants to contribute :) 
 

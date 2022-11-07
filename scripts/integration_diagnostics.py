@@ -136,10 +136,7 @@ if not args.skip:
     path_results += f'/{version}/' 
     path_viz += f'/{version}/' 
 
-    # Check if the ./results_and_plots/pp/step_0/integration folder is present,
-    # along with the GE_space dictionary in ./data
-    to_check = [ (path_data, 'GE_spaces.txt'), (path_results, 'integration') ]
-    if not any([ os.path.exists(path) for path in [ ''.join(x) for x in to_check ] ]):
+    if not os.path.exists(path_data + 'GE_spaces.txt'):
         print('Run pp or integration algorithm(s) beforehand!')
         sys.exit()
     else:

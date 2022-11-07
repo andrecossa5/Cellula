@@ -115,7 +115,7 @@ class Scores():
 
         self.gene_sets = d
 
-        print('Finished ' + str(kind).strip('[]') + ' GMs calculation!')
+        print('Finished ' + str(kind).strip('[]') + ' GMs calculation')
 
     ##
 

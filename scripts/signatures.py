@@ -18,7 +18,7 @@ my_parser = argparse.ArgumentParser(
     This tool compute signature (or gene sets) scores for either data driven gene sets 
     (Hotspot, Wu et al., 2021, Barkley et al., 2022 methods) or manually curated gene sets 
     (stored in $path_main/data/curated_signatures/). Gene set scores can be calculated with 
-    3 available methods: scanpy, wot_rank and wot_z_score.
+    3 available methods: scanpy, rank and z_score.
     '''
 )
 
@@ -68,7 +68,7 @@ my_parser.add_argument(
     '--scoring', 
     type=str,
     default='scanpy',
-    help='The scoring method. Default: scanpy. Other options: wot_z_score, wot_rank.'
+    help='The scoring method. Default: scanpy. Other options: z_score, rank.'
 )
 
 # Skip
@@ -152,14 +152,14 @@ def Signatures():
     S = Scores(adata, clusters, markers, curated)
 
     logger.info('Begin GMs retrieval...')
-    S.compute_GMs(kind=which)# 
+    S.compute_GMs(kind=which)#  
     logger.info(f'GMs retrieval: {t.stop()} s.')
 
     t.start()
     logger.info('Begin signatures scoring...')
     S.score_signatures(kind=scoring) # Default, scanpy
     logger.info(f'Signatures scoring: {t.stop()} s.')
-
+    
     # Save scores
     signatures = S.format_results()
     with open(path_results + 'signatures.txt', 'wb') as f:

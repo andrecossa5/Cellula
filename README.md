@@ -227,7 +227,7 @@ custom: # Contrast "family" name
                     mode: fast # Training mode. For a full hyperparameters optimization, write 'full' here
 ```
 
-Save your custom .yml files in `test_data/contrasts/ and pass it to `dist_features.py` to run your analyses.
+Save your custom _.yml_ files in `test_data/contrasts/` and pass it to `dist_features.py` to run your analyses.
 
 ### Setup GUIs to explore Cellula output
 Lastly, `Cellula` comes with two `streamlit` GUIs to interactivaly explore its outputs. This may be useful also for non-computational users exploration. Indeed, once `Cellula` has been setup and run on some data (see above demo), results can be shared and queried as follows:

@@ -205,15 +205,15 @@ python dist_features.py -p $path_main -v default --contrasts samples_and_leiden.
 
 If you want to explore other distinguishing features, just create and pass your own file. Arbitrary analyses can be specified by changing the provided .yml file.
 
-For example, consider the case when one would be interest in the distinguishing features among cluster 2 and 3 from sample a and cluster 4 and 5 from sample b, using both DE and classification, and all the available features.
+For example, consider the case when one would be interest in the distinguishing features among cluster 0 and 1 from sample a and b, respectively, using both DE and classification, and all the available feature types.
 The related .yml file would be something like:
 
 ```bash
 custom: # Contrast "family" name
     <example_query>: # Name you would like to give to the new contrast 
           query: 
-                a: leiden in ["2", "3"] & sample == "a" # Cell groups. <name> : string eval expression
-                b: leiden in ["4", "5"] & sample == "b"
+                a: leiden in ["0", "1"] & sample == "a" # Cell groups. <name> : string eval expression
+                b: leiden in ["0", "1"] & sample == "b"
           methods: # Methods used 
                   DE: wilcoxon # Uses only genes, by default
                   ML: 

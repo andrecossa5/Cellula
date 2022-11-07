@@ -243,7 +243,7 @@ This will generate a `<your-project-name-here>.tar.gz` file, that contains all t
 3. Upload the `<your-project-name-here>.tar.gz` file to `<some-path-here>` on this 'new' machine, and un-tar the archive
 
 ```bash
-tar -xf `<your-project-name-here>.tar.gz`
+tar -xf <your-project-name-here>.tar.gz
 rm <your-project-name-here>.tar.gz
 ```
 

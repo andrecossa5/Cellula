@@ -19,7 +19,7 @@ Aim of this project is to provide a toolkit for the exploration of scRNA-seq. Th
 For the time being, the main Cellula workflow implements the following tasks:
 
 * (By sample) cell and gene quality Control (QC), followed by expression matrices merging (`qc.py`),
-data pre-processing (`1_pp.py`) and batch effects assessment (`kBET.py`)
+data pre-processing (`pp.py`) and batch effects assessment (`kBET.py`)
 * (Optional, if needed) correction of batch effects (`Harmony.py`, `Scanorama.py`, `scVI.py`, and `BBKNN.py` scripts) followed by the assembly of the final pre-processed data (`integration_evaluation.py`)
 * (Leiden) cell clustering at multiple, tunable resolutions, coupled to cluster markers computation (`clustering.py`)
 * Clustering solutions evaluation and choice (`clustering_diagnostics.py`)

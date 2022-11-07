@@ -195,7 +195,7 @@ Then, we will look for distinguishing features. Specifically, here we will look 
 For this demo, we will pass the example configuration file stored in `test_data/contrasts`, `samples_and_leiden.yml`. `dist_features.py` look at .yml files in `$path_data/contrasts/`, so:
 
 1. Create a `contrasts` folder in `$path_main`
-2. Copy `test_data/contrasts/samples_and_leiden.ym` in `$path_main/contrasts/`
+2. Copy `test_data/contrasts/samples_and_leiden.yml` in `$path_main/contrasts/`
 
 and run
 

@@ -217,8 +217,8 @@ def markers_all():
 
     # Save markers, as Gene_sets dictionary only
     path_markers = path_main + '/results_and_plots/dist_features/'
-    make_folder(path_markers, step, overwrite=False)
-    path_markers += f'/{step}/' 
+    make_folder(path_markers, version, overwrite=False)
+    path_markers += f'/{version}/' 
 
     with open(path_markers + 'clusters_markers.txt', 'wb') as f:
         pickle.dump(D.Results.results, f)

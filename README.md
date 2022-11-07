@@ -11,7 +11,7 @@ Aim of this project is to provide a toolkit for the exploration of scRNA-seq. Th
 * __Focus on classification models__, used to prioritize "distinguishing features" (i.e., transcriptional features with high discriminative power in classification tasks defined over categorical cells metadata) and validate clustering results (*)
 * __Utils for lentiviral-based single-cell lineage tracing data (sclt) analysis__   
 * __Scalability__, to thousands of cells
-* __Automatic handling of folders creation/removal__, as individual CLIs are designed to create and populate folders at some user defined location, and to switch among analysis versions (i.e., "steps") without the need for user to handle Input/Output operations manually
+* __Automatic handling of folders creation/removal__, as individual CLIs are designed to create and populate folders at some user defined location, and to switch among analysis versions without the need for user to handle Input/Output operations manually
 * __Graphical User Interfaces (GUIs)__, to visually explore results
 
 ## Cellula workflow

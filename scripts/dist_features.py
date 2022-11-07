@@ -83,7 +83,7 @@ args = my_parser.parse_args()
 
 path_main = args.path_main
 version = args.version
-contrasts_name = args.contrasts
+contrasts_name = args.contrasts.split('.')[0]
 n_cores = args.n_cores
 
 ########################################################################
@@ -136,7 +136,7 @@ def main():
 
     with open(path_signatures + 'signatures.txt', 'rb') as f:
         signatures = pickle.load(f)
-    jobs, contrasts = prep_jobs_contrasts(adata, path_main + 'contrasts/', 'contrasts_name')
+    jobs, contrasts = prep_jobs_contrasts(adata, path_main + 'contrasts/', contrasts_name)
 
     # Here we go
     if not args.skip_computation:
@@ -145,12 +145,12 @@ def main():
 
         D = Dist_features(adata, contrasts, signatures=signatures, jobs=jobs, n_cores=n_cores, app=True) # To load on the app directly
         D.run_all_jobs()
-        D.to_pickle(path_results)
+        D.to_pickle(path_results, name=contrasts_name)
 
     else:
 
         #Read results 
-        with open(path_results + 'dist_features.txt', 'rb') as f:
+        with open(path_results + f'{contrasts_name}.txt', 'rb') as f:
             results = pickle.load(f)
 
     # Write final exec time

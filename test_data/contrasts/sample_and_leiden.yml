@@ -1,25 +1,25 @@
 classic:
-    sample: 
-          query: sample
-          methods: 
-                  DE: wilcoxon 
-                  ML: 
-                    features: 
-                            - PCs
-                            - signatures
-                    models: 
-                          - logit
-                          - xgboost
-                    mode: fast
-   leiden: 
-          query: leiden
-          methods: 
-                  DE: wilcoxon 
-                  ML: 
-                    features: 
-                            - PCs
-                            - signatures
-                    models: 
-                          - logit
-                          - xgboost
-                    mode: fast
+        sample: 
+                query: sample
+                methods: 
+                        DE: wilcoxon 
+                        ML: 
+                                features: 
+                                        - PCs
+                                        - signatures
+                                models: 
+                                      - logit
+                                      - xgboost
+                                mode: fast
+        leiden: 
+                query: leiden
+                methods: 
+                        DE: wilcoxon 
+                        ML: 
+                                features: 
+                                        - PCs
+                                        - signatures
+                                models: 
+                                      - logit
+                                      - xgboost
+                                mode: fast

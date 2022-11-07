@@ -70,11 +70,6 @@ if not args.skip:
     from Cellula.label_transfer._VAEs import *
     # ...
 
-    # Custom code 
-    sys.path.append(path_main + 'custom/') # Path to local-system, user-defined custom code
-    from colors import *
-    from meta_formatting import * 
-
     #-----------------------------------------------------------------#
 
     # Set other paths 

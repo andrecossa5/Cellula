@@ -215,7 +215,7 @@ custom: # Contrast "family" name
                 a: leiden in ["2", "3"] & sample == "a" # Cell groups. <name> : string eval expression
                 b: leiden in ["4", "5"] & sample == "b"
           methods: # Methods used 
-                  DE: wilcoxon # Uses genes by default
+                  DE: wilcoxon # Uses only genes, by default
                   ML: 
                     features: # Features to use as input of ML models
                             - genes  # may be added, but requires >> time in full mode
@@ -230,30 +230,36 @@ custom: # Contrast "family" name
 Save your custom .yml files in `test_data/contrasts/ and pass it to `dist_features.py` to run your analyses.
 
 ### Setup GUIs to explore Cellula output
-Lastly, `Cellula` comes with two `streamlit` GUIs to interactivaly explore its outputs. This may be useful also for non-computational users exploration. Indeed, once `Cellula` has been setup on some machine and has been run on some data (see above demo), results can be shared and queried as follows:
+Lastly, `Cellula` comes with two `streamlit` GUIs to interactivaly explore its outputs. This may be useful also for non-computational users exploration. Indeed, once `Cellula` has been setup and run on some data (see above demo), results can be shared and queried as follows:
 
 1. On the machine where the analysis has actually taken place, run 
 
 ```bash 
-python prepare_archive.py -p $path_main 
+python prepare_archive.py -p $path_main -n <your-project-name-here>
 ```
-This will generate a new `to_share` folder in `$path_main` with a `cellula.tar.gz` file.
+This will generate a `<your-project-name-here>.tar.gz` file, that contains all the info needed by the GUIs.
 
-2. Prepare the new machine on which one wants to run the GUIs as in the installation section above 
-3. Upload the `cellula.tar.gz` file to <some_path> on the new machine and run ...
-4. From the new machine, `cd` to <some_path>/apps/ and lunch one of the two GUIs by running:
+2. Prepare the 'new' machine (i.e., the one on which we need to run the GUIs), as described in the installation section above 
+3. Upload the `<your-project-name-here>.tar.gz` file to <some-path-here> on this 'new' machine, and un-tar the archive
+
+```bash
+tar -xf `<your-project-name-here>.tar.gz`
+rm <your-project-name-here>.tar.gz
+```
+
+4. From the new machine, `cd` to the locally cloned `Cellula` repo, `cd` to `apps` and launch one of the two GUIs by running:
 
 ```bash 
-streamlit run Scorer_app.py .
+streamlit run scorer_app.py <some-path-here>
 ```
 
 or 
 
 ```bash 
-streamlit run Dist_features_app.py .
+streamlit run dist_features_app.py <some-path-here>
 ```
 
-Each GUIs will automatically launch on your web browser.
+Each GUIs will automatically starts on your web browser.
 
 ## Repo organization, for whoever wants to contribute :) 
 

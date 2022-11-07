@@ -1,5 +1,7 @@
 #/usr/bin/python
+
 import os
+import sys
 import gseapy
 import pickle
 import pandas as pd
@@ -14,7 +16,7 @@ import streamlit as st
 st.title('Distinguishing features')
  
 # Path main
-path_main = '/Users/IEO5505/Desktop/prova_apps/'
+path_main = sys.argv[1]
 
  
 ##
@@ -23,45 +25,61 @@ path_main = '/Users/IEO5505/Desktop/prova_apps/'
 # Load data
 st.write(f'Choose data object.')
 
-path_objects = path_main + '/objects/' # TO FIX! Must be specified from CL...
+# Version
+path_objects = path_main + '/dist_features_objects/' # TO FIX! Must be specified from CL...
 collections = list(gseapy.get_library_name())
-steps = [ x for x in os.listdir(path_objects) if x != '.DS_Store' ]
- 
-form_data = st.form(key='Data object')
-step = form_data.selectbox(
-    'Load results objects',
-    steps,
-    key='Results object'
-)
-submit_data = form_data.form_submit_button('Load')
- 
- 
+versions = [ x for x in os.listdir(path_objects) if x != '.DS_Store' ]
+
+
 ##
- 
 
-# Load 
-with open(f'{path_objects}/{step}/dist_features.txt', 'rb') as f:
-    results = pickle.load(f)
 
-# Query form 
-st.write(f'Choose navigation mode.')
-form = st.form(key='Mode')
-query = form.radio(
-    'Mode',
-    ['one comparison and job', 'one job', 'one comparison multiple jobs']
-)
-submit = form.form_submit_button('Choose')
+with st.form(key='Cellula version'):
+    version = st.selectbox(
+        'Choose Cellula version',
+        versions,
+        key='Version'
+    )
+    submit_version = st.form_submit_button('Choose')
 
-if submit:
-    st.write(f'{query} chosen.')
-    st.write('Select options:')
+
+##
+
+
+with st.form(key='Dist features object'):
+    objs = [ x for x in os.listdir(f'{path_objects}/{version}') if x != '.DS_Store' ]
+    obj = st.selectbox(
+        'Choose dist features object',
+        objs,
+        key='obj'
+    )
+    submit_data = st.form_submit_button('Load')
+
+    # Load data
+    if submit_data:
+        with open(f'{path_objects}/{version}/{obj}', 'rb') as f:
+            results = pickle.load(f)
+
+
+##
+
+
+with st.form(key='Mode'):
+    query = st.radio(
+        'Mode',
+        ['one comparison and job', 'one job', 'one comparison multiple jobs']
+    )
+    submit = st.form_submit_button('Choose')
+
+    if submit:
+        st.write(f'{query} chosen.')
 
 
 ##
 
 
 # One comparison and job form
-if query == 'one comparison and job':
+if submit_data and query == 'one comparison and job':
 
     form_1 = st.form(key='Analysis')
 
@@ -114,7 +132,7 @@ if query == 'one comparison and job':
 
 
 # One job form
-elif query == 'one job':
+elif submit_data and query == 'one job':
 
     form_2 = st.form(key='one job')
 
@@ -146,7 +164,7 @@ elif query == 'one job':
 
 
 # One comparison multiple jobs form
-elif query == 'one comparison multiple jobs':
+elif submit_data and query == 'one comparison multiple jobs':
 
     col_1, col_2, col_3, col_4, col_5, col_6 = st.columns(6)
 
@@ -165,7 +183,7 @@ elif query == 'one comparison multiple jobs':
         form_4 = st.form(key='Features')
         feat_key = form_4.selectbox(
             'Features',
-            list(np.unique([ x.split('|')[1] for x in list(results.results.keys()) if x.startswith(contrast) ])) + [None]
+            list(np.unique([ x.split('|')[1] for x in list(results.results.keys()) if x.startswith(contrast) ])) + ['All']
         )
         submit_4 = form_4.form_submit_button('Choose')
     
@@ -229,8 +247,8 @@ elif query == 'one comparison multiple jobs':
 
 
     if submit_8:
-        if model_key == 'All':
-            model_key = None
+        model_key = None if model_key == 'All' else model_key
+        feat_key = None if feat_key == 'All' else feat_key
         results.summary_one_comparison_multiple_jobs(
         contrast_key=contrast, feat_key=feat_key, model_key=model_key,
         comparison_key=comparison, show_genes=show_genes, collection=collection

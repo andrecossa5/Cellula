@@ -1,4 +1,6 @@
 #/usr/bin/python
+
+import sys
 import os
 import Cellula
 import pickle
@@ -16,9 +18,8 @@ import streamlit as st
 
 
 # Path main
-path_main = '/Users/IEO5505/Desktop/prova_apps/'
+path_main = sys.argv[1]
 
-##############################################################
 
 # Utils for visualization
 
@@ -112,18 +113,18 @@ st.markdown(
 
 # Load data
 path_data = path_main + '/data/'
-steps = []
+versions = []
 for x in os.listdir(path_data):
     if (x != '.DS_Store') and (len(os.listdir(path_data + f'/{x}/')) > 0):
-        steps.append(x)
+        versions.append(x)
 
 st.write(f'Choose data object.')
 
 form_data = st.form(key='Data object')
-step_name = form_data.selectbox(
-    'Load a step data',
-    steps,
-    key='Step'
+version = form_data.selectbox(
+    'Load data from a Cellula version',
+    versions,
+    key='Version'
 )
 submit_data = form_data.form_submit_button('Load')
 
@@ -131,9 +132,9 @@ submit_data = form_data.form_submit_button('Load')
 ##
 
 # Load data
-adata = sc.read(path_data + f'/{step_name}/clustered.h5ad')
-embs = pd.read_csv(path_data + f'/{step_name}/embeddings.csv', index_col=0)
-with open(path_data + f'/{step_name}/signatures.txt', 'rb') as f:
+adata = sc.read(path_data + f'/{version}/clustered.h5ad')
+embs = pd.read_csv(path_data + f'/{version}/embeddings.csv', index_col=0)
+with open(path_data + f'/{version}/signatures.txt', 'rb') as f:
     signatures = pickle.load(f)
 plot = False
 
@@ -237,4 +238,4 @@ if plot:
         * pvalue: __{p:.3f}__
         """
     )
-##############################################################
+

@@ -1,6 +1,6 @@
 # Cellula
 
-A (python) scripts collection for semi-automatic, seamless single-cell analysis (soon a Nextflow pipeline. * denote features which are still pending in the current codebase).
+Seamless single-cell analysis in python (soon a Nextflow pipeline. * denote features which are still pending in the current codebase).
 
 Aim of this project is to provide a toolkit for the exploration of scRNA-seq. These tools perform common single-cell analysis tasks (i.e., data pre-processing and integration, cell clustering and annotation (*)) with the following features:
 
@@ -18,13 +18,13 @@ Aim of this project is to provide a toolkit for the exploration of scRNA-seq. Th
 
 For the time being, the main Cellula workflow implements the following tasks:
 
-* (By sample) cell and gene quality Control (QC), followed by expression matrices merging (`0_qc.py`),
-data pre-processing (`1_pp.py`) and batch effects assessment (`2_kBET.py`)
-* (Optional, if needed) correction of batch effects (`Harmony.py`, `Scanorama.py`, `scVI.py`, and `BBKNN.py` scripts) followed by the assembly of the final pre-processed data (`3_integration_evaluation.py`)
-* (Leiden) cell clustering at multiple, tunable resolutions, coupled to cluster markers computation (`4_clustering.py`)
-* Clustering solutions evaluation and choice (`5_clustering_diagnostics.py`)
-* Signatures (i.e., gene sets, either defined by the user or retrieved by data-driven approaches) scoring (`6_signatures.py`)
-* Distinguishing features ranking, through Differential Expression (DE) and classification methods (`7_dist_features.py`)
+* (By sample) cell and gene quality Control (QC), followed by expression matrices merging (`qc.py`),
+data pre-processing (`1_pp.py`) and batch effects assessment (`kBET.py`)
+* (Optional, if needed) correction of batch effects (`Harmony.py`, `Scanorama.py`, `scVI.py`, and `BBKNN.py` scripts) followed by the assembly of the final pre-processed data (`integration_evaluation.py`)
+* (Leiden) cell clustering at multiple, tunable resolutions, coupled to cluster markers computation (`clustering.py`)
+* Clustering solutions evaluation and choice (`clustering_diagnostics.py`)
+* Signatures (i.e., gene sets, either defined by the user or retrieved by data-driven approaches) scoring (`signatures.py`)
+* Distinguishing features ranking, through Differential Expression (DE) and classification methods (`dist_features.py`)
 * Interactive:
     * visualization of gene expression programs (`Scorer_app.py`) 
     * distinguishing features interpetation (Gene Set Enrichment and Over-Representation analysis, `Dist_features_app.py`)
@@ -74,16 +74,16 @@ cd $main_folder_name
 path_main=`pwd`/
 ```
 
-Once in `$path_main`, we need to setup this folder in order to begin with the analysis. At the bare minimum, Cellula requires __two folders__ in `$path_main`, `matrices` and `data`:
+Once in `$path_main`, we need to setup this folder in order for the analysis. At the bare minimum, the user to needs to create __two new folders__ in `$path_main`, `matrices` and `data`:
 
-* `matrices` hosts all sample matrices for the project (i.e., (CellRanger)[https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/what-is-cell-ranger] or (STARsolo)[https://github.com/alexdobin/STAR/blob/master/docs/STARsolo.md] outputs, including, for each sample, 3 files: barcodes.tsv.gz, features.tsv.gz and matrix.mtx.gz). If one has to deal with sclt data, each sample directory need to store lentiviral-clones info (see below). In this repo, the `test_data` folder contains a simple example on how the `matrices` folder needs to be structured for a very simple scRNA-seq analysis, involving two samples _a_ and _b_. This folder will be directly used for the demo below. Please, use the same structure for your data.
+* `matrices` hosts all sample matrices for the project (i.e., (CellRanger)[https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/what-is-cell-ranger] or (STARsolo)[https://github.com/alexdobin/STAR/blob/master/docs/STARsolo.md] outputs, including, for each sample, 3 files: barcodes.tsv.gz, features.tsv.gz and matrix.mtx.gz). If one has to deal with sclt data, each sample directory need to store additional lentiviral-clones info (see below). In this repo, `test_data` contains a minimal example of `matrices` folder, with data from two samples, _a_ and _b_. Please, follow the same directory structure to create your `matrices` folder with your data.
 
-* `data` will host all the intermediate files from `Cellula` analysis steps. In the most simple case, one can just initialize this as an empty folder. However, one may want to include other project-specific data (e.g., one a list of curated gene sets to score). In that case, just add this information with every gene set store in `.txt` format. In this repo, the `test_data` folder contains a simple example on how `data` needs to be structured in this case. This folder will be directly used for the demo below. Please, use the same structure for your data.
+* `data` will host all the intermediate files from `Cellula` analysis steps. In the most simple case, one can just initialize this as an empty folder. However, one may want to include other project-specific data, e.g., a list of curated gene sets to score. In this repo, the `test_data` folder contains a simple example on how `data` needs to be structured in this case, with 6 manually curated gene sets stored in `data/curated_signatures` in `.txt` format. Please, use the same folder structure with your data.
 
 To setup your `$path_main` folder:
 
 1. __`cd` to `$path_main`__ 
-2. __create and fill__ `matrices` and `data` folders (or just copy in `$path_main` `test_data/matrices` and `test_data/data`, for the following demo). 
+2. __create and fill__ `matrices` and `data` folders (for the following demo, just copy/link `test_data/matrices` and `test_data/data` to `$path_main`). 
 3. `cd` to your Cellula repository clone, `cd` to the `scripts` folder, and run:
 
 ```bash
@@ -134,41 +134,40 @@ With $path_main correctly configured, we can proceed with the analysis.
 
 We will first perform Quality Control and matrix pre-processing.
 
-__N.B. 1__ In a typical Cellula workflow (with all its CLIs calls and results) one choose ... . All these choices constitutes ... . . One is commonly interested in varying these data exploration strategies and compare their results without loosing previously precomputed runs. Therefore, `Cellula` CLIs all have a __--version__ argument to __activate and write on a__ specific _version_ folder. This way, a single place (i.e., the main folder) can store and organize all the results obtained on the same data with different, user-defined strategies/choices. 
+__Note 1__ In a single Cellula workflow (i.e., its CLIs calls and results) one choose a unique set of options for each task. These options will likely affect the final results. Therefore, one is commonly interested in varying them and compare their results without loosing previously precomputed analysis. In order to do this, all `Cellula` CLIs all have a `--version` (or `-v`) argument to __activate and write on a__ specific _version_ folder. This way, a single place (i.e., the main folder) can store and organize all the results obtained on the same data with different, user-defined strategies. Run the same task changing `-v` and see how the `$path_main` folder structure is modified.
 
-# Shrink...
-__N.B. 2__ We are still reasoning about the extent to which `Cellula` needs to be automated. Single-cell analysis is explorative in nature, and therefore it may be biased by users subjective choices. Despite our efforts to __alleviate this "subjectivity" problem__, benchmarking methods to guide users choices, a lot of things may need to be adjusted on the go. One might want to inspect every output of a Cellula CLI before running the next one, or might want to run an entire analysis with the least number of CLIs calls possible, inspecting results only at the end. In this quickstart, we propose a recipe for the second scenario, but, now and after, __double checks are by all means suggested and encouraged__.
+__Note 2__ One might want to inspect every output of a Cellula CLI before running the next one, or might want to run an entire analysis with the least number of CLIs calls possible, inspecting results only at the end. In this quickstart, we propose a recipe for the second scenario, but human inspection is always encouraged (expecially at this stage of the project).
 
-For now, all CLIs must be called form the `script` directory (i.e., one still has to `cd` to this folder to launch these scripts in a batch job on a HPC cluster).
+For now, all CLIs must be called form the `Cellula/script` directory (i.e., one still has to `cd` to this folder to launch these scripts in a batch job on a HPC cluster).
 
 To perform cell and gene QC followed by data preprocessing, run:
 
 ```bash
-python 0_qc.py -p $path_main --step 0 --mode filtered --qc_mode seurat
-python 1_pp.py -p $path_main --step 0 --norm scanpy --n_HVGs 2000 --score scanpy
+python qc.py -p $path_main -v default --mode filtered --qc_mode seurat
+python pp.py -p $path_main -v default --norm scanpy --n_HVGs 2000 --score scanpy
 ```
 
-Here we have specifically activated a "step_0" step. Notice how the related and folders and files have been created and filled within `path_main`. 
+Here we have specifically activated the 'default' version. 
 
-After pre-processing, in this case we will skip batch effects evaluation and data integration sections, as _a_ and _b_ samples come from the same experiment, lab and sequencing run (tutorials on how to handle more complicated situations leveraging `Cellula` functionalities at full will be soon available). Here, we will choose to retain the original 'PCA' embedding obtained by reducing (and scaling) the full gene expression matrix to the top 2000 hyper-variable genes (HVGs), a common choice in single_cell analysis (see `1_pp.py`, `2_kBET.py` and integration scripts for further details and alternatives). This data representation will be used for kNN construction, multiple resolution clustering and markers computation. All clustering solutions will be then evaluated for their quality. These three steps (i.e., choice of a cell representation to go with, clustering and initial clustering diagnostics) can be obtained by running:
+After pre-processing, in this case we will skip batch effects evaluation and data integration sections, as _a_ and _b_ samples come from the same experiment, lab and sequencing run (tutorials on how to handle more complicated situations leveraging `Cellula` functionalities at full will be soon available). Here, we will choose to retain the original 'PCA' embedding obtained by reducing (and scaling) the full gene expression matrix to the top 2000 hyper-variable genes (HVGs), a common choice in single_cell analysis (see `pp.py`, `kBET.py` and integration scripts for further details and alternatives). This data representation will be used for kNN construction, multiple resolution clustering and markers computation. All clustering solutions will be then evaluated for their quality. These three steps (i.e., choice of a cell representation to go with, clustering and initial clustering diagnostics) can be obtained by running:
 
 ```bash
-python 3_integration_diagnostics.py -p $path_main --step 0 --chosen red_s:original 
-python 4_clustering.py -p $path_main --step 0 --range 0.2:1.0 --markers
-python 5_clustering_diagnostics.py -p $path_main --step 0  
+python integration_diagnostics.py -p $path_main -v default --chosen red_s:original 
+python clustering.py -p $path_main -v default --range 0.2:1.0 --markers
+python clustering_diagnostics.py -p $path_main -v default
 ```
 
 The user can inspects the clustering and clustering visualization folder to visualize properties of the "best" clustering solutions obtained, and then choose one to perform the last steps of Cellula workflow. In this case we will select the 30_NN_30_0.29 solution:
 
 ```bash
-python 5_clustering_diagnostics.py -p $path_main --step 0 --chosen 30_NN_30_0.29 --kNN 30_NN_30_components --rep original
+python clustering_diagnostics.py -p $path_main -v default --chosen 30_NN_30_0.29 --kNN 30_NN_30_components --rep original
 ```
 
 Lastly, we will retrieve and score potentially meaningful gene sets in our data, and we will search for features (i.e., single genes, Principal Components or gene sets) able to distinguishing groups of cells in our data. Specifically, here we will look for distinguishing features discriminating individual __samples__ and __leiden clusters__ (chosen solution) with respect to all the other cells.
 
 ```bash
-python 6_signatures.py -p $path_main --step 0 --Hotspot --barkley --wu --scoring scanpy
-python 7_dist_features.py -p $path_main --step 0 
+python signatures.py -p $path_main -v default --Hotspot --barkley --wu --scoring scanpy
+python dist_features.py -p $path_main -v default 
 ```
 
 ### Setup GUIs to explore Cellula output

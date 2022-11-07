@@ -42,10 +42,11 @@ my_parser.add_argument(
 
 # Step
 my_parser.add_argument( 
-    '--step', 
+    '-v',
+    '--version', 
     type=str,
-    default='0',
-    help='The pipeline step to run. Default: 0.'
+    default='default',
+    help='The pipeline step to run. Default: default.'
 )
 
 # Remove 
@@ -116,7 +117,7 @@ my_parser.add_argument(
 args = my_parser.parse_args()
 
 path_main = args.path_main
-step = f'step_{args.step}'
+version = args.version
 normalization_method = args.norm
 scoring_method = args.score
 n_HVGs = args.n_HVGs
@@ -147,7 +148,7 @@ if not args.skip:
     path_viz = path_main + '/results_and_plots/vizualization/pp/'
 
     # Create step_{i} folders. Overwrite, if they have already been created
-    to_make = [ (path_runs, step), (path_results, step), (path_viz, step), (path_data, step) ]
+    to_make = [ (path_runs, version), (path_results, version), (path_viz, version), (path_data, version) ]
     for x, y in to_make:
         if x == path_data or x == path_runs:
             make_folder(x, y, overwrite=False)
@@ -155,10 +156,10 @@ if not args.skip:
             make_folder(x, y, overwrite=True)
 
     # Update paths
-    path_data += f'/{step}/'
-    path_runs += f'/{step}/'
-    path_results += f'/{step}/' 
-    path_viz += f'/{step}/' 
+    path_data += f'/{version}/'
+    path_runs += f'/{version}/'
+    path_results += f'/{version}/' 
+    path_viz += f'/{version}/' 
 
     #-----------------------------------------------------------------#
 

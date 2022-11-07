@@ -10,7 +10,7 @@ import argparse
 
 # Create the parser
 my_parser = argparse.ArgumentParser(
-    prog='0_qc',
+    prog='qc',
     description=
     '''
     Cell QC. 
@@ -38,10 +38,11 @@ my_parser.add_argument(
 
 # Step
 my_parser.add_argument( 
-    '--step', 
+    '-v',
+    '--version', 
     type=str,
-    default='0',
-    help='The pipeline step to run. Default: 0.'
+    default='default',
+    help='The pipeline step to run. Default: default.'
 )
 
 # Path_main
@@ -71,7 +72,7 @@ my_parser.add_argument(
 args = my_parser.parse_args()
 mode = args.mode
 qc_mode = args.qc_mode
-step = f'step_{args.step}'
+version = args.version
 path_main = args.path_main
 
 
@@ -94,14 +95,14 @@ if not args.skip:
     path_viz = path_main + '/results_and_plots/vizualization/QC/'
 
     # Create step_{i} folders. Overwrite, if they have already been created
-    to_make = [ (path_runs, step), (path_viz, step), (path_data, step) ]
+    to_make = [ (path_runs, version), (path_viz, version), (path_data, version) ]
     for x, y in to_make:
         make_folder(x, y, overwrite=True)
 
     # Update paths
-    path_data += f'/{step}/'
-    path_runs += f'/{step}/'
-    path_viz += f'/{step}/' 
+    path_data += f'/{version}/'
+    path_runs += f'/{version}/'
+    path_viz += f'/{version}/' 
 
     #-----------------------------------------------------------------#
 

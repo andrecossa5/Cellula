@@ -118,7 +118,7 @@ if not args.skip:
     import pickle
     from Cellula._utils import *
     from Cellula.plotting._plotting import *
-    from Cellula.plotting._colors import *
+    from Cellula.plotting._colors import create_colors
     from Cellula.preprocessing._integration import fill_from_integration_dirs
     from Cellula.preprocessing._Int_evaluator import Int_evaluator
 

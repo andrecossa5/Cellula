@@ -38,10 +38,11 @@ my_parser.add_argument(
 
 # Step
 my_parser.add_argument( 
-    '--step', 
+    '-v',
+    '--version', 
     type=str,
-    default='0',
-    help='The pipeline step to run. Default: 0.'
+    default='default',
+    help='The pipeline step to run. Default: default.'
 )
 
 # n_pcs
@@ -71,7 +72,7 @@ my_parser.add_argument(
 args = my_parser.parse_args()
 
 path_main = args.path_main
-step = f'step_{args.step}'
+version = args.version
 n_pcs = args.n_pcs
 covariate = args.covariate
 
@@ -86,23 +87,18 @@ if not args.skip:
     from Cellula.preprocessing._Int_evaluator import Int_evaluator
     from Cellula.preprocessing._metrics import choose_K_for_kBET
 
-    # Custom code 
-    sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
-    from colors import *
-    from meta_formatting import *
-
     #-----------------------------------------------------------------#
 
     # Set other paths 
-    path_data = path_main + f'/data/{step}/' # Set here, do not overwrite
+    path_data = path_main + f'/data/{version}/' # Set here, do not overwrite
     path_results = path_main + '/results_and_plots/pp/'
     path_runs = path_main + '/runs/'
     path_viz = path_main + '/results_and_plots/vizualization/pp/'
 
     # Update paths
-    path_results += f'/{step}/'
-    path_runs += f'/{step}/' 
-    path_viz += f'/{step}/' 
+    path_results += f'/{version}/'
+    path_runs += f'/{version}/' 
+    path_viz += f'/{version}/' 
 
     # Check if the ./runs/step_{i}/logs_1_pp.txt are present, 
     # along with the GE_space dictionary in path_data

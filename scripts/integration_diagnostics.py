@@ -12,7 +12,7 @@ import argparse
 
 # Create the parser
 my_parser = argparse.ArgumentParser(
-    prog='3_integration_diagnostics',
+    prog='integration_diagnostics',
     description=
     '''
     This tool employs several evalutation metrics to choose one (potentially batch-corrected) 
@@ -61,10 +61,11 @@ my_parser.add_argument(
 
 # Step
 my_parser.add_argument( 
-    '--step', 
+    '-v',
+    '--version', 
     type=str,
-    default='0',
-    help='The pipeline step to run. Default: 0.'
+    default='default',
+    help='The pipeline step to run. Default: default.'
 )
 
 # Delete
@@ -101,7 +102,7 @@ my_parser.add_argument(
 args = my_parser.parse_args()
 
 path_main = args.path_main
-step = 'step_' + args.step
+version = args.version
 k = args.k
 covariate = args.covariate
 resolution = args.resolution
@@ -125,21 +126,21 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set other paths
-    path_data = path_main + f'/data/{step}/'
+    path_data = path_main + f'/data/{version}/'
     path_results = path_main + '/results_and_plots/pp/'
     path_runs = path_main + '/runs/'
     path_viz = path_main + '/results_and_plots/vizualization/pp/'
 
     # Update paths
-    path_runs += f'/{step}/'
-    path_results += f'/{step}/' 
-    path_viz += f'/{step}/' 
+    path_runs += f'/{version}/'
+    path_results += f'/{version}/' 
+    path_viz += f'/{version}/' 
 
     # Check if the ./results_and_plots/pp/step_0/integration folder is present,
     # along with the GE_space dictionary in ./data
     to_check = [ (path_data, 'GE_spaces.txt'), (path_results, 'integration') ]
     if not any([ os.path.exists(path) for path in [ ''.join(x) for x in to_check ] ]):
-        print('Run 1_pp or integration algorithm(s) beforehand!')
+        print('Run pp or integration algorithm(s) beforehand!')
         sys.exit()
     else:
         path_results += '/integration/'
@@ -148,7 +149,7 @@ if not args.skip:
     
     # Set logger 
     mode = 'a' if chosen is not None else 'w'
-    logger = set_logger(path_runs, 'logs_3_integration_diagnostics.txt', mode=mode)
+    logger = set_logger(path_runs, 'logs_integration_diagnostics.txt', mode=mode)
 
 ########################################################################
 
@@ -161,7 +162,8 @@ def integration_diagnostics():
     # Data loading and preparation
     t = Timer()
     t.start()
-    logger.info('Execute 3_integration_diagnostics...')
+    
+    logger.info(f'Execute 3_integration_diagnostics: --k {k} --covariate {covariate} --resolution {resolution} --n_comps {n_comps}')
 
     # Load pickled (original) GE_spaces
     with open(path_data + 'GE_spaces.txt', 'rb') as f:

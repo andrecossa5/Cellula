@@ -79,7 +79,7 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set other paths
-    path_data = path_main + f'/data/{version}'
+    path_data = path_main + f'/data/{version}/'
     path_results = path_main + '/results_and_plots/pp/'
     path_runs = path_main + '/runs/'
     path_viz = path_main + '/results_and_plots/vizualization/pp/'
@@ -110,9 +110,10 @@ def scVI():
     T.start()
 
     # Read adata and prepare a new GE_space with the raw_red counts in its 'counts' layer
-    logger.info('Execute scVI...')
-    adata = sc.read(path_data + 'adata.h5ad')
-    g = GE_space().load(adata).red(mode='raw')
+    logger.info(f'Execute scVI: --categoricals {categoricals} --continuous {continuous}')
+
+    adata = sc.read(path_data + 'lognorm.h5ad')
+    g = GE_space(adata).red(mode='raw')
    
     # Perform scVI integration
     g.compute_scVI(categorical_covs=categoricals, continuous_covs=continuous)

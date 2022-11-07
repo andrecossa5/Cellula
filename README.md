@@ -60,7 +60,19 @@ mamba activate cellula_example
 mamba develop . # you have to be in the cloned repo path
 ```
 
-That's it. If your fire up the newly installed python interpreter, you are able to `import Cellula`, you are ready to go. 
+That's it. To check if you are able to run Cellula's code, run the newly installed `python` interpreter 
+
+```bash
+python
+```
+
+and 
+
+```python
+import Cellula
+```
+
+If you are not seeing any errors, you are ready to go. 
 
 ### Main folder setup
 
@@ -140,14 +152,23 @@ __Note 2__ One might want to inspect every output of a Cellula CLI before runnin
 
 For now, all CLIs must be called form the `Cellula/script` directory (i.e., one still has to `cd` to this folder to launch these scripts in a batch job on a HPC cluster).
 
-To perform cell and gene QC followed by data preprocessing, run:
+To perform cell and gene QC and merge expression data, run:
 
 ```bash
 python qc.py -p $path_main -v default --mode filtered --qc_mode seurat
-python pp.py -p $path_main -v default --norm scanpy --n_HVGs 2000 --score scanpy
 ```
 
-Here we have specifically activated the 'default' version. 
+Here we have specifically activated the 'default' version. You would see two newly created files in `data/default`, `QC.h5ad` and `cells_meta.csv`. Here, you have two choices:
+
+1. Go on with pre-processing (as we will do with this demo), using default cells meta-data
+2. Format your cells meta-data _before_ pre-processing, adding/removing columns to `cells_meta.csv`.  
+   This is important with complex single-cell studies where cells/samples are grouped by a number of categorical covariates dependent on the study design. The newly formatted `cells_meta.csv` file will be read by `pp` afterwords if `--custom_meta` is specified
+
+For this demo, we will go with default cells meta-data, and run:
+
+```bash
+python pp.py -p $path_main -v default --norm scanpy --n_HVGs 2000 --score scanpy
+```
 
 After pre-processing, in this case we will skip batch effects evaluation and data integration sections, as _a_ and _b_ samples come from the same experiment, lab and sequencing run (tutorials on how to handle more complicated situations leveraging `Cellula` functionalities at full will be soon available). Here, we will choose to retain the original 'PCA' embedding obtained by reducing (and scaling) the full gene expression matrix to the top 2000 hyper-variable genes (HVGs), a common choice in single_cell analysis (see `pp.py`, `kBET.py` and integration scripts for further details and alternatives). This data representation will be used for kNN construction, multiple resolution clustering and markers computation. All clustering solutions will be then evaluated for their quality. These three steps (i.e., choice of a cell representation to go with, clustering and initial clustering diagnostics) can be obtained by running:
 
@@ -157,18 +178,56 @@ python clustering.py -p $path_main -v default --range 0.2:1.0 --markers
 python clustering_diagnostics.py -p $path_main -v default
 ```
 
-The user can inspects the clustering and clustering visualization folder to visualize properties of the "best" clustering solutions obtained, and then choose one to perform the last steps of Cellula workflow. In this case we will select the 30_NN_30_0.29 solution:
+The user can inspects the clustering and clustering visualization folder to visualize properties of the "best" clustering solutions obtained, and then choose one to perform the last steps of Cellula workflow. In this case we will select the 30_NN_30_0.29 solution, and we will embed its kNN graph into UMAP space with
 
 ```bash
 python clustering_diagnostics.py -p $path_main -v default --chosen 30_NN_30_0.29 --kNN 30_NN_30_components --rep original
 ```
 
-Lastly, we will retrieve and score potentially meaningful gene sets in our data, and we will search for features (i.e., single genes, Principal Components or gene sets) able to distinguishing groups of cells in our data. Specifically, here we will look for distinguishing features discriminating individual __samples__ and __leiden clusters__ (chosen solution) with respect to all the other cells.
+Lastly, we will retrieve and score potentially meaningful gene sets in our data, and we will search for features (i.e., single genes, Principal Components or Gene Sets scores) able to distinguishing groups of cells in our data. First, we will retrieve and score Gene Sets with
 
 ```bash
 python signatures.py -p $path_main -v default --Hotspot --barkley --wu --scoring scanpy
-python dist_features.py -p $path_main -v default 
 ```
+
+Then, we will look for distinguishing features. Specifically, here we will look for distinguishing features discriminating individual __samples__ and __leiden clusters__ (chosen solution) with respect to all the other cells. We will make use of DE and classification models for both tasks. In order to do that, we need to pass a configuration file to `dist_features.py`, encoding all the info needed to retrieve cell groups and specify the type of features and models one would like to use to rank distinguishing features. 
+
+For this demo, we will pass the example configuration file stored in `test_data/contrasts`, `samples_and_leiden.yml`. `dist_features.py` look at .yml files in `$path_data/contrasts/`, so:
+
+1. Create a `contrasts` folder in `$path_main`
+2. Copy `test_data/contrasts/samples_and_leiden.ym` in `$path_main/contrasts/`
+
+and run
+
+```bash
+python dist_features.py -p $path_main -v default --contrasts samples_and_leiden.yml
+```
+
+If you want to explore other distinguishing features, just create and pass your own file. Arbitrary analyses can be specified by changing the provided .yml file.
+
+For example, consider the case when one would be interest in the distinguishing features among cluster 2 and 3 from sample a and cluster 4 and 5 from sample b, using both DE and classification, and all the available features.
+The related .yml file would be something like:
+
+```bash
+custom: # Contrast "family" name
+    <example_query>: # Name you would like to give to the new contrast 
+          query: 
+                a: leiden in ["2", "3"] & sample == "a" # Cell groups. <name> : string eval expression
+                b: leiden in ["4", "5"] & sample == "b"
+          methods: # Methods used 
+                  DE: wilcoxon # Uses genes by default
+                  ML: 
+                    features: # Features to use as input of ML models
+                            - genes  # may be added, but requires >> time in full mode
+                            - PCs
+                            - signatures # (i.e., gene sets from signatures.py)
+                    models: # Classifiers used 
+                          - logit
+                          - xgboost 
+                    mode: fast # Training mode. For a full hyperparameters optimization, write 'full' here
+```
+
+Save your custom .yml filse in `test_data/contrasts/ and pass it to `dist_features.py` to run your analyses.
 
 ### Setup GUIs to explore Cellula output
 ...

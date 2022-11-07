@@ -12,7 +12,7 @@ import argparse
 
 # Create the parser
 my_parser = argparse.ArgumentParser(
-    prog='5_clustering_diagnostics',
+    prog='clustering_diagnostics',
     description=
     '''
     Leiden clustering diagnostics. This tool operates similar to 3_integration_diagnostics.
@@ -38,10 +38,11 @@ my_parser.add_argument(
 
 # Step
 my_parser.add_argument( 
-    '--step', 
+    '-v',
+    '--version', 
     type=str,
-    default='0',
-    help='The pipeline step to run. Default: 0.'
+    default='default',
+    help='The pipeline step to run. Default: default.'
 )
 
 # Chosen 
@@ -87,7 +88,7 @@ my_parser.add_argument(
 args = my_parser.parse_args()
 
 path_main = args.path_main
-step = f'step_{args.step}'
+version = args.version
 chosen = args.chosen
 remove = args.remove
 rep = args.rep
@@ -111,15 +112,15 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set other paths 
-    path_data = path_main + f'/data/{step}/'
+    path_data = path_main + f'/data/{version}/'
     path_results = path_main + '/results_and_plots/clustering/'
     path_runs = path_main + '/runs/'
     path_viz = path_main + '/results_and_plots/vizualization/clustering/'
 
     # Update paths
-    path_runs += f'/{step}/'
-    path_results += f'/{step}/' 
-    path_viz += f'/{step}/' 
+    path_runs += f'/{version}/'
+    path_results += f'/{version}/' 
+    path_viz += f'/{version}/' 
 
     # Check if clustering has already been performed 
     if not os.path.exists(path_results + 'clustering_solutions.csv'):
@@ -133,7 +134,7 @@ if not args.skip:
         mode = 'w'
     elif chosen is not None or remove is not None:
         mode = 'a'
-    logger = set_logger(path_runs, 'logs_5_clustering_diagnostics.txt', mode=mode)
+    logger = set_logger(path_runs, 'logs_clustering_diagnostics.txt', mode=mode)
 
 ########################################################################
 
@@ -162,7 +163,9 @@ def clustering_diagnostics():
 
         T = Timer()
         T.start()
+
         logger.info('Begin clustering_diagnostics...')
+        
 
         t = Timer()
         t.start()
@@ -199,6 +202,8 @@ def clustering_diagnostics():
 
         t = Timer()
         t.start()
+
+        logger.info(f'Chosen solution: {chosen}')
 
         # Add chosen to adata.obs and create colors
         adata.obs[chosen] = clustering_solutions[chosen] 
@@ -292,9 +297,6 @@ def clustering_diagnostics():
 
         logger.info(f'Vizualization cluster separation and purity: {t.stop()} s.')
 
-        # Write final exec time (no chosen steps)
-        logger.info(f'Execution was completed successfully in total {T.stop()} s.')
-
     #-----------------------------------------------------------------#
 
     # Dignostics 3: top_3 clustering solutions relationships
@@ -305,7 +307,7 @@ def clustering_diagnostics():
         logger.info('Diagnostics 3: Top clustering solutions relationships.')
 
         # Load markers
-        with open(path_main + f'results_and_plots/dist_features/{step}/clusters_markers.txt', mode='rb') as f:
+        with open(path_main + f'results_and_plots/dist_features/{version}/clusters_markers.txt', mode='rb') as f:
             markers = pickle.load(f)
 
         # Subset 
@@ -336,6 +338,9 @@ def clustering_diagnostics():
 
         logger.info(f'Adding relationship among solutions to {chosen} one: {t.stop()} s.')
 
+        # Write final exec time (no chosen steps)
+        logger.info(f'Execution was completed successfully in total {T.stop()} s.')
+
     #-----------------------------------------------------------------#
 
     # Final choice: chosen viz + write clustered adata
@@ -343,6 +348,8 @@ def clustering_diagnostics():
     if chosen is not None: # Only chosen
 
         t.start()
+
+        logger.info(f'{chosen} embeddings/vizualization options: --rep {rep} --kNN {kNN}')
 
         # Read pre-processed and log-normalized adata
         pp = sc.read(path_data + 'preprocessed.h5ad')
@@ -391,12 +398,12 @@ def remove_partition():
 
     # Write to data/removed_cells/step/
     path_remove = path_data + '/removed_cells/'
-    make_folder(path_remove, step, overwrite=False)
+    make_folder(path_remove, version, overwrite=False)
     pd.DataFrame(
         data=to_remove, 
         index=to_remove, 
         columns=['cell']
-    ).to_csv(path_remove + f'/{step}/removed.csv')
+    ).to_csv(path_remove + f'/{version}/removed.csv')
 
     # Print exec time and exit
     logger.info(f'Remove cells from {remove}: {T.stop()} s.')

@@ -51,10 +51,6 @@ df.dtypes
 
 
 
-
-
-
-
 # Data
 # import scanpy as sc
 # adata = sc.read(path_data + 'clustered.h5ad')

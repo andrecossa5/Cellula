@@ -12,7 +12,7 @@ import argparse
 
 # Create the parser
 my_parser = argparse.ArgumentParser(
-    prog='6_signatures',
+    prog='signatures',
     description=
     '''
     This tool compute signature (or gene sets) scores for either data driven gene sets 
@@ -35,10 +35,11 @@ my_parser.add_argument(
 
 # Step
 my_parser.add_argument( 
-    '--step', 
+    '-v',
+    '--version', 
     type=str,
-    default='0',
-    help='The pipeline step to run. Default: 0.'
+    default='default',
+    help='The pipeline step to run. Default: default.'
 )
 
 # Hotspot
@@ -81,7 +82,7 @@ my_parser.add_argument(
 args = my_parser.parse_args()
 
 path_main = args.path_main
-step = f'step_{args.step}'
+version = args.version
 Hotspot = 'Hotspot' if args.Hotspot else None
 wu = 'wu' if args.wu else None
 barkley = 'barkley' if args.barkley else None
@@ -104,26 +105,26 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set other paths 
-    path_data = path_main + f'/data/{step}/'
-    path_clusters = path_main + f'results_and_plots/clustering/{step}/'
-    path_markers = path_main + f'results_and_plots/dist_features/{step}/'
+    path_data = path_main + f'/data/{version}/'
+    path_clusters = path_main + f'results_and_plots/clustering/{version}/'
+    path_markers = path_main + f'results_and_plots/dist_features/{version}/'
     path_results = path_main + '/results_and_plots/signatures/'
     path_runs = path_main + '/runs/'
     path_viz = path_main + '/results_and_plots/vizualization/signatures/'
 
     # Create step_{i} clustering folders. Overwrite, if they have already been created
-    to_make = [ (path_results, step), (path_viz, step) ]
+    to_make = [ (path_results, version), (path_viz, version) ]
     for x, y in to_make:
         make_folder(x, y, overwrite=True)
 
     # Update paths
-    path_runs += f'/{step}/'
-    path_results += f'/{step}/' 
+    path_runs += f'/{version}/'
+    path_results += f'/{version}/' 
 
     #-----------------------------------------------------------------#
 
     # Set logger 
-    logger = set_logger(path_runs, 'logs_6_signatures.txt')
+    logger = set_logger(path_runs, 'logs_signatures.txt')
 
 ########################################################################
 
@@ -136,7 +137,7 @@ def Signatures():
     t = Timer()
     t.start()
 
-    logger.info('Begin GMs calculation and scoring...')
+    logger.info(f'Begin signatures: --Hotspot {Hotspot} --wu {wu} --barkley {barkley} --scoring {scoring}')
 
     # Load adata, clusters, markers and curated
     adata = sc.read(path_data + 'clustered.h5ad')

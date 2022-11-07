@@ -42,7 +42,7 @@ class GE_space:
         Reduce to HVGs the input counts matrix.
         """
         if mode == 'raw':
-            adata_raw = self.matrix.raw.to_adata()
+            adata_raw = self.matrix.raw.to_adata()[:, self.matrix.var_names].copy()
             adata_raw.layers['counts'] = adata_raw.X
             adata_raw.layers['lognorm'] = self.matrix.X
             adata_raw = adata_raw[:, self.matrix.var['highly_variable_features']].copy()

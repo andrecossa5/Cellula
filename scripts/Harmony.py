@@ -81,7 +81,7 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set other paths
-    path_data = path_main + f'/data/{version}'
+    path_data = path_main + f'/data/{version}/'
     path_results = path_main + '/results_and_plots/pp/'
     path_runs = path_main + '/runs/'
     path_viz = path_main + '/results_and_plots/vizualization/pp/'
@@ -114,7 +114,8 @@ def Harmony():
     # Data loading and preparation
     t = Timer()
     t.start()
-    logger.info('Execute Harmony...')
+
+    logger.info(f'Execute Harmony: --n_pcs {n_pcs} --covariates {covariates}')
 
     # Load pickled GE_spaces
     with open(path_data + 'GE_spaces.txt', 'rb') as f:

@@ -12,7 +12,7 @@ import argparse
 
 # Create the parser
 my_parser = argparse.ArgumentParser(
-    prog='4_clustering',
+    prog='clustering',
     description=
     '''
     This tool performs Leiden clustering. Starting from a pre-processed AnnData with pre-computed 
@@ -34,10 +34,11 @@ my_parser.add_argument(
 
 # Step
 my_parser.add_argument( 
-    '--step', 
+    '-v',
+    '--version', 
     type=str,
-    default='0',
-    help='The pipeline step to run. Default: 0.'
+    default='default',
+    help='The pipeline step to run. Default: default.'
 )
 
 # Upper resolution
@@ -81,7 +82,7 @@ my_parser.add_argument(
 args = my_parser.parse_args()
 
 path_main = args.path_main 
-step = f'step_{args.step}'
+version = args.version
 range_ = [ float(x) for x in args.range.split(':') ]
 n = args.n
 
@@ -101,13 +102,13 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set other paths 
-    path_data = path_main + f'/data/{step}/'
+    path_data = path_main + f'/data/{version}/'
     path_results = path_main + '/results_and_plots/clustering/'
     path_runs = path_main + '/runs/'
     path_viz = path_main + '/results_and_plots/vizualization/clustering/'
 
     # Create step_{i} clustering folders. 
-    to_make = [ (path_results, step), (path_viz, step) ]
+    to_make = [ (path_results, version), (path_viz, version) ]
 
     if not args.skip_clustering:
         for x, y in to_make:
@@ -117,14 +118,14 @@ if not args.skip:
         sys.exit()
 
     # Update paths
-    path_runs += f'/{step}/'
-    path_results += f'/{step}/' 
+    path_runs += f'/{version}/'
+    path_results += f'/{version}/' 
 
     #-----------------------------------------------------------------#
 
     # Set logger 
     mode = 'a' if args.markers and args.skip_clustering else 'w'
-    logger = set_logger(path_runs, 'logs_4_clustering.txt', mode=mode)
+    logger = set_logger(path_runs, 'logs_clustering.txt', mode=mode)
 
 ########################################################################
 
@@ -134,7 +135,7 @@ def clustering():
     T = Timer()
     T.start()
 
-    logger.info('Begin clustering...')
+    logger.info(f'Begin clustering: --range {args.range} --n {n}')
 
     # Load preprocessed 
     adata = sc.read(path_data + 'preprocessed.h5ad')

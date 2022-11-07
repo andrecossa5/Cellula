@@ -12,7 +12,7 @@ import argparse
 
 # Create the parser
 my_parser = argparse.ArgumentParser(
-    prog='2_kBET',
+    prog='kBET',
     description=
     '''
     This tool leverages the kBET method from Buttner et al., 2018, to evaluate the presence of 
@@ -102,15 +102,15 @@ if not args.skip:
 
     # Check if the ./runs/step_{i}/logs_1_pp.txt are present, 
     # along with the GE_space dictionary in path_data
-    to_check = [ (path_data, 'GE_spaces.txt'), (path_runs, 'logs_1_pp.txt') ]
+    to_check = [ (path_data, 'GE_spaces.txt'), (path_runs, 'logs_pp.txt') ]
     if not all([ os.path.exists(path) for path in [ ''.join(x) for x in to_check ] ]):
-        print('Run 1_pp.py beforehand!')
+        print('Run pp.py beforehand!')
         sys.exit()
 
     #-----------------------------------------------------------------#
     
     # Set logger 
-    logger = set_logger(path_runs, 'logs_2_kBET.txt')
+    logger = set_logger(path_runs, 'logs_kBET.txt')
 
 ########################################################################
 
@@ -123,7 +123,8 @@ def kBET():
     # Data loading and preparation
     t = Timer()
     t.start()
-    logger.info('Execute 2_kBET...')
+
+    logger.info(f'Execute kBET: --n_pcs {n_pcs} --covariate {covariate}')
 
     # Load pickled GE_spaces
     with open(path_data + 'GE_spaces.txt', 'rb') as f:

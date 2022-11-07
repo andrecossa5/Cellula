@@ -72,7 +72,7 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set other paths
-    path_data = path_main + f'/data/{version}'
+    path_data = path_main + f'/data/{version}/'
     path_results = path_main + '/results_and_plots/pp/'
     path_runs = path_main + '/runs/'
     path_viz = path_main + '/results_and_plots/vizualization/pp/'
@@ -105,7 +105,8 @@ def Scanorama():
     # Data loading and preparation
     t = Timer()
     t.start()
-    logger.info('Execute Scanorama...')
+    
+    logger.info(f'Execute Scanorama: --covariate {covariate}')
 
     # Load pickled GE_spaces
     with open(path_data + 'GE_spaces.txt', 'rb') as f:

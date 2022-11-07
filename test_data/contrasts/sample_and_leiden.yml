@@ -1,0 +1,34 @@
+classic:
+    sample: 
+          query: sample
+          methods: 
+                  DE: wilcoxon 
+                  ML: 
+                    features: 
+                            #- genes
+                            - PCs
+                            - signatures
+                    models: 
+                          - logit
+                          - xgboost
+                    mode: fast
+ad_hoc:
+      C1:
+            query: 
+                  a: leiden in ["0", "1"] & sample == "bulk_d5_un"
+                  b: leiden in ["0", "1"] & sample == "bulk_d5_tr"
+            methods: 
+                    DE: wilcoxon 
+                    ML: 
+                      features: 
+                              #- genes
+                              - PCs
+                              - signatures
+                      models: 
+                            - logit
+                            - xgboost
+                      mode: fast
+
+
+
+                  

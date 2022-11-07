@@ -12,7 +12,7 @@ import argparse
 
 # Create the parser
 my_parser = argparse.ArgumentParser(
-    prog='7_dist_features',
+    prog='dist_features',
     description=
     '''
     Giving some user defined contrasts, computes the distinguishing features among cell groups.
@@ -35,10 +35,11 @@ my_parser.add_argument(
 
 # Step
 my_parser.add_argument( 
-    '--step', 
+    '-v',
+    '--version', 
     type=str,
-    default='0',
-    help='The pipeline step to run. Default: 0.'
+    default='default',
+    help='The pipeline step to run. Default: default.'
 )
 
 # contrasts
@@ -48,9 +49,10 @@ my_parser.add_argument(
     default='contrasts',
     help='''
     The name of the .yml file encoding contrasts information.
-    The file needs to be found at path_main/custom/. 
-    Contasts needs to be specified into .yml file storing info like:
-    { contrast_family : { contrast_name : { query : [query1, query0], methods : ['DE', ... ] } }
+    The file needs to be found at path_main/contrasts/<namecontrast>.yml. 
+    This .yml file stores info as:
+    { contrast_family : { contrast_name : { query : [query1, query0], methods : ['DE', ... ] } }.
+    See test_data/contrasts for an example.
     '''
 )
 
@@ -60,18 +62,6 @@ my_parser.add_argument(
     type=int,
     default=8,
     help='The number of core to allocate for a given model.'
-)
-
-# custom
-my_parser.add_argument(
-    '--custom_format', 
-    type=str,
-    default=None,
-    help=
-        '''
-        Name of either already formatted cells metadata (.csv file). 
-        When provided, it needs to be placed in a new, "custom" folder in $path_main.
-        '''
 )
 
 # Filter genes
@@ -92,10 +82,9 @@ my_parser.add_argument(
 args = my_parser.parse_args()
 
 path_main = args.path_main
-step = f'step_{args.step}'
+version = args.version
 contrasts_name = args.contrasts
 n_cores = args.n_cores
-custom_format = args.custom_format
 
 ########################################################################
 
@@ -113,26 +102,26 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set other paths 
-    path_data = path_main + f'/data/{step}/'
+    path_data = path_main + f'/data/{version}/'
     path_results = path_main + '/results_and_plots/dist_features/'
     path_runs = path_main + '/runs/'
     path_viz = path_main + '/results_and_plots/vizualization/dist_features/'
     path_signatures = path_main + '/results_and_plots/signatures/'
 
     # Create step_{i} clustering folders. Do NOT overwrite, if they have already been created
-    to_make = [ (path_results, step), (path_viz, step) ]
+    to_make = [ (path_results, version), (path_viz, version) ]
     for x, y in to_make:
         make_folder(x, y, overwrite=False)
 
     # Update paths
-    path_runs += f'/{step}/'
-    path_results += f'/{step}/' 
-    path_signatures += f'/{step}/' 
+    path_runs += f'/{version}/'
+    path_results += f'/{version}/' 
+    path_signatures += f'/{version}/' 
 
     #-----------------------------------------------------------------#
 
     # Set logger 
-    logger = set_logger(path_runs, 'logs_7_dist_features.txt')
+    logger = set_logger(path_runs, 'logs_dist_features.txt')
 
 ########################################################################
 
@@ -145,31 +134,15 @@ def main():
     # Load adata, singatures and prep contrasts and jobs
     adata = sc.read(path_data + 'clustered.h5ad')
 
-    # Meta format
-    if custom_format is not None:
-        if os.path.exists(path_main + f'custom/{custom_format}') and custom_format.split('.')[-1] == '.csv': 
-            adata.obs = pd.read_csv(path_main + f'custom/{custom_format}', index_col=0)
-
-        # Add .py specification for cells metadata formatting
-
-        elif not os.path.exists(path_main + f'custom/{custom_format}'):
-            logger.info(f'Path to {custom_format} does not exist.')
-            sys.exit()
-
-    else:
-        adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.startswith('outlier')]
-        adata.obs['seq_run'] = 'run_1' # Assumed only one run of sequencing
-        adata.obs['seq_run'] = pd.Categorical(adata.obs['seq_run'])
-        adata.obs['sample'] = pd.Categorical(adata.obs['sample'])
-
     with open(path_signatures + 'signatures.txt', 'rb') as f:
         signatures = pickle.load(f)
-    jobs, contrasts = prep_jobs_contrasts(adata, path_main + 'custom/', 'contrasts')
+    jobs, contrasts = prep_jobs_contrasts(adata, path_main + 'contrasts/', 'contrasts_name')
 
     # Here we go
     if not args.skip_computation:
 
-        logger.info('Begin distinguishing features calculations...')
+        logger.info(f'Begin distinguishing features calculations: --contrasts_name {contrasts_name} --n_cores {n_cores}')
+
         D = Dist_features(adata, contrasts, signatures=signatures, jobs=jobs, n_cores=n_cores, app=True) # To load on the app directly
         D.run_all_jobs()
         D.to_pickle(path_results)

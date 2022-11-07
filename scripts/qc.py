@@ -107,7 +107,7 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set logger 
-    logger = set_logger(path_runs, 'logs_0_qc.txt')
+    logger = set_logger(path_runs, 'logs_qc.txt')
 
 ########################################################################
 
@@ -120,7 +120,8 @@ def qc():
     # Merge samples and format adata
     t = Timer()
     t.start()
-    logger.info('Execute 0_QC...')
+
+    logger.info(f'Execute qc: --version {version} --mode {mode} --qc_mode {qc_mode}')
 
     # Read and format 10x/STARsolo matrices 
     adatas = read_matrices(path_matrices, mode=mode)
@@ -128,9 +129,10 @@ def qc():
     # QC them
     adata = QC(adatas, mode=qc_mode, min_cells=3, min_genes=200, path_viz=path_viz)
 
-    # Save adata 
+    # Save adata and cells_meta.csv
     print(adata)
     adata.write(path_data + 'QC.h5ad')
+    adata.obs.to_csv(path_data + 'cells_meta.csv')
    
     # Write final exec time
     logger.info(f'Execution was completed successfully in total {T.stop()} s.')

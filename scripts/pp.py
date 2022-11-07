@@ -12,7 +12,7 @@ import argparse
 
 # Create the parser
 my_parser = argparse.ArgumentParser(
-    prog='1_pp',
+    prog='pp',
     description=
         '''
         Pre-processing operations.
@@ -96,14 +96,11 @@ my_parser.add_argument(
 
 # custom
 my_parser.add_argument(
-    '--custom_format', 
-    type=str,
-    default=None,
+    '--custom_meta', 
+    action='store_true',
     help=
-        '''
-        Name of either already formatted cells metadata (.csv file). 
-        When provided, it needs to be placed in a new, "custom" folder in $path_main.
-        '''
+    '''Use the newly formatted cells_meta.csv file in ./data/version.
+    Default: False. Note: at least sample and seq_run columns must be provided'''
 )
 
 # Skip
@@ -121,7 +118,6 @@ version = args.version
 normalization_method = args.norm
 scoring_method = args.score
 n_HVGs = args.n_HVGs
-custom_format = args.custom_format
 
 ########################################################################
 
@@ -164,7 +160,7 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set logger 
-    logger = set_logger(path_runs, 'logs_1_pp.txt')
+    logger = set_logger(path_runs, 'logs_pp.txt')
 
 ########################################################################
 
@@ -177,7 +173,8 @@ def preprocessing():
     # Merge samples and format adata
     t = Timer()
     t.start()
-    logger.info('Execute 1_pp...')
+
+    logger.info(f'Execute pp: -v {version} --norm {normalization_method} --scoring_method {scoring_method} --n_HVGs {n_HVGs} --custom_meta {args.custom_meta}')
 
     # Read QC
     adata = sc.read(path_data + 'QC.h5ad')
@@ -190,16 +187,18 @@ def preprocessing():
         adata = adata[~adata.obs_names.isin(cells_to_remove), :]
 
     # Format adata.obs
-    if custom_format is not None:
-        if os.path.exists(path_main + f'custom/{custom_format}') and custom_format.split('.')[-1] == '.csv': 
-            adata.obs = pd.read_csv(path_main + f'custom/{custom_format}', index_col=0)
-
-        # Add .py specification for cells metadata formatting
-
-        elif not os.path.exists(path_main + f'custom/{custom_format}'):
-            logger.info(f'Path to {custom_format} does not exist.')
+    if args.custom_meta:
+        try:
+            meta = pd.read_csv(path_data + 'cells_meta.csv', index_col=0)
+            # Format cols as pd.Categoricals
+            for x in meta.columns:
+                test = meta[x].dtype in ['int64', 'int32', 'int8'] and meta[x].unique().size < 50
+                if meta[x].dtype == 'object' or test:
+                    meta[x] = pd.Categorical(meta[x])
+            adata.obs = meta
+        except:
+            logger.info('Cannot read cells_meta.csv. Format .csv file correctly!')
             sys.exit()
-
     else:
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.startswith('outlier')]
         adata.obs['seq_run'] = 'run_1' # Assumed only one run of sequencing

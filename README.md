@@ -237,7 +237,7 @@ Lastly, `Cellula` comes with two `streamlit` GUIs to interactivaly explore its o
 ```bash 
 python prepare_archive.py -p $path_main -n <your-project-name-here>
 ```
-This will generate a `<your-project-name-here>.tar.gz` file in `Spath_main` that contains all the info needed by the GUIs.
+This will generate a `<your-project-name-here>.tar.gz` file in `$path_main` that contains all the info needed by the GUIs.
 
 2. Prepare the 'new' machine (i.e., the one on which we need to run the GUIs), as described in the installation section above 
 3. Upload the `<your-project-name-here>.tar.gz` file to `<some-path-here>` on this 'new' machine, and un-tar the archive

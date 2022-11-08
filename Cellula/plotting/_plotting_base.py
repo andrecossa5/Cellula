@@ -47,7 +47,7 @@ def create_handles(categories, marker='o', colors=None, size=10, width=0.5):
 
 
 def add_cbar(cov, color='viridis', ax=None, fig=None, loc='upper right', label_size=7, 
-    ticks_size=5, width="20%", height="1%"):
+    ticks_size=5, label=None, width="20%", height="1%"):
     """
     Draw cbar on an axes object inset.
     """
@@ -58,7 +58,7 @@ def add_cbar(cov, color='viridis', ax=None, fig=None, loc='upper right', label_s
     cb = fig.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap), 
         cax=axins, orientation="horizontal"
     )
-    cb.set_label(label=cov, size=label_size)
+    cb.set_label(label=label, size=label_size)
     cb.ax.tick_params(axis="x", labelsize=ticks_size)
     
 
@@ -145,7 +145,7 @@ def line(df, x, y, c='r', s=1, l=None, ax=None):
 ##
 
 
-def scatter(df, x, y, by=None, c='r', s=1.0, a=1, l=None, ax=None, scale_x=None, ordered=True):
+def scatter(df, x, y, by=None, c='r', s=1.0, a=1, l=None, ax=None, scale_x=None, ordered=False):
     """
     Base scatter plot.
     """

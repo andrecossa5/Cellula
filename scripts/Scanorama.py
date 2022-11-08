@@ -29,10 +29,11 @@ my_parser.add_argument(
 
 # Step
 my_parser.add_argument( 
-    '--step', 
+    '-v',
+    '--version', 
     type=str,
-    default='0',
-    help='The pipeline step to run. Default: 0.'
+    default='default',
+    help='The pipeline step to run. Default: default.'
 )
 
 # Covariates
@@ -54,7 +55,7 @@ my_parser.add_argument(
 args = my_parser.parse_args()
 
 path_main = args.path_main
-step = f'step_{args.step}'
+version = args.version
 covariate = args.covariate
 
 ########################################################################
@@ -68,22 +69,17 @@ if not args.skip:
     from Cellula.preprocessing._pp import *
     from Cellula.preprocessing._GE_space import GE_space
 
-    # Custom code 
-    sys.path.append(path_main + '/custom/') # Path to local-system, user-defined custom code
-    from colors import *
-    from meta_formatting import *
-
     #-----------------------------------------------------------------#
 
     # Set other paths
-    path_data = path_main + f'/data/{step}'
+    path_data = path_main + f'/data/{version}/'
     path_results = path_main + '/results_and_plots/pp/'
     path_runs = path_main + '/runs/'
     path_viz = path_main + '/results_and_plots/vizualization/pp/'
 
     # Update paths
-    path_runs += f'/{step}/'
-    path_results += f'/{step}/'
+    path_runs += f'/{version}/'
+    path_results += f'/{version}/'
 
     # Create integration folder. DO NOT overwrite, if it has already been created
     make_folder(path_results, 'integration', overwrite=False)
@@ -109,7 +105,8 @@ def Scanorama():
     # Data loading and preparation
     t = Timer()
     t.start()
-    logger.info('Execute Scanorama...')
+    
+    logger.info(f'Execute Scanorama: --covariate {covariate}')
 
     # Load pickled GE_spaces
     with open(path_data + 'GE_spaces.txt', 'rb') as f:

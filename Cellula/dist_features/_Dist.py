@@ -402,9 +402,9 @@ class Dist_features:
 
     ##
 
-    def to_pickle(self, path_results):
+    def to_pickle(self, path_results, name='dist_features'):
         """
         Dump self.Results to path_results.
         """
-        with open(path_results + 'dist_features.txt', 'wb') as f:
+        with open(path_results + f'{name}.txt', 'wb') as f:
             pickle.dump(self.Results, f)

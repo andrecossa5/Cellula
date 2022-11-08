@@ -1,5 +1,7 @@
 #/usr/bin/python
 
+import os
+import sys
 import gseapy
 import pickle
 import pandas as pd
@@ -8,40 +10,79 @@ import streamlit as st
 
 
 ##
-
-
+ 
+ 
 # Title
 st.title('Distinguishing features')
+ 
+# Path main
+path_main = sys.argv[1]
 
-# Data
-path_results = '/Users/IEO5505/Desktop/sc_pipeline_prova/results_and_plots/dist_features//step_0/' # TO FIX! Must be specified from CL...
+ 
+##
+ 
+ 
+# Load data
+st.write(f'Choose data object.')
 
-with open(path_results + 'dist_features.txt', 'rb') as f:
-    results = pickle.load(f)
+# Version
+path_objects = path_main + '/dist_features_objects/' # TO FIX! Must be specified from CL...
 collections = list(gseapy.get_library_name())
+versions = [ x for x in os.listdir(path_objects) if x != '.DS_Store' ]
 
-# Here we go
-st.write(f'Choose navigation mode.')
 
-# Query form 
-form = st.form(key='Mode')
-query = form.radio(
-    'Mode',
-    ['one comparison and job', 'one job', 'one comparison multiple jobs']
-)
-submit = form.form_submit_button('Choose')
+##
 
-if submit:
-    st.write(f'{query} chosen.')
-    st.write('Select options:')
+
+with st.form(key='Cellula version'):
+    version = st.selectbox(
+        'Choose Cellula version',
+        versions,
+        key='Version'
+    )
+    submit_version = st.form_submit_button('Choose')
+
+
+##
+
+
+with st.form(key='Dist features object'):
+    objs = [ x for x in os.listdir(f'{path_objects}/{version}') if x != '.DS_Store' ]
+    obj = st.selectbox(
+        'Choose dist features object',
+        objs,
+        key='obj'
+    )
+    submit_data = st.form_submit_button('Load')
+
+    # Load data
+    if submit_data:
+        with open(f'{path_objects}/{version}/{obj}', 'rb') as f:
+            results = pickle.load(f)
+
+
+##
+
+
+with st.form(key='Mode'):
+    query = st.radio(
+        'Mode',
+        ['one comparison and job', 'one job', 'one comparison multiple jobs']
+    )
+    submit = st.form_submit_button('Choose')
+
+    if submit:
+        st.write(f'{query} chosen.')
+
 
 ##
 
 
 # One comparison and job form
-if query == 'one comparison and job':
+if submit_data and query == 'one comparison and job':
 
     form_1 = st.form(key='Analysis')
+
     job_key = form_1.selectbox(
         'Analysis',
         list(results.results.keys()), 
@@ -50,6 +91,7 @@ if query == 'one comparison and job':
     submit_1 = form_1.form_submit_button('Choose')
 
     form_2 = st.form(key='Comparison + other options')
+
     comparison = form_2.selectbox(
         'Comparison',
         list(results.results[job_key]['gs'].keys()), 
@@ -75,7 +117,6 @@ if query == 'one comparison and job':
         collections,
         key='collection'
     )
-
     submit_2 = form_2.form_submit_button('Run')
 
     if submit_2:
@@ -91,7 +132,7 @@ if query == 'one comparison and job':
 
 
 # One job form
-elif query == 'one job':
+elif submit_data and query == 'one job':
 
     form_2 = st.form(key='one job')
 
@@ -108,7 +149,6 @@ elif query == 'one job':
         'n features to show',
         list(np.arange(5, 55, 5))
     )
-
     collection = form_2.selectbox(
         'Gene set collections for GSEA/ORA',
         collections,
@@ -124,8 +164,8 @@ elif query == 'one job':
 
 
 # One comparison multiple jobs form
-elif query == 'one comparison multiple jobs':
-    
+elif submit_data and query == 'one comparison multiple jobs':
+
     col_1, col_2, col_3, col_4, col_5, col_6 = st.columns(6)
 
     with col_1:
@@ -135,19 +175,22 @@ elif query == 'one comparison multiple jobs':
             list(np.unique([ x.split('|')[0] for x in list(results.results.keys()) ]))
         )
         submit_3 = form_3.form_submit_button('Choose')
- 
+
     ##
+
 
     with col_2:
         form_4 = st.form(key='Features')
         feat_key = form_4.selectbox(
             'Features',
-            list(np.unique([ x.split('|')[1] for x in list(results.results.keys()) if x.startswith(contrast) ])) + [None]
+            list(np.unique([ x.split('|')[1] for x in list(results.results.keys()) if x.startswith(contrast) ])) + ['All']
         )
         submit_4 = form_4.form_submit_button('Choose')
-
+    
+    
     ##
-
+    
+    
     with col_3:
         form_5 = st.form(key='Model')
         model_key = form_5.selectbox(
@@ -161,20 +204,23 @@ elif query == 'one comparison multiple jobs':
         )
         submit_5 = form_5.form_submit_button('Choose')
 
+
     ##
+
 
     with col_4:
         job_keys_contrast = [ x for x in results.results.keys() if x.split('|')[0] == contrast ][0]
         alternatives = list(results.results[job_keys_contrast]['gs'].keys())
-
         form_6 = st.form(key='Comparison')
         comparison = form_6.selectbox(
             'Comparison',
             alternatives
         )
         submit_6 = form_6.form_submit_button('Choose')
-    
+
+
     ##
+
 
     with col_5:
         form_7 = st.form(key='Genes')
@@ -184,17 +230,25 @@ elif query == 'one comparison multiple jobs':
         )
         submit_7 = form_7.form_submit_button('Choose')
 
+
+    ##
+
+
     with col_6:
         form_8 = st.form(key='Collection')
-        collection = st.electbox(
+        collection = st.selectbox(
             'Gene set collections for GSEA/ORA',
             collections,
         )
         submit_8 = form_8.form_submit_button('Choose')
 
+    
+    ##
+
+
     if submit_8:
-        if model_key == 'All':
-            model_key = None
+        model_key = None if model_key == 'All' else model_key
+        feat_key = None if feat_key == 'All' else feat_key
         results.summary_one_comparison_multiple_jobs(
         contrast_key=contrast, feat_key=feat_key, model_key=model_key,
         comparison_key=comparison, show_genes=show_genes, collection=collection

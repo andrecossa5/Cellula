@@ -2,6 +2,7 @@
 _signatures.py stores functions and utilities for scoring a Gene_set or a list of genes.
 """
 
+import os
 import pandas as pd 
 import numpy as np 
 from random import seed, sample
@@ -153,7 +154,7 @@ def scanpy_score(M, g, key=None, n_bins=50):
             genes = set(g.filtered[key].index.to_list())
         else:
             genes = set(g.stats.index.to_list())
-            if len(genes) > 500: 
+            if len(genes) > 1000: 
                 raise ValueError('Trying to score an ordered gene set, without rank_top first. Too big gene list!')
     elif isinstance(g, list):
         genes = set([ x for x in g if x in M.var_names ])
@@ -218,7 +219,7 @@ def wot_zscore(M, g, key=None):
             genes = g.filtered[key].index.to_list()
         else:
             genes = g.stats.index.to_list()
-            if len(genes) > 500: 
+            if len(genes) > 1000: 
                 raise ValueError('Trying to score an ordered gene set, without rank_top first. Too big gene list!')
     elif isinstance(g, list):
         genes = [ x for x in g if x in M.var_names ]
@@ -250,7 +251,7 @@ def wot_rank(M, g, key=None):
             genes = g.filtered[key].index.to_list()
         else:
             genes = g.stats.index.to_list()
-            if len(genes) > 500: 
+            if len(genes) > 1000: 
                 raise ValueError('Trying to score an ordered gene set, without rank_top first. Too big gene list!')
     elif isinstance(g, list):
         genes = [ x for x in g if x in M.var_names ]
@@ -267,3 +268,23 @@ def wot_rank(M, g, key=None):
     scores = pd.Series(scores, index=M.obs_names)
 
     return scores
+
+
+##
+
+
+def format_curated(path_main):
+    """
+    Utils to load curated signatures as in $Path_main/data/curated_signatures.
+    Each .txt file must have 2 comlumns (the second one with Hugo Gene symbols).
+    """
+    curated = {}
+    for x in os.listdir(path_main + 'data/curated_signatures/'):
+        name = x.split('.')[0]
+        if x != '.DS_Store':
+            genes = pd.read_csv(
+                path_main + f'data/curated_signatures/{x}', sep='\t', index_col=0
+            ).iloc[:, 0].to_list()
+            curated[name] = genes
+
+    return curated

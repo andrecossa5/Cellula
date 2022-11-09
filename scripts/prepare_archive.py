@@ -57,7 +57,6 @@ from Cellula._utils import *
 #-----------------------------------------------------------------#
 
 # Set other paths
-path_main = '/Users/IEO5505/Desktop/cellula_example/'
 path_data = path_main + '/data/'
 path_results = path_main + '/results_and_plots/'
 

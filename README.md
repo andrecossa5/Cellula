@@ -230,33 +230,32 @@ custom: # Contrast "family" name
 Save your custom _.yml_ files in `test_data/contrasts/` and pass it to `dist_features.py` to run your analyses.
 
 ### Setup GUIs to explore Cellula output
-Lastly, `Cellula` comes with two `streamlit` GUIs to interactivaly explore its outputs. This may be useful also for non-computational users exploration. Indeed, once `Cellula` has been setup and run on some data (see above demo), results can be shared and queried as follows:
+Lastly, `Cellula` comes with two `streamlit` GUIs to interactivaly explore its outputs. This may be useful also for non-computational users exploration. Indeed, once `Cellula` has been setup (see the Installation paragraph) and run on some data (see above demo), results can be shared and queried as follows (always in the same environment that you have created during the installation):
 
-1. On the machine where the analysis has actually taken place, run 
+1. `cd` to your Cellula repository clone, `cd` to the `scripts` folder, and run: 
 
 ```bash 
 python prepare_archive.py -p $path_main -n <your-project-name-here>
 ```
 This will generate a `<your-project-name-here>.tar.gz` file in `$path_main` that contains all the info needed by the GUIs.
 
-2. Prepare the 'new' machine (i.e., the one on which we need to run the GUIs), as described in the installation section above 
-3. Upload the `<your-project-name-here>.tar.gz` file to `<some-path-here>` on this 'new' machine, and un-tar the archive
+2. Upload the `<your-project-name-here>.tar.gz` file to `<some-path-here>` and un-tar the archive:
 
 ```bash
 tar -xf <your-project-name-here>.tar.gz
 rm <your-project-name-here>.tar.gz
 ```
 
-4. From the new machine, `cd` to the locally cloned `Cellula` repo, `cd` to `apps` and launch one of the two GUIs by running:
+3. In the same environment, `cd` to the locally cloned `Cellula` repo, `cd` to `apps` and launch one of the two GUIs by running:
 
 ```bash 
-streamlit run scorer_app.py <some-path-here>
+streamlit run Scorer_app.py <some-path-here>
 ```
 
 or 
 
 ```bash 
-streamlit run dist_features_app.py <some-path-here>
+streamlit run Dist_feat_app.py <some-path-here>
 ```
 
 Each GUIs will automatically starts on your web browser.

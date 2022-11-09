@@ -67,15 +67,19 @@ def add_cbar(cov, color='viridis', ax=None, fig=None, loc='upper right', label_s
 
 
 def add_legend(df, cov, colors=None, ax=None, loc='center', artists_size=7, label_size=7, 
-    ticks_size=5):
+    ticks_size=5, bbox_to_anchor=(0.5, 1.1), ncols=None):
     """
     Draw a legend on axes object.
     """
-    ncols = len(colors) // 2 + 1
-    cats = df[cov].cat.categories
+    if ncols is None:
+        ncols = len(colors) // 2 + 1
+    try:
+        cats = df[cov].cat.categories
+    except:
+        cats = df[cov].unique()
     handles = create_handles(cats, colors=colors.values(), size=artists_size)
     ax.legend(handles, cats, frameon=False, loc=loc, fontsize=ticks_size, title_fontsize=label_size,
-        ncol=ncols, title=cov.capitalize(), bbox_to_anchor=(0.5, 1.1)
+        ncol=ncols, title=cov.capitalize(), bbox_to_anchor=bbox_to_anchor
     )
 
 

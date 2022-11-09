@@ -133,7 +133,7 @@ def report_one(df, gs, comparison_key=None, contrast=None, model=None, n=10,
                             ],
                             axis=0
                         )
-                        gsa = gsea.loc[:, ['NES', 'Adjusted P-value', 'Lead_genes']]
+                        gsa = gsa.loc[:, ['NES', 'Adjusted P-value', 'Lead_genes']]
                         if show_genes:
                             for x in gsa.index:
                                 st.write(f'--> {x}')

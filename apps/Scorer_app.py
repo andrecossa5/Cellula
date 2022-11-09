@@ -17,11 +17,21 @@ import streamlit as st
 ##
 
 
-# Path main
-path_main = sys.argv[1]
+# Utils
+def load_data(path_data, version):
+    """
+    Load data.
+    """
+    adata = sc.read(path_data + f'/{version}/clustered.h5ad')
+    embs = pd.read_csv(path_data + f'/{version}/embeddings.csv', index_col=0)
+    with open(path_data + f'/{version}/signatures.txt', 'rb') as f:
+        signatures = pickle.load(f)
+    
+    return adata, embs, signatures
 
 
-# Utils for visualization
+##
+
 
 def viz(embs, feature, adata, q1, q2):
     """
@@ -111,31 +121,32 @@ st.markdown(
 ##
 
 
-# Load data
+# Choose data to load, from path_main
+
+# Paths
+path_main = sys.argv[1]
 path_data = path_main + '/data/'
+
+# Choose a version
 versions = []
 for x in os.listdir(path_data):
     if (x != '.DS_Store') and (len(os.listdir(path_data + f'/{x}/')) > 0):
         versions.append(x)
 
-st.write(f'Choose data object.')
+st.write(f'Choose a Cellula version.')
 
 form_data = st.form(key='Data object')
 version = form_data.selectbox(
-    'Load data from a Cellula version',
+    'Choose data from a Cellula version',
     versions,
     key='Version'
 )
 submit_data = form_data.form_submit_button('Load')
 
-
 ##
 
 # Load data
-adata = sc.read(path_data + f'/{version}/clustered.h5ad')
-embs = pd.read_csv(path_data + f'/{version}/embeddings.csv', index_col=0)
-with open(path_data + f'/{version}/signatures.txt', 'rb') as f:
-    signatures = pickle.load(f)
+adata, embs, signatures = load_data(path_data, version)
 plot = False
 
 # Show cats
@@ -168,11 +179,6 @@ query = form.radio(
 submit = form.form_submit_button('Choose')
 if submit:
     st.write(f'{query} chosen.')
-
-
-##
-
-
 
 # Precomp
 if query == 'pre-computed':

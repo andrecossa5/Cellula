@@ -249,13 +249,13 @@ rm <your-project-name-here>.tar.gz
 3. In the same environment, `cd` to the locally cloned `Cellula` repo, `cd` to `apps` and launch one of the two GUIs by running:
 
 ```bash 
-streamlit run Scorer_app.py <some-path-here>
+streamlit run scorer_app.py <some-path-here>
 ```
 
 or 
 
 ```bash 
-streamlit run Dist_feat_app.py <some-path-here>
+streamlit run dist_feat_app.py <some-path-here>
 ```
 
 Each GUIs will automatically starts on your web browser.

@@ -32,7 +32,7 @@ st.title('Distinguishing features')
 # Paths
 path_main = sys.argv[1]
 path_objects = path_main + '/dist_features_objects/' 
- 
+
 # Choose version
 st.write(f'Choose version and data object.')
  

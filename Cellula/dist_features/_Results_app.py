@@ -69,7 +69,14 @@ def report_one(df, gs, comparison_key=None, contrast=None, model=None, n=10,
                 st.markdown(f'Ranked genes enrichment: __GSEA__')
                 st.write('')
                 g.compute_GSEA(collection=collection)
-                gsa = g.GSEA['original'].loc[:, ['Adjusted P-value', 'Lead_genes']].head(n)
+                gsa = pd.concat(
+                    [ 
+                        g.GSEA['original'].sort_values('NES', ascending=False).head(n//2),
+                        g.GSEA['original'].sort_values('NES', ascending=False).tail(n//2)
+                    ],
+                    axis=0
+                )
+                gsa = gsa.loc[:, ['NES', 'Adjusted P-value', 'Lead_genes']]
                 if show_genes:
                     for x in gsa.index:
                         st.write(f'--> {x}')
@@ -119,7 +126,14 @@ def report_one(df, gs, comparison_key=None, contrast=None, model=None, n=10,
                         st.write(f'{top_feat} associated gene set enrichment: __GSEA__')
                         st.write('') 
                         g.compute_GSEA(collection=collection)
-                        gsa = g.GSEA['original'].loc[:, ['Lead_genes']].head(n)
+                        gsa = pd.concat(
+                            [ 
+                                g.GSEA['original'].sort_values('NES', ascending=False).head(n//2),
+                                g.GSEA['original'].sort_values('NES', ascending=False).tail(n//2)
+                            ],
+                            axis=0
+                        )
+                        gsa = gsea.loc[:, ['NES', 'Adjusted P-value', 'Lead_genes']]
                         if show_genes:
                             for x in gsa.index:
                                 st.write(f'--> {x}')
@@ -134,7 +148,7 @@ def report_one(df, gs, comparison_key=None, contrast=None, model=None, n=10,
                         g.compute_ORA(collection=collection)
                         st.markdown(f'{top_feat} associated gene set enrichment: __ORA__')
                         st.write('')
-                        gsa = g.ORA['Default_ORA'].loc[:, ['Genes']].head(n)
+                        gsa = g.ORA['Default_ORA'].loc[:, ['Overlap', 'Adjusted P-value', 'Genes']].head(n)
                         if show_genes:
                             for x in gsa.index:
                                 st.write(f'--> {x}')

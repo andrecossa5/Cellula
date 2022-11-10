@@ -67,7 +67,7 @@ def add_cbar(cov, color='viridis', ax=None, fig=None, loc='upper right', label_s
 
 
 def add_legend(df, cov, colors=None, ax=None, loc='center', artists_size=7, label_size=7, 
-    ticks_size=5, bbox_to_anchor=(0.5, 1.1), ncols=None):
+    ticks_size=5, bbox_to_anchor=(0.5, 1.1), ncols=None, title=None):
     """
     Draw a legend on axes object.
     """
@@ -77,9 +77,11 @@ def add_legend(df, cov, colors=None, ax=None, loc='center', artists_size=7, labe
         cats = df[cov].cat.categories
     except:
         cats = df[cov].unique()
+    if title is None:
+        title = cov.capitalize()
     handles = create_handles(cats, colors=colors.values(), size=artists_size)
     ax.legend(handles, cats, frameon=False, loc=loc, fontsize=ticks_size, title_fontsize=label_size,
-        ncol=ncols, title=cov.capitalize(), bbox_to_anchor=bbox_to_anchor
+        ncol=ncols, title=title, bbox_to_anchor=bbox_to_anchor
     )
 
 
@@ -111,6 +113,10 @@ def format_ax(df, ax, title='', xlabel='', ylabel='', xticks=None, yticks=None, 
     if xticks is not None:
         ax.set_xticks([ i for i in range(len(xticks)) ])
         ax.set_xticklabels(xticks)
+    if xsize is not None:
+        ax.xaxis.set_tick_params(labelsize=xsize)
+    if ysize is not None:
+        ax.yaxis.set_tick_params(labelsize=ysize)
     if yticks is not None:
         ax.set_yticks([ i for i in range(len(yticks)) ])
         ax.set_yticklabels(yticks)
@@ -399,4 +405,19 @@ def plot_heatmap(df, palette='mako', ax=None, title=None, x_names=True, y_names=
     ax.set_xticklabels(ax.get_xticklabels(), fontsize=x_names_size)
     ax.set_yticklabels(ax.get_yticklabels(), fontsize=y_names_size)
 
+    return ax
+
+
+##
+
+
+def stem_plot(df, x, ax=None):
+    """
+    Create a stem plot
+    """
+    ax.hlines(y=df.index, xmin=0, xmax=df[x], color='darkgrey')
+    ax.plot(df[x][df[x]>=0], df[x].index[df[x]>=0], "o", color='r')
+    ax.plot(df[x][df[x]<0], df[x].index[df[x]<0], "o", color='b')
+    ax.axvline(color="black", linestyle="--")
+    ax.invert_yaxis()
     return ax

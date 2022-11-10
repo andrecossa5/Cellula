@@ -127,7 +127,6 @@ def Harmony():
 
     # Perform Harmony on the 4 log-normalized input GE_spaces
     for k in GE_spaces:
-        pass
         t.start()
         logger.info(f'Begin Harmony for {k} GE_space...')
         GE_spaces[k].compute_Harmony(covariates=covariates, n_components=n_pcs)

@@ -12,6 +12,25 @@ from ._Contrast import Contrast
 ##
 
 
+# path = '/Users/IEO5505/Desktop/project_abc/dist_features_objects/default/'
+# 
+# import pickle
+# 
+# with open(path + 'sample_and_leiden.txt', 'rb') as f:
+#     results = pickle.load(f)
+# 
+# 
+# top_feat='PC10'
+# job_key = 'sample|PCs|xgboost'
+# comparison_key = 'a_vs_b'
+# contrast, features, model = job_key.split('|')
+# job = results.results[job_key]
+# df = job['df']
+# gs = job['gs']
+
+
+
+
 def restyle(df, mode='GSA'):
     """ 
     Restyle df.
@@ -69,21 +88,29 @@ def report_one(df, gs, comparison_key=None, contrast=None, model=None, n=10,
                 st.markdown(f'Ranked genes enrichment: __GSEA__')
                 st.write('')
                 g.compute_GSEA(collection=collection)
-                gsa = pd.concat(
-                    [ 
-                        g.GSEA['original'].sort_values('NES', ascending=False).head(n//2),
-                        g.GSEA['original'].sort_values('NES', ascending=False).tail(n//2)
-                    ],
-                    axis=0
-                )
-                gsa = gsa.loc[:, ['NES', 'Adjusted P-value', 'Lead_genes']]
-                if show_genes:
-                    for x in gsa.index:
-                        st.write(f'--> {x}')
-                        st.write(gsa.at[x, 'Lead_genes'])
-                        st.write('')
+                df_gsea = g.GSEA['original'].rename(columns={'Adjusted P-value' : 'FDR'})
+                df_gsea = df_gsea.query('FDR < 0.1')
+                if df_gsea.shape[0] > 0:
+                    if n < df_gsea.shape[0]:
+                        gsa = pd.concat(
+                            [ 
+                                df_gsea.sort_values('NES', ascending=False).head(n//2),
+                                df_gsea.sort_values('NES', ascending=False).tail(n//2)
+                            ],
+                            axis=0
+                        )
+                        gsa = gsa.loc[:, ['NES', 'FDR', 'Lead_genes']]
+                    else:
+                        gsa = df_gsea.sort_values('NES', ascending=False)
+                    if show_genes:
+                        for x in gsa.index:
+                            st.write(f'--> {x}')
+                            st.write(gsa.at[x, 'Lead_genes'])
+                            st.write('')
+                    else:
+                        st.write(restyle(gsa, mode='GSA'))
                 else:
-                    st.write(restyle(gsa, mode='GSA'))
+                    st.write('No pathways significantly enriched for this collection. Try another one!')
 
     elif isinstance(list(gs.values())[0], dict):
         st.write('')
@@ -126,21 +153,29 @@ def report_one(df, gs, comparison_key=None, contrast=None, model=None, n=10,
                         st.write(f'{top_feat} associated gene set enrichment: __GSEA__')
                         st.write('') 
                         g.compute_GSEA(collection=collection)
-                        gsa = pd.concat(
-                            [ 
-                                g.GSEA['original'].sort_values('NES', ascending=False).head(n//2),
-                                g.GSEA['original'].sort_values('NES', ascending=False).tail(n//2)
-                            ],
-                            axis=0
-                        )
-                        gsa = gsa.loc[:, ['NES', 'Adjusted P-value', 'Lead_genes']]
-                        if show_genes:
-                            for x in gsa.index:
-                                st.write(f'--> {x}')
-                                st.write(gsa.at[x, 'Lead_genes'])
-                                st.write('')
+                        df_gsea = g.GSEA['original'].rename(columns={'Adjusted P-value' : 'FDR'})
+                        df_gsea = df_gsea.query('FDR < 0.1')
+                        if df_gsea.shape[0] > 0:
+                            if n < df_gsea.shape[0]:
+                                gsa = pd.concat(
+                                    [ 
+                                        df_gsea.sort_values('NES', ascending=False).head(n//2),
+                                        df_gsea.sort_values('NES', ascending=False).tail(n//2)
+                                    ],
+                                    axis=0
+                                )
+                                gsa = gsa.loc[:, ['NES', 'FDR', 'Lead_genes']]
+                            else:
+                                gsa = df_gsea.sort_values('NES', ascending=False)
+                            if show_genes:
+                                for x in gsa.index:
+                                    st.write(f'--> {x}')
+                                    st.write(gsa.at[x, 'Lead_genes'])
+                                    st.write('')
+                            else:
+                                st.write(restyle(gsa, mode='GSA'))
                         else:
-                            st.dataframe(restyle(gsa, mode='GSA'))
+                            st.write('No pathways significantly enriched for this collection. Try another one!')
                     else:
                         g_type = 'unordered' 
                         st.write(f'{top_feat} gene set type: {g_type}. Associated stats are not displayed.')
@@ -148,14 +183,18 @@ def report_one(df, gs, comparison_key=None, contrast=None, model=None, n=10,
                         g.compute_ORA(collection=collection)
                         st.markdown(f'{top_feat} associated gene set enrichment: __ORA__')
                         st.write('')
-                        gsa = g.ORA['Default_ORA'].loc[:, ['Overlap', 'Adjusted P-value', 'Genes']].head(n)
-                        if show_genes:
-                            for x in gsa.index:
-                                st.write(f'--> {x}')
-                                st.write(gsa.at[x, 'Genes'])
-                                st.write('')
+                        gsa = g.ORA['Default_ORA'].loc[:, ['Overlap', 'Adjusted P-value', 'Genes']].rename(columns={'Adjusted P-value' : 'FDR'})
+                        gsa = gsa.query('FDR < 0.1').head(n)
+                        if gsa.shape[0] > 0:
+                            if show_genes:
+                                for x in gsa.index:
+                                    st.write(f'--> {x}')
+                                    st.write(gsa.at[x, 'Genes'])
+                                    st.write('')
+                            else:
+                                st.dataframe(restyle(gsa, mode='GSA'))
                         else:
-                            st.dataframe(restyle(gsa, mode='GSA'))
+                            st.write('No pathways significantly enriched for this collection. Try another one!')
                     st.write('')
                     
                     do_not = not print_last

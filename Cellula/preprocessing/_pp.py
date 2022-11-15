@@ -98,7 +98,7 @@ def pp(adata, mode='scanpy', target_sum=50*1e4, n_HVGs=2000, score_method='scanp
             adata.var = adata.var.rename(columns={'means':'mean', 'variances':'var'})
 
     # Sign scores
-    scores = _sig_scores(adata, score_method=score_method, organism='human')
+    scores = _sig_scores(adata, score_method=score_method, organism=organims)
     adata.obs = adata.obs.join(scores)
     return adata 
 

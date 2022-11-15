@@ -183,7 +183,7 @@ def preprocessing():
     t = Timer()
     t.start()
 
-    logger.info(f'Execute pp: -v {version} --norm {normalization_method} --scoring_method {scoring_method} --n_HVGs {n_HVGs} --custom_meta {args.custom_meta}')
+    logger.info(f'Execute pp: -v {version} --norm {normalization_method} --scoring_method {scoring_method} --n_HVGs {n_HVGs} --custom_meta {args.custom_meta} --organism {organism}')
 
     # Read QC
     adata = sc.read(path_data + 'QC.h5ad')

@@ -229,7 +229,7 @@ def preprocessing():
         mode=normalization_method, 
         target_sum=50*1e4, 
         n_HVGs=n_HVGs, 
-        score_method=scoring_method
+        score_method=scoring_method,
         organism=organism
     )
 

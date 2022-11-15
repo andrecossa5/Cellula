@@ -80,6 +80,14 @@ my_parser.add_argument(
     help='Number of HVGs to select. Default: 2000.'
 )
 
+# Organism
+my_parser.add_argument(
+    '--organism', 
+    type=str,
+    default='human',
+    help='Organism. Default: human. Other options available: mouse.'
+)
+
 # embs
 my_parser.add_argument(
     '--embs', 
@@ -118,6 +126,7 @@ version = args.version
 normalization_method = args.norm
 scoring_method = args.score
 n_HVGs = args.n_HVGs
+organism = args.organism
 
 ########################################################################
 
@@ -221,6 +230,7 @@ def preprocessing():
         target_sum=50*1e4, 
         n_HVGs=n_HVGs, 
         score_method=scoring_method
+        organism=organism
     )
 
     # Save 

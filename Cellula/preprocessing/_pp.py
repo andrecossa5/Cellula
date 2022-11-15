@@ -16,15 +16,15 @@ from ..dist_features._signatures import scanpy_score, wot_zscore, wot_rank
 ##
 
 
-def _sig_scores(adata, score_method='scanpy'):
+def _sig_scores(adata, score_method='scanpy', organism='human'):
     """
     Calculate pegasus scores for cell cycle, ribosomal and apoptotic genes.
     """
     # Load signatures
-    cc_transitions = load_signatures_from_file(predefined_signatures['cell_cycle_human'])
-    ribo = load_signatures_from_file(predefined_signatures['ribosomal_genes_human'])
+    cc_transitions = load_signatures_from_file(predefined_signatures[f'cell_cycle_{organism}'])
+    ribo = load_signatures_from_file(predefined_signatures[f'cell_cycle_{organism}'])
     del ribo['ribo_like']
-    apoptosis = load_signatures_from_file(predefined_signatures['apoptosis_human'])
+    apoptosis = load_signatures_from_file(predefined_signatures[f'cell_cycle_{organism}'])
     signatures = {**cc_transitions, **ribo, **apoptosis}
 
     # Calculate scores
@@ -68,7 +68,7 @@ def _sig_scores(adata, score_method='scanpy'):
 ##
 
 
-def pp(adata, mode='scanpy', target_sum=50*1e4, n_HVGs=2000, score_method='scanpy'):
+def pp(adata, mode='scanpy', target_sum=50*1e4, n_HVGs=2000, score_method='scanpy', organism='human'):
     """
     Pre-processing pp_wrapper on QCed and merged adata.
     """
@@ -98,7 +98,7 @@ def pp(adata, mode='scanpy', target_sum=50*1e4, n_HVGs=2000, score_method='scanp
             adata.var = adata.var.rename(columns={'means':'mean', 'variances':'var'})
 
     # Sign scores
-    scores = _sig_scores(adata, score_method=score_method)
+    scores = _sig_scores(adata, score_method=score_method, organism='human')
     adata.obs = adata.obs.join(scores)
     return adata 
 

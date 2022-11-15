@@ -15,6 +15,7 @@ from ..dist_features._signatures import scanpy_score, wot_zscore, wot_rank
 
 ##
 
+organism = 'mouse'
 
 def _sig_scores(adata, score_method='scanpy', organism='human'):
     """
@@ -22,9 +23,9 @@ def _sig_scores(adata, score_method='scanpy', organism='human'):
     """
     # Load signatures
     cc_transitions = load_signatures_from_file(predefined_signatures[f'cell_cycle_{organism}'])
-    ribo = load_signatures_from_file(predefined_signatures[f'cell_cycle_{organism}'])
+    ribo = load_signatures_from_file(predefined_signatures[f'ribosomal_genes_{organism}'])
     del ribo['ribo_like']
-    apoptosis = load_signatures_from_file(predefined_signatures[f'cell_cycle_{organism}'])
+    apoptosis = load_signatures_from_file(predefined_signatures[f'apoptosis_{organism}'])
     signatures = {**cc_transitions, **ribo, **apoptosis}
 
     # Calculate scores

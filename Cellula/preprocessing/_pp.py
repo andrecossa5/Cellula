@@ -15,7 +15,6 @@ from ..dist_features._signatures import scanpy_score, wot_zscore, wot_rank
 
 ##
 
-organism = 'mouse'
 
 def _sig_scores(adata, score_method='scanpy', organism='human'):
     """

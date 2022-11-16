@@ -51,7 +51,7 @@ class Gene_set:
     A class to store and annotate a set of relevant genes.
     """
 
-    def __init__(self, results, genes_meta, name=None):
+    def __init__(self, results, genes_meta, name=None, organism='human'):
         """
         Set attrs. Results can be a list-like object or a df, according to the method that produced the 
         (ordered) or not gene set.
@@ -211,7 +211,7 @@ class Gene_set:
         results = enrichr(
             gene_list=gene_list,
             gene_sets=[collection],
-            organism='human', 
+            organism=self.organims, 
             outdir=None, 
         ).results
 
@@ -250,7 +250,7 @@ class Gene_set:
             permutation_num=200, 
             outdir=None, 
             seed=1234,
-            verbose=True
+            verbose=True,
         )
 
         df = results.res2d.loc[:, 

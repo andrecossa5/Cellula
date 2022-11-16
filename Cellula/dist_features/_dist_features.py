@@ -14,12 +14,12 @@ from ._Contrast import Contrast
 ##
 
 
-def prep_one_contrast_jobs(adata, D):
+def prep_one_contrast_jobs(meta, D):
     """
     Prep all the jobs for one contrast. Put em in a list and return it.
     """
     query = D['query']
-    c = Contrast(adata.obs, query=query)
+    c = Contrast(meta, query=query)
 
     features = []
     models = []
@@ -67,9 +67,9 @@ def prep_jobs_contrasts(adata, path, contrasts_name):
     for f in d:
         print(f)
         for k in d[f]:
-            print(k)
             D = d[f][k]
-            jobs[k], contrasts[k] = prep_one_contrast_jobs(adata, D)
+            print(k)
+            jobs[k], contrasts[k] = prep_one_contrast_jobs(adata.obs, D)
 
     return jobs, contrasts
 

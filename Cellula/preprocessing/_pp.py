@@ -97,9 +97,11 @@ def pp(adata, mode='scanpy', target_sum=50*1e4, n_HVGs=2000, score_method='scanp
             adata.var = adata.var.drop(columns=['highly_variable'])
             adata.var = adata.var.rename(columns={'means':'mean', 'variances':'var'})
 
-    # Sign scores
-    scores = _sig_scores(adata, score_method=score_method, organism=organism)
-    adata.obs = adata.obs.join(scores)
+    # Calculate signature scores, if necessary
+    if not any([ 'cycling' == x for x in adata.obs.columns ]):
+        scores = _sig_scores(adata, score_method=score_method, organism=organism)
+        adata.obs = adata.obs.join(scores)
+
     return adata 
 
 

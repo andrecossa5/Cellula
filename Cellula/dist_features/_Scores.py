@@ -17,7 +17,7 @@ from ._signatures import create_filtered_list, cluster_gene_sets, create_GMs, sc
 
 class Scores():
 
-    def __init__(self, adata, clusters, markers, curated):
+    def __init__(self, adata, clusters, markers, curated=None):
         """
         Args initialization.
         """
@@ -25,7 +25,7 @@ class Scores():
         self.clusters = clusters
         self.markers = markers
         self.Hotspot = {}
-        self.curated = curated
+        self.curated = {} if curated is None else curated
         self.wu = {}
         self.barkley = {}
         self.gene_sets = {}
@@ -178,5 +178,3 @@ class Scores():
         Output results.
         """
         return { 'gene_sets' : self.gene_sets, 'scores' : self.scores }
-
-

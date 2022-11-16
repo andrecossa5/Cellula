@@ -63,6 +63,13 @@ my_parser.add_argument(
     help='Compute wu2021 GMs and their signature scores. Default: False.'
 )
 
+# Curated
+my_parser.add_argument( 
+    '--curated', 
+    action='store_true',
+    help='Compute scores for user-defined gene-sets. Default: False.'
+)
+
 # Scoring 
 my_parser.add_argument( 
     '--scoring', 
@@ -137,19 +144,23 @@ def Signatures():
     t = Timer()
     t.start()
 
-    logger.info(f'Begin signatures: --Hotspot {Hotspot} --wu {wu} --barkley {barkley} --scoring {scoring}')
+    logger.info(f'Begin signatures: --Hotspot {args.Hotspot} --wu {args.wu} --barkley {args.barkley} --curated {args.curated} --scoring {scoring}')
 
     # Load adata, clusters, markers and curated
     adata = sc.read(path_data + 'clustered.h5ad')
     clusters = pd.read_csv(path_clusters + 'clustering_solutions.csv', index_col=0)
     with open(path_markers + 'clusters_markers.txt', 'rb') as f:
         markers = pickle.load(f)
-    curated = format_curated(path_main)
+    # Handle curated
+    if args.curated:
+        curated = format_curated(path_main)
+    else:
+        curated = None
 
     ##
 
     # Retrieve gene_sets and score them
-    S = Scores(adata, clusters, markers, curated)
+    S = Scores(adata, clusters, markers, curated=curated)
 
     logger.info('Begin GMs retrieval...')
     S.compute_GMs(kind=which)#  

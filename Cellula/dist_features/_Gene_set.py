@@ -46,6 +46,8 @@ def check_equal_pars(p_original, p_new, is_tuple=False):
 
 
 ##
+
+
 class Gene_set:
     """
     A class to store and annotate a set of relevant genes.
@@ -57,6 +59,7 @@ class Gene_set:
         (ordered) or not gene set.
         """
         self.name = name
+        self.organism = organism
 
         # Checks
         if isinstance(results, list): 
@@ -211,7 +214,7 @@ class Gene_set:
         results = enrichr(
             gene_list=gene_list,
             gene_sets=[collection],
-            organism=self.organims, 
+            organism=self.organism, 
             outdir=None, 
         ).results
 
@@ -228,7 +231,6 @@ class Gene_set:
 
         gc.collect()
 
-
     ##
 
     def compute_GSEA(self, covariate='effect_size', by='Adjusted P-value', 
@@ -237,9 +239,29 @@ class Gene_set:
         Perform GSEA (Gene-Set Enrichment Anlysis).
         """
         if self.is_ordered:
-            ranked_gene_list = self.stats[covariate]
+            if self.organism == 'human':
+                ranked_gene_list = self.stats[covariate]
+            elif self.organism == 'mouse':
+                ranked_gene_list = self.stats.loc[:, [covariate]].reset_index().rename(columns={'index':'mouse'})
         else:
             raise ValueError('GSEA can be performed only on ordered gene sets.')
+
+        # Convert if necessary
+        if self.organims == 'mouse':
+
+            from gseapy import Biomart
+            bm = Biomart()
+            m2h = bm.query(
+                dataset='mmusculus_gene_ensembl',
+                attributes=['external_gene_name', 'hsapiens_homolog_associated_gene_name']
+            ).rename(columns={'external_gene_name':'mouse', 'hsapiens_homolog_associated_gene_name':'human'})
+
+            # Filter and convert
+            conversion_df = ranked_gene_list.merge(m2h, on='mouse', how='left').dropna(
+                ).drop_duplicates('mouse', keep='last').sort_values(
+                    by='effect_size', ascending=False
+            )
+            ranked_gene_list = conversion_df.set_index('human')['effect_size']
 
         results = prerank(
             rnk=ranked_gene_list,
@@ -259,13 +281,16 @@ class Gene_set:
 
         idx = rank_top(df[by], n=n_out, lowest=True)
         filtered_df = df.iloc[idx, :]
-
         pd.options.mode.chained_assignment = None # Remove warning
         new_term = filtered_df['Term'].map(lambda x: x.split('__')[1])
         filtered_df.loc[:, 'Term'] = new_term
         filtered_df = filtered_df.set_index('Term')
 
+        # Convert back, if necessary
+        if self.organims == 'mouse':
+            reformat_genes = lambda x: ';'.join([ conversion_df.loc[conversion_df['human'] == y, 'mouse'].values[0] for y in x.split(';') ])
+            filtered_df['Lead_genes'] = filtered_df['Lead_genes'].map(reformat_genes)
+
         # Add 
         self.GSEA['original'] = filtered_df
-
         gc.collect()

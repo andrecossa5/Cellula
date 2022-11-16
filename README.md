@@ -167,7 +167,7 @@ Here we have specifically activated the 'default' version. You would see two new
 For this demo, we will go with default cells meta-data, and run:
 
 ```bash
-python pp.py -p $path_main -v default --norm scanpy --n_HVGs 2000 --score scanpy
+python pp.py -p $path_main -v default --norm scanpy --n_HVGs 2000 --score scanpy --embs
 ```
 
 After pre-processing, in this case we will skip batch effects evaluation and data integration sections, as _a_ and _b_ samples come from the same experiment, lab and sequencing run (tutorials on how to handle more complicated situations leveraging `Cellula` functionalities at full will be soon available). Here, we will choose to retain the original 'PCA' embedding obtained by reducing (and scaling) the full gene expression matrix to the top 2000 hyper-variable genes (HVGs), a common choice in single_cell analysis (see `pp.py`, `kBET.py` and integration scripts for further details and alternatives). This data representation will be used for kNN construction, multiple resolution clustering and markers computation. All clustering solutions will be then evaluated for their quality. These three steps (i.e., choice of a cell representation to go with, clustering and initial clustering diagnostics) can be obtained by running:
@@ -187,7 +187,7 @@ python clustering_diagnostics.py -p $path_main -v default --chosen 30_NN_30_0.29
 Lastly, we will retrieve and score potentially meaningful gene sets in our data, and we will search for features (i.e., single genes, Principal Components or Gene Sets scores) able to distinguishing groups of cells in our data. First, we will retrieve and score Gene Sets with
 
 ```bash
-python signatures.py -p $path_main -v default --Hotspot --barkley --wu --scoring scanpy
+python signatures.py -p $path_main -v default --Hotspot --barkley --wu --curated --scoring scanpy
 ```
 
 Then, we will look for distinguishing features. Specifically, here we will look for distinguishing features discriminating individual __samples__ and __leiden clusters__ (chosen solution) with respect to all the other cells. We will make use of DE and classification models for both tasks. In order to do that, we need to pass a configuration file to `dist_features.py`, encoding all the info needed to retrieve cell groups and specify the type of features and models one would like to use to rank distinguishing features. 

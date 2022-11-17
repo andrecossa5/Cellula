@@ -35,8 +35,9 @@ class Dist_features:
         """
         Extract features and features metadata from input adata. Prep other attributes.
         """
-        # Organism
-	    self.organism = organism
+        
+        # Organism 
+        self.organism = organism
 
 	    # Genes
         self.genes = {}

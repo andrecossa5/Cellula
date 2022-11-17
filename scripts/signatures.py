@@ -70,6 +70,14 @@ my_parser.add_argument(
     help='Compute scores for user-defined gene-sets. Default: False.'
 )
 
+# Organism
+my_parser.add_argument(
+    '--organism',
+    type=str,
+    default='human',
+    help='The organism to score signatures for. Default: human. Other options: mouse.'
+)
+
 # Scoring 
 my_parser.add_argument( 
     '--scoring', 
@@ -94,6 +102,7 @@ Hotspot = 'Hotspot' if args.Hotspot else None
 wu = 'wu' if args.wu else None
 barkley = 'barkley' if args.barkley else None
 scoring = args.scoring
+organism = args.organism
 
 which = [ Hotspot, wu, barkley ]
 
@@ -160,7 +169,7 @@ def Signatures():
     ##
 
     # Retrieve gene_sets and score them
-    S = Scores(adata, clusters, markers, curated=curated)
+    S = Scores(adata, clusters, markers, curated=curated, organism=organism)
 
     logger.info('Begin GMs retrieval...')
     S.compute_GMs(kind=which)#  

@@ -31,11 +31,14 @@ class Dist_features:
     A class to retrieve (and annotate) gene sets distinguishing cell groups in data.
     """
 
-    def __init__(self, adata, contrasts, jobs=None, signatures=None, app=False, n_cores=8):
+    def __init__(self, adata, contrasts, jobs=None, signatures=None, app=False, n_cores=8, organism='human'):
         """
         Extract features and features metadata from input adata. Prep other attributes.
         """
-        # Genes
+        # Organism
+	self.organism = organism
+
+	# Genes
         self.genes = {}
         self.genes['original'] = anndata.AnnData(
             X=adata.X, 
@@ -207,7 +210,7 @@ class Dist_features:
             ]
 
             DF.append(one_df_harmonized) # Without perc_FC
-            d[comparison] = Gene_set(one_df, self.features_meta['genes'])
+            d[comparison] = Gene_set(one_df, self.features_meta['genes'], organism=self.organism)
 
         # Concat and return 
         df = pd.concat(DF, axis=0)
@@ -251,7 +254,7 @@ class Dist_features:
         meta = self.features_meta[feat_type]
 
         if feat_type == 'genes':
-            g = Gene_set(df, self.features_meta['genes'])
+            g = Gene_set(df, self.features_meta['genes'], organism=self.organism)
             d = { 'genes' :  g }
         elif feat_type == 'signatures':
             top_n = df.index[:n].to_list()
@@ -264,7 +267,7 @@ class Dist_features:
                     meta.loc[:, [x]].sort_values(ascending=False, by=x).assign(
                         effect_type='loading'
                     ).rename(columns={ x : 'effect_size'}),
-                    self.features_meta['genes']
+                    self.features_meta['genes'], organism=self.organism
                 )
                 d[x] = g
         else:

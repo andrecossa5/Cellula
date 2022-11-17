@@ -150,7 +150,7 @@ def main():
     # Here we go
     if not args.skip_computation:
 
-        logger.info(f'Begin distinguishing features calculations: --contrasts_name {contrasts_name} --n_cores {n_cores}')
+        logger.info(f'Begin distinguishing features calculations: --contrasts_name {contrasts_name} --n_cores {n_cores} --organism {organism}')
 
         D = Dist_features(adata, contrasts, signatures=signatures, jobs=jobs, n_cores=n_cores, organism=organism, app=True) # To load on the app directly
         D.run_all_jobs()

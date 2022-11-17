@@ -153,7 +153,7 @@ def Signatures():
     t = Timer()
     t.start()
 
-    logger.info(f'Begin signatures: --Hotspot {args.Hotspot} --wu {args.wu} --barkley {args.barkley} --curated {args.curated} --scoring {scoring}')
+    logger.info(f'Begin signatures: --Hotspot {args.Hotspot} --wu {args.wu} --barkley {args.barkley} --curated {args.curated} --scoring {scoring} --organism {organism}')
 
     # Load adata, clusters, markers and curated
     adata = sc.read(path_data + 'clustered.h5ad')

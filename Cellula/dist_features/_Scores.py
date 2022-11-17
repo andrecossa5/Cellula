@@ -21,7 +21,7 @@ class Scores():
         """
         Args initialization.
         """
-	    self.organism = organism
+        self.organism = organism
         self.matrix = adata
         self.clusters = clusters
         self.markers = markers

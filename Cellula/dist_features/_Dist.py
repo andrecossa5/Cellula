@@ -36,9 +36,9 @@ class Dist_features:
         Extract features and features metadata from input adata. Prep other attributes.
         """
         # Organism
-	self.organism = organism
+	    self.organism = organism
 
-	# Genes
+	    # Genes
         self.genes = {}
         self.genes['original'] = anndata.AnnData(
             X=adata.X, 
@@ -267,7 +267,8 @@ class Dist_features:
                     meta.loc[:, [x]].sort_values(ascending=False, by=x).assign(
                         effect_type='loading'
                     ).rename(columns={ x : 'effect_size'}),
-                    self.features_meta['genes'], organism=self.organism
+                    self.features_meta['genes'], 
+                    organism=self.organism
                 )
                 d[x] = g
         else:

@@ -247,7 +247,7 @@ class Gene_set:
             raise ValueError('GSEA can be performed only on ordered gene sets.')
 
         # Convert if necessary
-        if self.organims == 'mouse':
+        if self.organism == 'mouse':
 
             from gseapy import Biomart
             bm = Biomart()
@@ -287,7 +287,7 @@ class Gene_set:
         filtered_df = filtered_df.set_index('Term')
 
         # Convert back, if necessary
-        if self.organims == 'mouse':
+        if self.organism == 'mouse':
             reformat_genes = lambda x: ';'.join([ conversion_df.loc[conversion_df['human'] == y, 'mouse'].values[0] for y in x.split(';') ])
             filtered_df['Lead_genes'] = filtered_df['Lead_genes'].map(reformat_genes)
 

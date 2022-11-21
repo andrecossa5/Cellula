@@ -209,7 +209,7 @@ def preprocessing():
             logger.info('Cannot read cells_meta.csv. Format .csv file correctly!')
             sys.exit()
     else:
-        adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.startswith('outlier')]
+        adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.startswith('passing')]
         adata.obs['seq_run'] = 'run_1' # Assumed only one run of sequencing
         adata.obs['seq_run'] = pd.Categorical(adata.obs['seq_run'])
         adata.obs['sample'] = pd.Categorical(adata.obs['sample'])

@@ -53,12 +53,44 @@ my_parser.add_argument(
     help='Input mode. Default: filtered. Other option available: raw (sclt data).'
 )
 
-# Path_main
+# QC mode
 my_parser.add_argument( 
     '--qc_mode', 
     type=str,
     default='seurat',
     help='Cell QC mode. Default: seurat. Other option available: mads (adaptive tresholds).'
+)
+
+# Mito_perc
+my_parser.add_argument( 
+    '--mito_perc', 
+    type=float,
+    default=0.15,
+    help='(Lower) treshold for mitochondrial percentage. Default: 0.15.'
+)
+
+# N genes
+my_parser.add_argument( 
+    '--detected_genes', 
+    type=int,
+    default=250,
+    help='(Lower) treshold for n detected genes. Default: 250.'
+)
+
+# nUMIs
+my_parser.add_argument( 
+    '--nUMIs', 
+    type=int,
+    default=500,
+    help='(Lower) treshold for n UMIs. Default: 500.'
+)
+
+# Path_main
+my_parser.add_argument( 
+    '--nmads', 
+    type=int,
+    default=5,
+    help='n MADs for adaptive tresholds filtering. Default: 5.'
 )
 
 # Skip
@@ -74,7 +106,10 @@ mode = args.mode
 qc_mode = args.qc_mode
 version = args.version
 path_main = args.path_main
-
+nUMIs_t = args.nUMIs
+detected_genes_t = args.detected_genes
+mito_perc_t = args.mito_perc
+nmads = args.nmads
 
 ########################################################################
 
@@ -127,10 +162,23 @@ def qc():
     adatas = read_matrices(path_matrices, mode=mode)
 
     # QC them
-    adata = QC(adatas, mode=qc_mode, min_cells=3, min_genes=200, path_viz=path_viz)
+    tresholds = {
+        'mito_perc' : mito_perc_t,
+        'nUMIs' : nUMIs_t,
+        'detected_genes' : detected_genes_t
+    }
+    adata = QC(
+        adatas, 
+        mode=qc_mode, 
+        min_cells=3, 
+        min_genes=200, 
+        path_viz=path_viz, 
+        nmads=nmads,
+        tresh=tresholds
+    )
 
     # Save adata and cells_meta.csv
-    print(adata)
+    logger.info(adata)
     adata.write(path_data + 'QC.h5ad')
     adata.obs.to_csv(path_data + 'cells_meta.csv')
    

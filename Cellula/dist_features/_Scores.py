@@ -17,10 +17,11 @@ from ._signatures import create_filtered_list, cluster_gene_sets, create_GMs, sc
 
 class Scores():
 
-    def __init__(self, adata, clusters, markers, curated=None):
+    def __init__(self, adata, clusters, markers, curated=None, organism='human'):
         """
         Args initialization.
         """
+        self.organism = organism
         self.matrix = adata
         self.clusters = clusters
         self.markers = markers
@@ -111,7 +112,7 @@ class Scores():
             self.compute_Hotspot()
 
         d = {**self.wu, **self.barkley, **self.Hotspot, **self.curated}
-        d = { k : Gene_set(v, self.matrix.var, name=k) for k, v in d.items() }
+        d = { k : Gene_set(v, self.matrix.var, name=k, organism=self.organism) for k, v in d.items() }
 
         self.gene_sets = d
 

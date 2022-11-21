@@ -71,6 +71,14 @@ my_parser.add_argument(
     help='Skip Dist_features computation. Default: False.'
 )
 
+# Organism
+my_parser.add_argument(
+    '--organism',
+    type=str,
+    default='human',
+    help='The organism to score signatures for. Default: human. Other options: mouse.'
+)
+
 # Skip
 my_parser.add_argument(
     '--skip', 
@@ -85,6 +93,7 @@ path_main = args.path_main
 version = args.version
 contrasts_name = args.contrasts.split('.')[0]
 n_cores = args.n_cores
+organism = args.organism
 
 ########################################################################
 
@@ -141,9 +150,9 @@ def main():
     # Here we go
     if not args.skip_computation:
 
-        logger.info(f'Begin distinguishing features calculations: --contrasts_name {contrasts_name} --n_cores {n_cores}')
+        logger.info(f'Begin distinguishing features calculations: --contrasts_name {contrasts_name} --n_cores {n_cores} --organism {organism}')
 
-        D = Dist_features(adata, contrasts, signatures=signatures, jobs=jobs, n_cores=n_cores, app=True) # To load on the app directly
+        D = Dist_features(adata, contrasts, signatures=signatures, jobs=jobs, n_cores=n_cores, organism=organism, app=True) # To load on the app directly
         D.run_all_jobs()
         D.to_pickle(path_results, name=contrasts_name)
 

@@ -7,5 +7,5 @@ begin=$1
 cd $begin 
 
 rm -r runs results_and_plots
-rm -r data/removed_cells
-rm -r data/step_*
+cd data
+rm -v !("curated_signatures")

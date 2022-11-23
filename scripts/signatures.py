@@ -128,7 +128,7 @@ if not args.skip:
     path_runs = path_main + '/runs/'
 
     # Create step_{i} clustering folders. Overwrite, if they have already been created
-    to_make = [ (path_results, version), (path_viz, version) ]
+    to_make = [ (path_results, version) ]
     for x, y in to_make:
         make_folder(x, y, overwrite=True)
 

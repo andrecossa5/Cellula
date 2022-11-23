@@ -114,11 +114,10 @@ if not args.skip:
     path_data = path_main + f'/data/{version}/'
     path_results = path_main + '/results_and_plots/dist_features/'
     path_runs = path_main + '/runs/'
-    path_viz = path_main + '/results_and_plots/vizualization/dist_features/'
     path_signatures = path_main + '/results_and_plots/signatures/'
 
     # Create step_{i} clustering folders. Do NOT overwrite, if they have already been created
-    to_make = [ (path_results, version), (path_viz, version) ]
+    to_make = [ (path_results, version) ]
     for x, y in to_make:
         make_folder(x, y, overwrite=False)
 

@@ -128,17 +128,12 @@ path_main = sys.argv[1]
 path_data = path_main + '/data/'
 
 # Choose a version
-versions = []
-for x in os.listdir(path_data):
-    if (x != '.DS_Store') and (len(os.listdir(path_data + f'/{x}/')) > 0):
-        versions.append(x)
-
 st.write(f'Choose a Cellula version.')
 
 form_data = st.form(key='Data object')
 version = form_data.selectbox(
     'Choose data from a Cellula version',
-    versions,
+    [ x for x in os.listdir(path_data) if x != '.DS_Store' and len(os.listdir(f'{path_data}/{x}/')) > 0 ],
     key='Version'
 )
 submit_data = form_data.form_submit_button('Load')

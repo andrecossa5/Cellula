@@ -70,7 +70,7 @@ class Int_evaluator:
 
     def get_kNNs(self, g, key=None, metric=None, metric_type=None):
         """
-        Get neede kNNs for metrics computation.
+        Get needed kNNs for metrics computation.
         """
         if metric_type == 'batch': 
             kNN_feature = 'indices' if metric != 'graph_conn' else 'connectivities'

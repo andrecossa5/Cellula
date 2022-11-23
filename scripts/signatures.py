@@ -126,7 +126,6 @@ if not args.skip:
     path_markers = path_main + f'results_and_plots/dist_features/{version}/'
     path_results = path_main + '/results_and_plots/signatures/'
     path_runs = path_main + '/runs/'
-    path_viz = path_main + '/results_and_plots/vizualization/signatures/'
 
     # Create step_{i} clustering folders. Overwrite, if they have already been created
     to_make = [ (path_results, version), (path_viz, version) ]

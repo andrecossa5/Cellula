@@ -39,7 +39,7 @@ st.write(f'Choose version and data object.')
 form_version = st.form(key='Version')
 version = form_version.selectbox(
     'Choose version',
-    [ x for x in os.listdir(path_objects) if x != '.DS_Store' ],
+    [ x for x in os.listdir(path_objects) if x != '.DS_Store' and len(os.listdir(f'{path_objects}/{x}/')) > 0 ],
     key='Version',
 )
 submit_version = form_version.form_submit_button('Choose')

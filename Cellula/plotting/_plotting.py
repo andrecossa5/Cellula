@@ -186,13 +186,19 @@ def pca_var_plot(exp_var, cum_sum, title, ax):
 ##
 
 
-def explained_variance_plot(GE_spaces, figsize=(10,7)):
+def explained_variance_plot(adata, figsize=(10,7)):
     # Figure
     fig = plt.figure(figsize=figsize)
     # Axes
-    for i, key in enumerate(GE_spaces):
+    pca_keys = list(adata.obsm.keys())
+    for i, key in enumerate(pca_keys):
         ax = plt.subplot(2, 2, i+1)
-        pca_var_plot(GE_spaces[key].PCA.var_ratios, GE_spaces[key].PCA.cum_sum_eigenvalues, key, ax=ax)
+        pca_var_plot(
+            adata.uns[(key[0], key[1], 'pca_var_ratios')], 
+            adata.uns[(key[0], key[1], 'cum_sum_eigenvalues')], 
+            key[0], 
+            ax=ax
+        )
     fig.tight_layout()
 
     return fig
@@ -201,18 +207,19 @@ def explained_variance_plot(GE_spaces, figsize=(10,7)):
 ##
 
 
-def plot_biplot_PCs(g, covariate='sample', colors=None):
+def plot_biplot_PCs(adata, layer=None, covariate='sample', colors=None):
     """
     Plot a biplot of the first 5 PCs, colored by a cell attribute.
     """
     # Data
+    embs = adata.obsm[(layer, 'original', 'X_pca')]
     df_ = pd.DataFrame(
-        data=g.PCA.embs[:,:5], 
+        data=embs[:,:5], 
         columns=[f'PC{i}' for i in range(1,6)],
-        index=g.matrix.obs_names
+        index=adata.obs_names
     )
 
-    df_[covariate] = g.matrix.obs[covariate] 
+    df_[covariate] = adata.obs[covariate] 
 
     # Figure
     fig, axs = plt.subplots(5, 5, figsize=(10, 10), sharex=True, sharey=True)
@@ -252,17 +259,22 @@ def plot_biplot_PCs(g, covariate='sample', colors=None):
 
 ##
 
-
-def plot_embeddings(g, rep='original', colors=None, a=1, s=0.1, umap_only=True):
+#plot_embeddings(adata, layer='scaled', colors=colors)
+def plot_embeddings(adata, layer=None, obsp_key=None, colors=None, a=1, s=0.1, umap_only=True):
     """
     Plot QC covariates in the UMAP embeddings obtained from original data.
     """
 
     # Prep data
-    adata = g.to_adata(rep=rep)
-    df = embeddings(adata, paga_groups='sample', rep=rep, umap_only=umap_only).loc[:, ['UMAP1', 'UMAP2']]
-    df = df.join(adata.obs)
+    df = embeddings(
+        adata, 
+        paga_groups='sample', 
+        layer=layer,
+        conn_key=obsp_key,
+        umap_only=umap_only
+    ).loc[:, ['UMAP1', 'UMAP2']]
 
+    df = df.join(adata.obs)
     covariates = ['seq_run', 'sample', 'nUMIs', 'cycle_diff']
 
     # Fig

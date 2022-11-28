@@ -1,94 +1,106 @@
-import pickle 
-import pandas as pd
-import numpy as np
-import scanpy as sc
-import pegasus as pg
+import pickle
+import anndata
+import Cellula.plotting._plotting_base
+from glob import glob
+from Cellula._utils import *
+from Cellula.preprocessing._pp import *
+from Cellula.preprocessing._GE_space import GE_space
+from Cellula.preprocessing._embeddings import *
+from Cellula.plotting._plotting import *
+from Cellula.plotting._colors import create_colors
+
+clustered = sc.read('/Users/IEO5505/Desktop/eif4a3_first_analysis/data/default/clustered.h5ad')
+adata = anndata.AnnData(
+    X=clustered.raw[:, clustered.var_names].X, 
+    obs=clustered.obs.iloc[:, :-8],
+    var=clustered.var.iloc[:, :0]
+)
+custom_meta = False
+remove = False
+
+if remove:
+    path_cells = path_main + '/data/removed_cells/'
+    removed = [ y for x in os.walk(path_cells) for y in glob(os.path.join(x[0], '*.csv'))]
+    cells_to_remove = pd.concat([ pd.read_csv(x, index_col=0) for x in removed ], axis=0)['cell'].to_list()
+    adata = adata[~adata.obs_names.isin(cells_to_remove), :]
+
+# Format adata.obs
+if custom_meta:
+    try:
+        meta = pd.read_csv(path_data + 'cells_meta.csv', index_col=0)
+        # Format cols as pd.Categoricals
+        for x in meta.columns:
+            test = meta[x].dtype in ['int64', 'int32', 'int8'] and meta[x].unique().size < 50
+            if meta[x].dtype == 'object' or test:
+                meta[x] = pd.Categorical(meta[x])
+        adata.obs = meta
+    except:
+        logger.info('Cannot read cells_meta.csv. Format .csv file correctly!')
+        sys.exit()
+else:
+    adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.startswith('passing')]
+    adata.obs['seq_run'] = 'run_1' # Assumed only one run of sequencing
+    adata.obs['seq_run'] = pd.Categorical(adata.obs['seq_run'])
+    adata.obs['sample'] = pd.Categorical(adata.obs['sample'])
+
+# Create colors
+colors = create_colors(adata.obs)
+
+adata.raw = adata.copy()
+adata = pp(
+    adata, 
+    mode='scanpy', 
+    target_sum=50*1e4, 
+    n_HVGs=2000, 
+    score_method='scanpy',
+    organism='mouse'
+)
+
+QC_covariates = [
+    'nUMIs', 'detected_genes', 'mito_perc', \
+    'cell_complexity', 'cycle_diff', 'cycling', \
+    'ribo_genes', 'apoptosis'
+]
+QC_df = adata.obs.loc[:, QC_covariates + ['sample']]
+summary = QC_df.groupby('sample').median()
+
+# Visualize QC metrics 
+fig = QC_plot(adata.obs, 'sample', QC_covariates, colors, labels=False, figsize=(12, 10))
+
+# NEW from here
+
+adata_red = red(adata)
+# adatas = {
+#     'red' : adata_red,
+#     'red_s' : scale(adata_red),
+#     'reg' : regress(adata_red)
+# }
+adata_red = scale(adata_red)
+adata_red = regress(adata_red)
+adata_red = regress_and_scale(adata_red)
+
+for layer in adata_red.layers:
+    adata = pca(adata_red, layer=layer)
+
+explained_variance_plot(adata, figsize=(10,7))
+
+for layer in adata.layers:
+    pass
+    for cov in ['seq_run', 'sample', 'nUMIs', 'cycle_diff']:
+        pass
+        fig = plot_biplot_PCs(adata, layer=layer, covariate=cov, colors=colors)
+
+for layer in adata.layers:
+    compute_kNN(adata, layer='scaled') # Default here
+
+fig = plot_embeddings(adata, layer='scaled', colors=colors)
 
 
 
-adata = sc.read('/Users/IEO5505/Desktop/eif4a3_first_analysis/data/default/clustered.h5ad')
-with open('/Users/IEO5505/Desktop/eif4a3_first_analysis/data/default/signatures.txt', 'rb') as f:
-    sig = pickle.load(f)
-with open('/Users/IEO5505/Desktop/eif4a3_first_analysis/dist_features_objects/default/sample_and_leiden.txt', 'rb') as f:
-    dist = pickle.load(f)
-
-l = sig['gene_sets']['wu_0'].stats.index.to_list()
-l_ord = dist.results['sample|genes|wilcoxon']['gs']['S45172_824_GEX_vs_rest'].stats.iloc[:, :8]
-
-# ORA
-g = Gene_set(l, adata.var, name=None, organism='mouse')
-g.compute_ORA()
-
-# GSEA
-g = Gene_set(l_ord, adata.var, name=None, organism='mouse')
-
-g.compute_GSEA()
 
 
 
 
-
-def compute_GSEA(self, covariate='effect_size', by='Adjusted P-value', 
-    collection='GO_Biological_Process_2021', n_out=50):
-    """
-    Perform GSEA (Gene-Set Enrichment Anlysis).
-    """
-    if g.is_ordered:
-        if self.organims == 'human':
-            ranked_gene_list = g.stats[covariate]
-        elif self.organims == 'mouse':
-            ranked_gene_list = g.stats.loc[:, [covariate]].reset_index().rename(columns={'index':'mouse'})
-    else:
-        raise ValueError('GSEA can be performed only on ordered gene sets.')
-
-    # Convert if necessary
-    if self.organims == 'mouse':
-
-        from gseapy import Biomart
-        bm = Biomart()
-        m2h = bm.query(
-            dataset='mmusculus_gene_ensembl',
-            attributes=['external_gene_name', 'hsapiens_homolog_associated_gene_name']
-        ).rename(columns={'external_gene_name':'mouse', 'hsapiens_homolog_associated_gene_name':'human'})
-
-        # Filter and convert
-        conversion_df = ranked_gene_list.merge(m2h, on='mouse', how='left').dropna(
-            ).drop_duplicates('mouse', keep='last').sort_values(
-                by='effect_size', ascending=False
-        )
-        ranked_gene_list = conversion_df.set_index('human')['effect_size']
-
-    results = prerank(
-        rnk=ranked_gene_list,
-        gene_sets=[collection],
-        threads=cpu_count(),
-        min_size=50,
-        max_size=1000,
-        permutation_num=200, 
-        outdir=None, 
-        seed=1234,
-        verbose=True,
-    )
-
-    df = results.res2d.loc[:, 
-        [ 'Term', 'ES', 'NES', 'FDR q-val', 'Lead_genes' ]
-    ].rename(columns={'FDR q-val' : 'Adjusted P-value'})
-
-    idx = rank_top(df[by], n=n_out, lowest=True)
-    filtered_df = df.iloc[idx, :]
-    pd.options.mode.chained_assignment = None # Remove warning
-    new_term = filtered_df['Term'].map(lambda x: x.split('__')[1])
-    filtered_df.loc[:, 'Term'] = new_term
-    filtered_df = filtered_df.set_index('Term')
-
-    # Convert back, if necessary
-    if self.organims == 'mouse':
-        reformat_genes = lambda x: ';'.join([ conversion_df.loc[conversion_df['human'] == y, 'mouse'].values[0] for y in x.split(';') ])
-        filtered_df['Lead_genes'] = filtered_df['Lead_genes'].map(reformat_genes)
-
-    # Add 
-    self.GSEA['original'] = filtered_df
-    gc.collect()
 
 
 

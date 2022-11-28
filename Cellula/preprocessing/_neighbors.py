@@ -82,11 +82,7 @@ def kNN_graph(X, k=15, n_components=30):
     )
 
     # Prep results
-    results = { 
-        'indices' : knn_indices,  
-        'distances' : distances, 
-        'connectivities' : connectivities,  
-    }
+    results = (knn_indices, distances, connectivities)
 
     return results
 

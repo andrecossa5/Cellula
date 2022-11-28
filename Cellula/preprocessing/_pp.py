@@ -2,6 +2,8 @@
 _pp.py: preprocessing utils. 
 """
 
+import gc
+import sys
 import pandas as pd 
 import numpy as np 
 import scanpy as sc 
@@ -10,6 +12,7 @@ from sklearn.decomposition import PCA
 from pegasus.tools import predefined_signatures, load_signatures_from_file 
 from sklearn.cluster import KMeans  
 
+from ._neighbors import _NN, kNN_graph, get_indices_from_connectivities
 from ..dist_features._signatures import scanpy_score, wot_zscore, wot_rank
 
 
@@ -138,3 +141,160 @@ class my_PCA:
 
         return self
 
+
+##
+
+
+def red(adata, mode='log-normalized'):
+    """
+    Reduce to HVGs the input counts matrix.
+    """
+    if mode == 'raw':
+        adata_raw = adata.raw.to_adata()[:, adata.var_names].copy()
+        adata_raw.layers['counts'] = adata_raw.X
+        adata_raw.layers['lognorm'] = adata.X
+        adata_raw = adata_raw[:, adata.var['highly_variable_features']].copy()
+        adata = adata_raw
+        adata.layers['lognorm'] = adata.X
+    else:
+        adata = adata[:, adata.var['highly_variable_features']].copy()
+        adata.layers['lognorm'] = adata.X
+    return adata
+
+
+##
+
+
+def scale(adata):
+    """
+    Scale to 0 mean and unit variance the current matrix.
+    """
+    a_ = sc.pp.scale(adata, copy=True)
+    adata.layers['scaled'] = a_.X
+    return adata
+    
+
+##
+
+
+def regress(adata):
+    """
+    Regress-out 'mito_perc', 'nUMIs' technical covariates from the current matrix.
+    """
+    a_ = sc.pp.regress_out(adata, ['mito_perc', 'nUMIs'], n_jobs=8, copy=True)
+    adata.layers['regressed'] = a_.X
+    return adata
+
+
+##
+
+
+def regress_and_scale(adata):
+    """
+    Regress-out 'mito_perc', 'nUMIs' technical covariates from the current matrix, and scale counts.
+    """
+    if 'regressed' not in adata.layers:
+        raise KeyError('Regress out covariates first!')
+    a_ = adata.copy()
+    a_.X = a_.layers['regressed']
+    a_ = scale(a_)
+    adata.layers['regressed_and_scaled'] = a_.layers['scaled']
+    return adata
+
+
+##
+
+
+def update_key(key, l):
+    if isinstance(l, str):
+        l = [l]
+    else:
+        pass
+    key = list(key) + list(l)
+    return tuple(key)
+
+
+##
+
+
+def pca(adata, n_pcs=50, layer='scaled'):
+    """
+    Compute my_PCA of the current matrix, and store its outputs in adata slots.
+    """
+    if 'lognorm' not in adata.layers:
+        adata.layers['lognorm'] = adata.X
+    if layer in adata.layers: 
+        X = adata.layers[layer]
+        key = (layer, 'original')
+    else:
+        raise KeyError(f'Selected layer {layer} is not present. Compute it first!')
+
+    model = my_PCA()
+    model.calculate_PCA(X, n_components=n_pcs)
+    adata.obsm[update_key(key, 'X_pca')] = model.embs
+    adata.varm[update_key(key, 'pca_loadings')] = model.loads
+    adata.uns[update_key(key, 'pca_var_ratios')] = model.var_ratios
+    adata.uns[update_key(key, 'cum_sum_eigenvalues')] = np.cumsum(model.var_ratios)
+
+    return adata
+    
+    
+##
+
+
+def get_representation(adata, layer=None, obsm_key=None, obsp_key=None):
+    """
+    Take out desired representation from a adata.obsm/obsp.
+    """
+    if layer is not None:
+        X = adata.obsm[(layer, 'original', 'X_pca')]
+    elif obsm_key is not None:
+        try:
+            X = adata.obsm[obsm_key]
+        except:
+            ValueError(f'No embeddings found on {obsm_key} name. Change representation.')
+    elif obsp_key is not None:
+        try:
+            X = adata.obsm[obsp_key]
+        except:
+            ValueError(f'No embeddings found on {obsp_key} name. Change representation.')
+    return X
+    
+
+##
+
+
+def compute_kNN(adata, k=15, n_components=30, layer=None, obsm_key=None, obsp_key=None, 
+    only_index=False, only_int=False):
+    """
+    Compute kNN indeces or kNN fuzzy graphs for some data representation.
+    """
+    # Extract some representation
+    if layer is not None:
+        X = get_representation(adata, layer=layer)
+        obsm_key = (layer, 'original', 'X_pca')
+    elif obsm_key is not None:
+        X = get_representation(adata, obsm_key=obsm_key)
+    elif obsp_key is not None and obsp_key[1] == 'BBKNN':
+        X = get_representation(adata, obsm_key=obsm_key)
+        k_idx = update_key(obsp_key, f'{k}_NN_{n_components}_comp_idx')
+        idx = get_indices_from_connectivities(X, k)
+        adata.obsm[k_idx] = idx
+    else:
+        print('Provided key or layer is not valid.')
+        sys.exit()
+
+    if only_index:
+        k_idx = update_key(obsm_key, f'{k}_NN_{n_components}_comp_idx')
+        idx = _NN(X, k=k, n_components=n_components)[0]
+        adata.obsm[k_idx] = idx
+    else:
+        k_idx = update_key(obsm_key, f'{k}_NN_{n_components}_comp_idx')
+        k_dist = update_key(obsm_key, f'{k}_NN_{n_components}_comp_dist')
+        k_conn = update_key(obsm_key, f'{k}_NN_{n_components}_comp_conn')
+        idx, dist, conn = kNN_graph(X, k=k, n_components=n_components)
+        adata.obsm[k_idx] = idx
+        adata.obsp[k_dist] = dist
+        adata.obsp[k_conn] = conn
+
+    gc.collect()

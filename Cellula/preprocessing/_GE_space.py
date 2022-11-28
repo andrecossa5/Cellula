@@ -21,6 +21,7 @@ class GE_space:
     and their associated (possibly dimensionality-reduced) representations (i.e., PCA spaces, 
     or other batch-corrected representations). NB, an adata must always been loaded. 
     """
+        
     def __init__(self, adata):
         """
         Instantiate the main class attributes.
@@ -286,3 +287,4 @@ class GE_space:
                 adata.obsp[f'{neighbors_key}_connectivities'] = self.original_kNNs[key]['connectivities']
 
         return adata
+

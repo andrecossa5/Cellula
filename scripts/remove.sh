@@ -8,4 +8,4 @@ cd $begin
 
 rm -r runs results_and_plots
 cd data
-rm -v !("curated_signatures")
+ls $apth_main | grep -v "curated_signatures" | xargs rm -r

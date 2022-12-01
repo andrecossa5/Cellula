@@ -2,6 +2,7 @@
 _metrics.py: integration metrics functions.
 """
 
+import gc
 from joblib import cpu_count, parallel_backend, Parallel, delayed
 import numpy as np
 import pandas as pd

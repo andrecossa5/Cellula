@@ -2,6 +2,7 @@
 _neighbors.py: nearest neighbors functions.
 """
 
+import gc
 from joblib import cpu_count
 import numpy as np
 import pandas as pd

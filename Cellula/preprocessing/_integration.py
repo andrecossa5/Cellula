@@ -2,6 +2,7 @@
 _integration.py: integration utils. 
 """
 
+import gc
 import pickle
 import os
 from glob import glob

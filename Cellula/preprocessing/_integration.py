@@ -2,6 +2,7 @@
 _integration.py: integration utils. 
 """
 
+import pickle
 import os
 from glob import glob
 import numpy as np

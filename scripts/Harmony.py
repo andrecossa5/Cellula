@@ -77,6 +77,7 @@ if not args.skip:
     from Cellula._utils import *
     from Cellula.preprocessing._pp import *
     from Cellula.preprocessing._GE_space import GE_space
+    import anndata
 
     #-----------------------------------------------------------------#
 
@@ -117,24 +118,21 @@ def Harmony():
 
     logger.info(f'Execute Harmony: --n_pcs {n_pcs} --covariates {covariates}')
 
-    # Load pickled GE_spaces
-    with open(path_data + 'GE_spaces.txt', 'rb') as f:
-        GE_spaces = pickle.load(f)
+    adata = anndata.read_h5ad(path_data + 'reduced.h5ad')
 
     logger.info(f'Data loading and preparation: {t.stop()} s.')
     
     #-----------------------------------------------------------------#
 
-    # Perform Harmony on the 4 log-normalized input GE_spaces
-    for k in GE_spaces:
+    # Perform Scanorama on the 4 log-normalized input GE_spaces
+    for layer in adata.layers:
         t.start()
-        logger.info(f'Begin Harmony for {k} GE_space...')
-        GE_spaces[k].compute_Harmony(covariates=covariates, n_components=n_pcs)
-        logger.info(f'Harmony completed for {k} GE_space: {t.stop()} s.')
-        
-    # Save temporary results
-    with open(path_results + 'Harmony.txt', 'wb') as f:
-        pickle.dump(GE_spaces, f)
+        logger.info(f'Begin Harmony for {layer} reduced.h5ad...')
+        adata = compute_Harmony(adata, covariates = covariates, n_components=n_pcs,layer = layer)
+        logger.info(f'Harmony completed for {layer} reduced.h5ad: {t.stop()} s.')
+
+    # Save results
+    adata.write(path_data + 'Harmony_reduced.h5ad')
 
     #-----------------------------------------------------------------#
 

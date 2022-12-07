@@ -40,7 +40,7 @@ def create_colors(meta, chosen=None):
     # Create a custom dict of colors
     colors = {
         'sample' : create_palette(meta, 'sample', palette='tab20'),
-        'seq_run' : {'run_1' : 'b'}
+        'seq_run' : create_palette(meta, 'seq_run', palette='tab20')
     }
     
     # Add cluster colors, if needed

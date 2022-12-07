@@ -274,32 +274,30 @@ def preprocessing():
 
     t.start()
 
-    GE_spaces = {
-        'red' : GE_space(adata).red().pca(),
-        'red_s' : GE_space(adata).red().scale().pca(),
-        'red_reg' : GE_space(adata).red().regress().pca(),
-        'red_reg_s' : GE_space(adata).red().regress().scale().pca()
-    }
+    adata_red = red(adata)
+    adata_red = scale(adata_red)
+    adata_red = regress(adata_red)
+    adata_red = regress_and_scale(adata_red)
 
-    # Save
-    with open(path_data + 'GE_spaces.txt', 'wb') as f:
-        pickle.dump(GE_spaces, f)
+    for layer in adata_red.layers:
+        adata_red = pca(adata_red, layer=layer)
+
+    adata_red.write(path_data + 'reduced.h5ad')
 
     #-----------------------------------------------------------------#
 
     # Visualize % explained variance of top50 PCs, for each PCA space
-    fig = explained_variance_plot(GE_spaces, figsize=(10,7))
+    fig = explained_variance_plot(adata, figsize=(10,7))
     fig.savefig(path_viz + 'explained_variance.pdf')
 
     #-----------------------------------------------------------------#
 
     # Visualize sample biplots, top5 PCs 
     if not args.no_biplot:
-        for k in GE_spaces:
-            g = GE_spaces[k]
-            with PdfPages(path_viz + f'PCs_{k}.pdf') as pdf:
+        for layer in adata_red.layers:
+            with PdfPages(path_viz + f'PCs_{layer}.pdf') as pdf:
                 for cov in ['seq_run', 'sample', 'nUMIs', 'cycle_diff']:
-                    fig = plot_biplot_PCs(g, covariate=cov, colors=colors)
+                    fig = plot_biplot_PCs(adata_red, layer=layer, covariate=cov, colors=colors)
                     pdf.savefig()  
                     plt.close()
 
@@ -315,12 +313,14 @@ def preprocessing():
         logger.info(f'Begin cell embeddings vizualization...')
 
         with PdfPages(path_viz + f'original_embeddings.pdf') as pdf:
-            for k in GE_spaces:
-                g = GE_spaces[k]
-                g.compute_kNNs(k=15) # Default here
-                fig = plot_embeddings(g, rep='original', colors=colors)
+            for layer in adata_red.layers:
+                compute_kNN(adata_red, layer=layer) # Default here
+                fig = plot_embeddings(adata_red, layer=layer, colors=colors)
                 pdf.savefig()  
                 plt.close()
+
+
+        adata_red.write(path_data + 'reduced.h5ad')
 
         logger.info(f'Original cell embeddings vizualization: {t.stop()} s.')
 

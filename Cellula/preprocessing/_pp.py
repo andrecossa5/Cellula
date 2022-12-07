@@ -7,7 +7,9 @@ import sys
 import pandas as pd 
 import numpy as np 
 import scanpy as sc 
-import pegasus as pg 
+import pegasus as pg
+from scanorama import correct_scanpy  
+from harmony import harmonize
 from sklearn.decomposition import PCA 
 from pegasus.tools import predefined_signatures, load_signatures_from_file 
 from sklearn.cluster import KMeans  
@@ -206,12 +208,8 @@ def regress_and_scale(adata):
 
 
 def update_key(key, l):
-    if isinstance(l, str):
-        l = [l]
-    else:
-        pass
-    key = list(key) + list(l)
-    return tuple(key)
+    new_key = key+l
+    return new_key
 
 
 ##
@@ -225,16 +223,16 @@ def pca(adata, n_pcs=50, layer='scaled'):
         adata.layers['lognorm'] = adata.X
     if layer in adata.layers: 
         X = adata.layers[layer]
-        key = (layer, 'original')
+        key = f'{layer}|original'
     else:
         raise KeyError(f'Selected layer {layer} is not present. Compute it first!')
 
     model = my_PCA()
     model.calculate_PCA(X, n_components=n_pcs)
-    adata.obsm[update_key(key, 'X_pca')] = model.embs
-    adata.varm[update_key(key, 'pca_loadings')] = model.loads
-    adata.uns[update_key(key, 'pca_var_ratios')] = model.var_ratios
-    adata.uns[update_key(key, 'cum_sum_eigenvalues')] = np.cumsum(model.var_ratios)
+    adata.obsm[update_key(key, '|X_pca')] = model.embs
+    adata.varm[update_key(key, '|pca_loadings')] = model.loads
+    adata.uns[update_key(key, '|pca_var_ratios')] = model.var_ratios
+    adata.uns[update_key(key, '|cum_sum_eigenvalues')] = np.cumsum(model.var_ratios)
 
     return adata
     
@@ -247,7 +245,7 @@ def get_representation(adata, layer=None, obsm_key=None, obsp_key=None):
     Take out desired representation from a adata.obsm/obsp.
     """
     if layer is not None:
-        X = adata.obsm[(layer, 'original', 'X_pca')]
+        X = adata.obsm[f'{layer}|original|X_pca'] 
     elif obsm_key is not None:
         try:
             X = adata.obsm[obsm_key]
@@ -272,12 +270,12 @@ def compute_kNN(adata, k=15, n_components=30, layer=None, obsm_key=None, obsp_ke
     # Extract some representation
     if layer is not None:
         X = get_representation(adata, layer=layer)
-        obsm_key = (layer, 'original', 'X_pca')
+        obsm_key = f'{layer}|original|X_pca' 
     elif obsm_key is not None:
         X = get_representation(adata, obsm_key=obsm_key)
-    elif obsp_key is not None and obsp_key[1] == 'BBKNN':
-        X = get_representation(adata, obsm_key=obsm_key)
-        k_idx = update_key(obsp_key, f'{k}_NN_{n_components}_comp_idx')
+    elif obsp_key is not None and obsp_key.split('|')[1] == 'BBKNN': 
+        X = get_representation(adata, obsm_key=obsm_key) 
+        k_idx = update_key(obsp_key, f'|{k}_NN_{n_components}_comp_idx') 
         idx = get_indices_from_connectivities(X, k)
         adata.obsm[k_idx] = idx
     else:
@@ -285,16 +283,61 @@ def compute_kNN(adata, k=15, n_components=30, layer=None, obsm_key=None, obsp_ke
         sys.exit()
 
     if only_index:
-        k_idx = update_key(obsm_key, f'{k}_NN_{n_components}_comp_idx')
+        k_idx = update_key(obsm_key, f'|{k}_NN_{n_components}_comp_idx') 
         idx = _NN(X, k=k, n_components=n_components)[0]
         adata.obsm[k_idx] = idx
     else:
-        k_idx = update_key(obsm_key, f'{k}_NN_{n_components}_comp_idx')
-        k_dist = update_key(obsm_key, f'{k}_NN_{n_components}_comp_dist')
-        k_conn = update_key(obsm_key, f'{k}_NN_{n_components}_comp_conn')
+        k_idx = update_key(obsm_key, f'|{k}_NN_{n_components}_comp_idx') 
+        k_dist = update_key(obsm_key, f'|{k}_NN_{n_components}_comp_dist') 
+        k_conn = update_key(obsm_key, f'|{k}_NN_{n_components}_comp_conn') 
         idx, dist, conn = kNN_graph(X, k=k, n_components=n_components)
         adata.obsm[k_idx] = idx
         adata.obsp[k_dist] = dist
         adata.obsp[k_conn] = conn
 
     gc.collect()
+
+##
+
+def compute_Scanorama(adata, covariate='seq_run', layer='scaled'):
+        """
+        Compute the scanorama batch-(covariate) corrected representation of self.matrix.X.
+        """
+
+        # Compute Scanorama latent space
+        key = f'{layer}|Scanorama|X_corrected'
+        categories = adata.obs[covariate].cat.categories.to_list()
+        adata = adata.copy()
+        splitted = [ adata[adata.obs[covariate] == c, :].copy() for c in categories ]
+        corrected = correct_scanpy(splitted, layer = layer, return_dimred=True)
+
+        # Add representation
+        Scanorama = np.concatenate(
+            [ x.obsm['X_scanorama'] for x in corrected ]
+            , axis=0
+        )
+
+        adata.obsm[key] = Scanorama
+        return adata
+
+##
+
+def compute_Harmony(adata, covariates='seq_run', n_components=30,layer = 'scaled'):
+        """
+        Compute the Hramony batch- (covariate) corrected representation of original pca.
+        """
+        key = f'{layer}|Harmony|X_corrected'
+        pca = adata.obsm[f"{layer}|original|X_pca"]
+
+        Harmony = harmonize(
+            pca[:, :n_components],
+            adata.obs,
+            covariates,
+            n_clusters=None,
+            n_jobs=-1,
+            random_state=1234,
+            max_iter_harmony=1000,
+        )
+
+        adata.obsm[key] = Harmony
+        return adata

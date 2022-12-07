@@ -191,12 +191,14 @@ def explained_variance_plot(adata, figsize=(10,7)):
     fig = plt.figure(figsize=figsize)
     # Axes
     pca_keys = list(adata.obsm.keys())
-    for i, key in enumerate(pca_keys):
+    i = 0
+    for key in pca_keys:
         ax = plt.subplot(2, 2, i+1)
+        i = i + 1
         pca_var_plot(
-            adata.uns[(key[0], key[1], 'pca_var_ratios')], 
-            adata.uns[(key[0], key[1], 'cum_sum_eigenvalues')], 
-            key[0], 
+            adata.uns[key.replace('X_pca','pca_var_ratios')], 
+            adata.uns[key.replace('X_pca','cum_sum_eigenvalues')], 
+            key.split('|')[0], 
             ax=ax
         )
     fig.tight_layout()
@@ -212,7 +214,7 @@ def plot_biplot_PCs(adata, layer=None, covariate='sample', colors=None):
     Plot a biplot of the first 5 PCs, colored by a cell attribute.
     """
     # Data
-    embs = adata.obsm[(layer, 'original', 'X_pca')]
+    embs = adata.obsm[f'{layer}|original|X_pca']
     df_ = pd.DataFrame(
         data=embs[:,:5], 
         columns=[f'PC{i}' for i in range(1,6)],
@@ -387,7 +389,7 @@ def cluster_separation_plot(clustering_solutions, df_kNN):
 
     return fig
 
-
+    
 ##
 
 

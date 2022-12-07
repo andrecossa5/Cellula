@@ -19,13 +19,13 @@ def embeddings(adata, paga_groups='sample', layer='scaled', conn_key=None, umap_
     '''
     # Build mock adata
     if conn_key is not None:
-        layer = conn_key[0]
-        obsm_key = conn_key[:3]
-        dist_key = tuple(list(conn_key[:3]) + ['_'.join(conn_key[3].split('_')[:-1] + ['dist'])])
+        layer = conn_key.split('|')[0]
+        obsm_key = '|'.join(conn_key.split('|')[:3])
+        dist_key = conn_key.replace("conn","dist")
     elif layer is not None:
-        obsm_key = (layer, 'original', 'X_pca')
-        conn_key = (layer, 'original', 'X_pca', '15_NN_30_comp_conn')
-        dist_key = (layer, 'original', 'X_pca', '15_NN_30_comp_dist')
+        obsm_key = f'{layer}|original|X_pca' 
+        conn_key = f'{layer}|original|X_pca|15_NN_30_comp_conn' 
+        dist_key = f'{layer}|original|X_pca|15_NN_30_comp_dist' 
     else:
         raise KeyError('Unknown keys.')
 

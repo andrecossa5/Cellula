@@ -68,6 +68,7 @@ if not args.skip:
     from Cellula._utils import *
     from Cellula.preprocessing._pp import *
     from Cellula.preprocessing._GE_space import GE_space
+    import anndata
 
     #-----------------------------------------------------------------#
 
@@ -108,25 +109,22 @@ def Scanorama():
     
     logger.info(f'Execute Scanorama: --covariate {covariate}')
 
-    # Load pickled GE_spaces
-    with open(path_data + 'GE_spaces.txt', 'rb') as f:
-        GE_spaces = pickle.load(f)
+    # Load anndata
+    adata = anndata.read_h5ad(path_data + 'reduced.h5ad')
 
     logger.info(f'Data loading and preparation: {t.stop()} s.')
     
     #-----------------------------------------------------------------#
 
     # Perform Scanorama on the 4 log-normalized input GE_spaces
-    for k in GE_spaces:
+    for layer in adata.layers:
         t.start()
-        logger.info(f'Begin Scanorama for {k} GE_space...')
-        GE_spaces[k].compute_Scanorama(covariate=covariate)
-        logger.info(f'Scanorama completed for {k} GE_space: {t.stop()} s.')
+        logger.info(f'Begin Scanorama for {layer} reduced.h5ad...')
+        adata = compute_Scanorama(adata, covariate, layer = layer)
+        logger.info(f'Scanorama completed for {layer} reduced.h5ad: {t.stop()} s.')
 
-    # Save temporary results
-    with open(path_results + 'Scanorama.txt', 'wb') as f:
-        pickle.dump(GE_spaces, f)
-
+    # Save results
+    adata.write(path_data + 'Scanorama_reduced.h5ad')
     #-----------------------------------------------------------------#
 
     # Write final exec time

@@ -10,6 +10,8 @@ import scanpy as sc
 import pegasus as pg
 from scanorama import correct_scanpy  
 from harmony import harmonize
+from scvi.model import SCVI
+from bbknn.matrix import bbknn
 from sklearn.decomposition import PCA 
 from pegasus.tools import predefined_signatures, load_signatures_from_file 
 from sklearn.cluster import KMeans  
@@ -341,3 +343,62 @@ def compute_Harmony(adata, covariates='seq_run', n_components=30,layer = 'scaled
 
         adata.obsm[key] = Harmony
         return adata
+
+##
+
+def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_perc', 'nUMIs'],
+        n_layers=2, n_latent=30, n_hidden=128, max_epochs=None):
+        """
+        Compute scVI latent space (Lopez et al., 2018)
+        """
+
+        # Check
+        assert adata.layers['counts'] is not None
+
+        # Prep
+        m = adata.copy()
+        SCVI.setup_anndata(m,
+            categorical_covariate_keys=categorical_covs,
+            continuous_covariate_keys=continuous_covs
+        )
+        vae = SCVI(m, 
+            gene_likelihood="nb", 
+            n_layers=n_layers, 
+            n_latent=n_latent, 
+            n_hidden=n_hidden
+        )
+        
+        # Train and add trained model to GE_space
+        vae.train(train_size=1.0, max_epochs=max_epochs)
+        adata.obsm["lognorm_raw|scVI|X_corrected"] = vae.get_latent_representation()
+
+        return adata
+
+
+##
+
+def compute_BBKNN(adata, layer = 'scaled', covariate='seq_run', k=30, n_components=30, trim=None):
+        """
+        Compute the BBKNN batch- (covariate) corrected kNN graph on self.PCA.
+        """
+        # Run BBKNN
+
+        pca = adata.obsm[f"{layer}|original|X_pca"]
+
+        BBKNN = bbknn(
+            pca[:, :n_components], 
+            adata.obs[covariate],
+            use_annoy=False,
+            neighbors_within_batch=k//len(adata.obs[covariate].cat.categories),
+            pynndescent_n_neighbors=50, 
+            trim=trim,
+            pynndescent_random_state=1234,
+            metric='euclidean'
+        )
+
+        adata.obsp[f'{layer}|BBKNN|X_pca|distances_Corrected'] = BBKNN[0]
+        adata.obsp[f'{layer}|BBKNN|X_pca|connectivities_Corrected'] = BBKNN[1]
+        adata.obsm[f'{layer}|BBKNN|X_pca|idx_Corrected'] = get_indices_from_connectivities(BBKNN[1], k)
+
+        return adata
+        

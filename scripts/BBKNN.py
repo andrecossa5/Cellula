@@ -85,6 +85,7 @@ if not args.skip:
     from Cellula._utils import *
     from Cellula.preprocessing._pp import *
     from Cellula.preprocessing._GE_space import GE_space
+    import anndata
 
     #-----------------------------------------------------------------#
 
@@ -124,24 +125,22 @@ def BBKNN():
     t.start()
     logger.info(f'Execute BBKNN: --n_pcs {n_pcs} --k {k} --covariate {covariate}')
 
-    # Load pickled GE_spaces
-    with open(path_data + 'GE_spaces.txt', 'rb') as f:
-        GE_spaces = pickle.load(f)
+    # Load adata
+    adata = anndata.read_h5ad(path_data + 'reduced.h5ad')
 
     logger.info(f'Data loading and preparation: {t.stop()} s.')
     
     #-----------------------------------------------------------------#
 
     # Perform BBKNN on the 4 log-normalized input GE_spaces
-    for pp in GE_spaces:
+    for layer in adata.layers:
         t.start()
-        logger.info(f'Begin BBKNN for {pp} GE_space...')
-        GE_spaces[pp].compute_BBKNN(covariate=covariate, k=k)
-        logger.info(f'BBKNN completed for {pp} GE_space: {t.stop()} s.')
+        logger.info(f'Begin BBKNN for {layer} reduced.h5ad...')
+        adata = compute_BBKNN(adata, layer = layer, covariate=covariate, k=k)
+        logger.info(f'BBKNN completed for {layer} reduced.h5ad: {t.stop()} s.')
 
-    # Save temporary results
-    with open(path_results + 'BBKNN.txt', 'wb') as f:
-        pickle.dump(GE_spaces, f)
+    # Save results
+    adata.write(path_data + 'BBKNN_reduced.h5ad')
 
     #-----------------------------------------------------------------#
 

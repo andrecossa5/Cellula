@@ -113,14 +113,13 @@ def scVI():
     logger.info(f'Execute scVI: --categoricals {categoricals} --continuous {continuous}')
 
     adata = sc.read(path_data + 'lognorm.h5ad')
-    g = GE_space(adata).red(mode='raw')
+    adata = red(adata, mode='raw')
    
     # Perform scVI integration
-    g.compute_scVI(categorical_covs=categoricals, continuous_covs=continuous)
+    adata = compute_scVI(adata, categorical_covs=categoricals, continuous_covs=continuous) 
     
     # Save scVI results
-    with open(path_results + 'scVI.txt', 'wb') as f:
-        pickle.dump(g, f)
+    adata.write(path_data + 'scVI_reduced.h5ad')
 
     # Write final exec time
     logger.info(f'Execution was completed successfully in total {T.stop()} s.')

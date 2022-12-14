@@ -165,18 +165,24 @@ def Integration():
             logger.info(f'Begin Scanorama for {layer} reduced.h5ad...')
             adata = compute_Scanorama(adata, covariate, layer = layer)
             logger.info(f'Scanorama completed for {layer} reduced.h5ad: {t.stop()} s.')
+    else:
+        print("Scanorama not computed")
     if 'all' in method  or 'Harmony' in method:
         for layer in adata.layers:
             t.start()
             logger.info(f'Begin Harmony for {layer} reduced.h5ad...')
             adata = compute_Harmony(adata, covariates = covariates, n_components=n_pcs,layer = layer)
             logger.info(f'Harmony completed for {layer} reduced.h5ad: {t.stop()} s.')
+    else:
+        print("Harmony not computed")
     if 'all' in method  or 'BBKNN' in method:
         for layer in adata.layers:
             t.start()
             logger.info(f'Begin BBKNN for {layer} reduced.h5ad...')
             adata = compute_BBKNN(adata, layer = layer, covariate=covariate, k=k)
             logger.info(f'BBKNN completed for {layer} reduced.h5ad: {t.stop()} s.')
+    else:
+        print("BBKNN not computed")
     if 'all' in method  or 'scVI' in method:
         t.start()
         logger.info(f'Begin scVI for raw lognorm.h5ad...')
@@ -184,7 +190,7 @@ def Integration():
         adata.obsm["lognorm_raw|scVI|X_corrected"] = adata_raw.obsm["lognorm_raw|scVI|X_corrected"]
         logger.info(f'scVI completed for raw lognorm.h5ad: {t.stop()} s.')
     else:
-        print("Incorrect command line input")
+        print("scVI not computed")
     
 
     # Save results

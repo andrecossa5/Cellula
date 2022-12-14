@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np 
 import scanpy as sc 
 import pegasus as pg
-from scanorama import correct_scanpy  
+#from scanorama import correct_scanpy  
 from harmony import harmonize
 from scvi.model import SCVI
 from bbknn.matrix import bbknn
@@ -18,6 +18,7 @@ from sklearn.cluster import KMeans
 
 from ._neighbors import _NN, kNN_graph, get_indices_from_connectivities
 from ..dist_features._signatures import scanpy_score, wot_zscore, wot_rank
+from Cellula.preprocessing.scanorama import correct_scanpy 
 
 
 ##

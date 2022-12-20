@@ -187,7 +187,7 @@ def Integration():
         t.start()
         logger.info(f'Begin scVI for raw lognorm.h5ad...')
         adata_raw = compute_scVI(adata_raw, categorical_covs=categoricals, continuous_covs=continuous) 
-        adata.obsm["lognorm_raw|scVI|X_corrected"] = adata_raw.obsm["lognorm_raw|scVI|X_corrected"]
+        adata.obsm["lognorm|scVI|X_corrected"] = adata_raw.obsm["lognorm_raw|scVI|X_corrected"]
         logger.info(f'scVI completed for raw lognorm.h5ad: {t.stop()} s.')
     else:
         print("scVI not computed")

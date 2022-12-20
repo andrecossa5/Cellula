@@ -117,11 +117,12 @@ if not args.skip:
 
     # Code
     import pickle
+    import anndata
     from Cellula._utils import *
     from Cellula.plotting._plotting import *
     from Cellula.plotting._colors import create_colors
     from Cellula.preprocessing._integration import fill_from_integration_dirs
-    from Cellula.preprocessing._Int_evaluator import Int_evaluator
+    from Cellula.preprocessing._Int_evaluator import *
 
     #-----------------------------------------------------------------#
 
@@ -136,7 +137,7 @@ if not args.skip:
     path_results += f'/{version}/' 
     path_viz += f'/{version}/' 
 
-    if not os.path.exists(path_data + 'GE_spaces.txt'):
+    if not os.path.exists(path_data + 'Integration.h5ad'):
         print('Run pp or integration algorithm(s) beforehand!')
         sys.exit()
     else:
@@ -162,31 +163,24 @@ def integration_diagnostics():
     
     logger.info(f'Execute 3_integration_diagnostics: --k {k} --covariate {covariate} --resolution {resolution} --n_comps {n_comps}')
 
-    # Load pickled (original) GE_spaces
-    with open(path_data + 'GE_spaces.txt', 'rb') as f:
-        GE_spaces = pickle.load(f) 
+    # Load Integration.h5ad
+    adata = anndata.read_h5ad(path_data + 'Integration.h5ad')
 
-    # Add integration results
-    GE_spaces = fill_from_integration_dirs(GE_spaces, path_results)
+    logger.info(f'Loading data: {t.stop()} s.')
 
-    # Instantiate the Int_evaluator class
-    I = Int_evaluator(GE_spaces)
-    logger.info(f'Int_evaluator initialized: {t.stop()} s.')
-
-    # Free disk memory and clean integration folders (if requested)
-    del GE_spaces
+    I = Int_evaluator(adata)
         
     #-----------------------------------------------------------------#
 
     # Here we go
 
-    # Compute kNN graphs for all (original and integrated) representation
+    # Compute kNN graphs for all (integrated) representation
     t.start()
-    I.compute_all_kNN_graphs(k=15) # k=15, default from scib
+    compute_all_kNN_graphs(adata, k=15) # k=15, default from scib
     logger.info(f'kNN calculations: {t.stop()} s.')
 
     # Compute and compare embeddings
-    colors = create_colors(I.GE_spaces['red'].matrix.obs)
+    colors = create_colors(adata.obs['lognorm'])
 
     t.start()
     for pp in I.GE_spaces:

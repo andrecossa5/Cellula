@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 from sklearn.metrics import normalized_mutual_info_score
+import sys
 
 from ._GE_space import GE_space
 from ._integration import format_metric_dict, summary_metrics, rank_runs
@@ -231,3 +232,65 @@ class Int_evaluator:
             loc='lower left', bbox_to_anchor=(0.08, 0.35))
 
         return fig
+
+
+## Refractoring functions for KNN graphs
+
+def update_key(key, l):
+    new_key = key+l
+    return new_key
+
+def get_representation(adata, layer=None, method = None, obsm_key=None, obsp_key=None):
+    """
+    Take out desired representation from a adata.obsm/obsp.
+    """
+    if layer is not None:
+        X = adata.obsm[f'{layer}|{method}|X_corrected'] 
+    elif obsm_key is not None:
+        try:
+            X = adata.obsm[obsm_key]
+        except:
+            ValueError(f'No embeddings found on {obsm_key} name. Change representation.')
+    elif obsp_key is not None:
+        try:
+            X = adata.obsm[obsp_key]
+        except:
+            ValueError(f'No embeddings found on {obsp_key} name. Change representation.')
+    return X
+
+def compute_kNN_integration(adata, k=15, n_components=30, layer=None, method = None, obsm_key=None, 
+    only_index=False):
+    """
+    Compute kNN indeces or kNN fuzzy graphs for some data representation.
+    """
+    # Extract some representation
+    if layer is not None:
+        X = get_representation(adata, layer=layer, method = method)
+        obsm_key = f'{layer}|{method}|X_corrected'
+    else:
+        print('Provided method or layer is not valid.')
+        sys.exit()
+
+    if only_index:
+        k_idx = update_key(obsm_key, f'|{k}_NN_{n_components}_comp_idx') 
+        idx = _NN(X, k=k, n_components=n_components)[0]
+        adata.obsm[k_idx] = idx
+    else:
+        k_idx = update_key(obsm_key, f'|{k}_NN_{n_components}_comp_idx') 
+        k_dist = update_key(obsm_key, f'|{k}_NN_{n_components}_comp_dist') 
+        k_conn = update_key(obsm_key, f'|{k}_NN_{n_components}_comp_conn') 
+        idx, dist, conn = kNN_graph(X, k=k, n_components=n_components)
+        adata.obsm[k_idx] = idx
+        adata.obsp[k_dist] = dist
+        adata.obsp[k_conn] = conn
+
+    gc.collect()
+
+def compute_all_kNN_graphs(adata, k=15, n_components=30, obsm_key=None, obsp_key=None, only_index=False):
+        """
+        Compute all GE_spaces kNN graphs, calling their internal method.
+        """
+        method = ['Scanorma','Harmony','scVI']
+        for layer in adata.layers:
+            for i in method:
+                compute_kNN_integration(adata, layer = layer, method = i, k=k, n_components=n_components,  obsm_key=None, obsp_key=None, only_index=only_index)

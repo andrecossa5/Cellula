@@ -266,7 +266,7 @@ def get_representation(adata, layer=None, obsm_key=None, obsp_key=None):
 
 
 def compute_kNN(adata, k=15, n_components=30, layer=None, obsm_key=None, obsp_key=None, 
-    only_index=False, only_int=False):
+    only_index=False):
     """
     Compute kNN indeces or kNN fuzzy graphs for some data representation.
     """
@@ -397,9 +397,9 @@ def compute_BBKNN(adata, layer = 'scaled', covariate='seq_run', k=30, n_componen
             metric='euclidean'
         )
 
-        adata.obsp[f'{layer}|BBKNN|X_pca|distances_Corrected'] = BBKNN[0]
-        adata.obsp[f'{layer}|BBKNN|X_pca|connectivities_Corrected'] = BBKNN[1]
-        adata.obsm[f'{layer}|BBKNN|X_pca|idx_Corrected'] = get_indices_from_connectivities(BBKNN[1], k)
+        adata.obsp[f'{layer}|BBKNN|X_pca|{k}_NN_{n_components}_comp_dist'] = BBKNN[0]
+        adata.obsp[f'{layer}|BBKNN|X_pca|{k}_NN_{n_components}_comp_conn'] = BBKNN[1]
+        adata.obsm[f'{layer}|BBKNN|X_pca|{k}_NN_{n_components}_comp_idx'] = get_indices_from_connectivities(BBKNN[1], k)
 
         return adata
         

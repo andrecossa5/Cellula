@@ -168,16 +168,11 @@ def integration_diagnostics():
 
     logger.info(f'Loading data: {t.stop()} s.')
 
-    I = Int_evaluator(adata)
+    I = Int_evaluator(adata) ## to remove
         
     #-----------------------------------------------------------------#
 
     # Here we go
-
-    # Compute kNN graphs for all (integrated) representation
-    t.start()
-    compute_all_kNN_graphs(adata, k=15) # k=15, default from scib
-    logger.info(f'kNN calculations: {t.stop()} s.')
 
     # Compute and compare embeddings
     colors = create_colors(adata.obs['lognorm'])

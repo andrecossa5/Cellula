@@ -302,7 +302,7 @@ def compute_kNN(adata, k=15, n_components=30, layer=None, obsm_key=None, obsp_ke
 
 ##
 
-def compute_Scanorama(adata, covariate='seq_run', layer='scaled'):
+def compute_Scanorama(adata, covariate='seq_run', layer='scaled', k=15, n_components=30):
         """
         Compute the scanorama batch-(covariate) corrected representation of self.matrix.X.
         """
@@ -321,11 +321,15 @@ def compute_Scanorama(adata, covariate='seq_run', layer='scaled'):
         )
 
         adata.obsm[key] = Scanorama
+        idx, dist, conn = kNN_graph(adata.obsm[key], k=k, n_components=n_components)
+        adata.obsm[f'{layer}|Scanorama|X_corrected|{k}_NN_{n_components}_comp_idx'] = idx
+        adata.obsp[f'{layer}|Scanorama|X_corrected|{k}_NN_{n_components}_comp_dist'] = dist
+        adata.obsp[f'{layer}|Scanorama|X_corrected|{k}_NN_{n_components}_comp_conn'] = conn
         return adata
 
 ##
 
-def compute_Harmony(adata, covariates='seq_run', n_components=30,layer = 'scaled'):
+def compute_Harmony(adata, covariates='seq_run', n_components=30,layer = 'scaled', k = 15):
         """
         Compute the Hramony batch- (covariate) corrected representation of original pca.
         """
@@ -343,12 +347,16 @@ def compute_Harmony(adata, covariates='seq_run', n_components=30,layer = 'scaled
         )
 
         adata.obsm[key] = Harmony
+        idx, dist, conn = kNN_graph(adata.obsm[key], k=k, n_components=n_components)
+        adata.obsm[f'{layer}|Harmony|X_corrected|{k}_NN_{n_components}_comp_idx'] = idx
+        adata.obsp[f'{layer}|Harmony|X_corrected|{k}_NN_{n_components}_comp_dist'] = dist
+        adata.obsp[f'{layer}|Harmony|X_corrected|{k}_NN_{n_components}_comp_conn'] = conn
         return adata
 
 ##
 
 def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_perc', 'nUMIs'],
-        n_layers=2, n_latent=30, n_hidden=128, max_epochs=None):
+        n_layers=2, n_latent=30, n_hidden=128, max_epochs=None, k = 15, n_components= 30):
         """
         Compute scVI latent space (Lopez et al., 2018)
         """
@@ -371,7 +379,12 @@ def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_per
         
         # Train and add trained model to GE_space
         vae.train(train_size=1.0, max_epochs=max_epochs)
-        adata.obsm["lognorm_raw|scVI|X_corrected"] = vae.get_latent_representation()
+        adata.obsm["lognorm|scVI|X_corrected"] = vae.get_latent_representation()
+        idx, dist, conn = kNN_graph(adata.obsm["lognorm|scVI|X_corrected"], k=k, n_components=n_latent)
+        adata.obsm[f'lognorm|scVI|X_corrected|{k}_NN_{n_components}_comp_idx'] = idx
+        adata.obsp[f'lognorm|scVI|X_corrected|{k}_NN_{n_components}_comp_dist'] = dist
+        adata.obsp[f'lognorm|scVI|X_corrected|{k}_NN_{n_components}_comp_conn'] = conn
+
 
         return adata
 

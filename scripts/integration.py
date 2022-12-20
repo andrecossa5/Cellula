@@ -72,7 +72,7 @@ my_parser.add_argument(
 my_parser.add_argument( 
     '--k', 
     type=int,
-    default=30,
+    default=15,
     help='k used for kNN search. Default: 30.'
 )
 

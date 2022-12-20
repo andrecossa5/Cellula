@@ -188,10 +188,9 @@ def Integration():
         logger.info(f'Begin scVI for raw lognorm.h5ad...')
         adata_raw = compute_scVI(adata_raw, categorical_covs=categoricals, continuous_covs=continuous, k=k, n_components=n_pcs) 
         adata.obsm["lognorm|scVI|X_corrected"] =  adata_raw.obsm["lognorm|scVI|X_corrected"]
-        k = k, n_components=n_pcs
-        adata.obsm[f'lognorm|scVI|X_corrected|{k}_NN_{n_components}_comp_idx']  = adata_raw.obsm[f'lognorm|scVI|X_corrected|{k}_NN_{n_components}_comp_idx'] 
-        adata.obsp[f'lognorm|scVI|X_corrected|{k}_NN_{n_components}_comp_dist'] = adata_raw.obsp[f'lognorm|scVI|X_corrected|{k}_NN_{n_components}_comp_dist']
-        adata.obsp[f'lognorm|scVI|X_corrected|{k}_NN_{n_components}_comp_conn'] = adata_raw.obsp[f'lognorm|scVI|X_corrected|{k}_NN_{n_components}_comp_conn']
+        adata.obsm[f'lognorm|scVI|X_corrected|{k}_NN_{n_pcs}_comp_idx']  = adata_raw.obsm[f'lognorm|scVI|X_corrected|{k}_NN_{n_pcs}_comp_idx'] 
+        adata.obsp[f'lognorm|scVI|X_corrected|{k}_NN_{n_pcs}_comp_dist'] = adata_raw.obsp[f'lognorm|scVI|X_corrected|{k}_NN_{n_pcs}_comp_dist']
+        adata.obsp[f'lognorm|scVI|X_corrected|{k}_NN_{n_pcs}_comp_conn'] = adata_raw.obsp[f'lognorm|scVI|X_corrected|{k}_NN_{n_pcs}_comp_conn']
         logger.info(f'scVI completed for raw lognorm.h5ad: {t.stop()} s.')
     else:
         print("scVI not computed")

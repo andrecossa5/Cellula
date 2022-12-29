@@ -17,7 +17,7 @@ from scanpy.neighbors import _get_sparse_matrix_from_indices_distances_umap
 ##
 
 
-def _NN(X, k=15, n_components=30):
+def _NN(X, k=15, n_components=30, metric='euclidean'):
     """
     kNN search. pyNNDescent implementation and hsnwlib implementation available.
     """
@@ -27,7 +27,7 @@ def _NN(X, k=15, n_components=30):
             X[:, :n_components],
             k,
             random_state=1234,
-            metric='euclidean', 
+            metric=metric, 
             metric_kwds={},
             angular=False
         )

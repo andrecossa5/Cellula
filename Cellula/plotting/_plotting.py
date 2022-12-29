@@ -21,10 +21,10 @@ from ..preprocessing._GE_space import GE_space
 ##
 
 
-def plot_clustermap(df, row_colors=None, palette='mako', title=None, label=None, 
-                no_cluster=False, figsize=(11, 10), annot=False, annot_size=5,
-                colors_ratio=0.5
-                ):
+def plot_clustermap(df, row_colors=None, palette='mako', title=None, label=None,
+    row_names=True, col_names=False, no_cluster=False, figsize=(11, 10), annot=False, 
+    annot_size=5, colors_ratio=0.5
+    ):
     '''
     Clustered heatmap.
     '''
@@ -33,10 +33,10 @@ def plot_clustermap(df, row_colors=None, palette='mako', title=None, label=None,
     else:
         row_cluster=True; col_cluster=True
 
-    fig = sns.clustermap(df, cmap=palette, yticklabels=True, xticklabels=False, dendrogram_ratio=(.1, .04),
-        figsize=figsize, row_cluster=row_cluster, col_cluster=col_cluster, annot=True,
-        cbar_kws={'use_gridspec' : False, 'orientation': 'horizontal'}, colors_ratio=colors_ratio,
-        annot_kws={'size':annot_size}, row_colors=row_colors
+    fig = sns.clustermap(df, cmap=palette, yticklabels=row_names, xticklabels=col_names, 
+        dendrogram_ratio=(.1, .04), figsize=figsize, row_cluster=row_cluster, col_cluster=col_cluster, 
+        annot=True, cbar_kws={'use_gridspec' : False, 'orientation': 'horizontal'}, 
+        colors_ratio=colors_ratio, annot_kws={'size':annot_size}, row_colors=row_colors
     )
     fig.ax_col_dendrogram.set_visible(False) 
     fig.fig.subplots_adjust(bottom=0.1)

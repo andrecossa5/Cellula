@@ -226,11 +226,12 @@ def bar(df, y, x=None, by=None, c='grey', s=0.35, a=1, l=None, ax=None, annot_si
         x = np.arange(df[y].size)
         categories = df[by].unique()
         n_cat = len(categories)
-        if all([ cat in list(c.keys()) for cat in categories ]):
+        if all([ cat in c for cat in categories ]):
             for i, cat in enumerate(categories):
                 height = df[y].values
-                height = [ height[i] if x == cat else 0 for i, x in enumerate(df[by]) ]
-                ax.bar(x, height, align='center', width=s, alpha=a, color=c[cat])
+                idx = [ i for i, x in enumerate(df[by]) if x == cat ]
+                height = df[y].values[idx]
+                ax.bar(x[idx], height, align='center', width=s, alpha=a, color=c[cat])
                 ax.bar_label(ax.containers[i], padding=0, size=annot_size)
 
     elif by is not None and x is not None and isinstance(c, dict):

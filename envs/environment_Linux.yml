@@ -29,6 +29,7 @@ dependencies:
   - lightgbm
   - pip
   - python-annoy
+  - ipykernel
   - pip:
     - streamlit 
     - git+https://github.com/YosefLab/Hotspot.git@c8bc56d689cc0b770ca59080e194a2d9e93f3c5e

@@ -28,6 +28,7 @@ dependencies:
   - lightgbm
   - pip
   - python-annoy
+  - ipykernel
   - pip:
     - gseapy==0.13.0
     - streamlit 

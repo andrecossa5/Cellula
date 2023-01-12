@@ -28,11 +28,11 @@ dependencies:
   - lightgbm
   - pip
   - python-annoy
-  - ipykernel
+  - ipykernel=6.16.0 
   - pip:
     - gseapy==0.13.0
     - streamlit 
-   # - git+https://github.com/YosefLab/Hotspot.git@c8bc56d689cc0b770ca59080e194a2d9e93f3c5e
+    - git+https://github.com/YosefLab/Hotspot.git@c8bc56d689cc0b770ca59080e194a2d9e93f3c5e
     - bbknn==1.5.1
     - cython==0.29.32
     - harmony-pytorch==0.1.7
@@ -57,4 +57,4 @@ dependencies:
     - torchmetrics==0.9.3
     - wot==1.0.8.post2
     - scarches
-    - dadapy
+    - dadapy==0.1.1 

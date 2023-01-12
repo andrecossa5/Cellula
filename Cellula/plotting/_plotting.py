@@ -262,7 +262,7 @@ def plot_biplot_PCs(adata, layer=None, covariate='sample', colors=None):
 ##
 
 #plot_embeddings(adata, layer='scaled', colors=colors)
-def plot_embeddings(adata, layer=None, obsp_key=None, colors=None, a=1, s=0.1, umap_only=True):
+def plot_embeddings(adata, layer=None, rep = 'original', obsp_key=None, colors=None, a=1, s=0.1, umap_only=True):
     """
     Plot QC covariates in the UMAP embeddings obtained from original data.
     """
@@ -271,6 +271,7 @@ def plot_embeddings(adata, layer=None, obsp_key=None, colors=None, a=1, s=0.1, u
     df = embeddings(
         adata, 
         paga_groups='sample', 
+        rep = rep,
         layer=layer,
         conn_key=obsp_key,
         umap_only=umap_only
@@ -305,18 +306,18 @@ def plot_embeddings(adata, layer=None, obsp_key=None, colors=None, a=1, s=0.1, u
 ##
 
 
-def plot_orig_int_embeddings(g, rep_1='original', rep_2='BBKNN', colors=None, a=1, s=0.1):
+def plot_orig_int_embeddings(adata, layer = None, rep_1='original', rep_2='BBKNN', colors=None, a=1, s=0.1, k = 15, n_components = 30):
     """
     Plot QC covariates in the UMAP embeddings obtained from original and integrated data.
     """
 
     # Prep data
-    orig = g.to_adata(rep=rep_1)
-    integrated = g.to_adata(rep=rep_2)
-    umap_orig = embeddings(orig, paga_groups='sample', rep=rep_1, umap_only=True).loc[:, ['UMAP1', 'UMAP2']]
-    umap_int = embeddings(integrated, paga_groups='sample', rep=rep_2, umap_only=True).loc[:, ['UMAP1', 'UMAP2']]
-    umap_orig = umap_orig.join(orig.obs)
-    umap_int = umap_int.join(integrated.obs)
+    #orig = g.to_adata(rep=rep_1)
+    #integrated = g.to_adata(rep=rep_2)
+    umap_orig = embeddings(adata, paga_groups='sample', rep=rep_1, layer = layer, umap_only=True, k = k, n_components = n_components).loc[:, ['UMAP1', 'UMAP2']]
+    umap_int = embeddings(adata, paga_groups='sample', rep=rep_2, layer = layer, umap_only=True, k = k, n_components = n_components).loc[:, ['UMAP1', 'UMAP2']]
+    umap_orig = umap_orig.join(adata.obs)
+    umap_int = umap_int.join(adata.obs)
     covariates = ['seq_run', 'sample', 'nUMIs', 'cycle_diff']
 
     # Fig

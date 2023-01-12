@@ -123,6 +123,7 @@ if not args.skip:
     from Cellula.plotting._colors import create_colors
     from Cellula.preprocessing._integration import fill_from_integration_dirs
     from Cellula.preprocessing._Int_evaluator import *
+    from Cellula.preprocessing._pp import *
 
     #-----------------------------------------------------------------#
 
@@ -168,35 +169,50 @@ def integration_diagnostics():
 
     logger.info(f'Loading data: {t.stop()} s.')
 
-    I = Int_evaluator(adata) ## to remove
+    I = Int_evaluator(adata)
         
     #-----------------------------------------------------------------#
 
     # Here we go
 
     # Compute and compare embeddings
-    colors = create_colors(adata.obs['lognorm'])
+    colors = create_colors(adata.obs)
+    methods = method_integration_list(adata)
+
 
     t.start()
-    for pp in I.GE_spaces:
-        g = I.GE_spaces[pp]
-        with PdfPages(path_viz + f'orig_int_embeddings_{pp}.pdf') as pdf:
-            for int_rep in g.int_methods:
-                fig = plot_orig_int_embeddings(g, rep_1='original', rep_2=int_rep, colors=colors)
-                pdf.savefig()  
-                plt.close()
+
+    for layer in adata.layers:
+        with PdfPages(path_viz + f'orig_int_embeddings_{layer}.pdf') as pdf:
+            for int_rep in methods:
+                i = 0
+                if layer == 'regressed' and int_rep == 'scVI':
+                    i = 1
+                elif layer == 'regressed_and_scaled' and int_rep == 'scVI':
+                    i = 1
+                elif layer == 'scaled' and int_rep == 'scVI':
+                    i = 1
+                else:
+                    i = 0
+                if i == 0:
+                    fig = plot_orig_int_embeddings(adata, layer = layer, rep_1='original', rep_2=int_rep, colors=colors)
+                    pdf.savefig()  
+                    plt.close()
     logger.info(f'Embeddings visualization: {t.stop()} s.')
+
+    #sys.exit('End plotting')
 
     # Batch removal metrics
     t.start()
     for m in I.batch_metrics:
-        I.compute_metric(m, covariate=covariate)
+        I.compute_metric(m, covariate=covariate, methods = methods)
     logger.info(f'Batch removal metrics calculations: {t.stop()} s.')
-
+    print("End")
+'''
     # Bio conservation metrics
     t.start()
     for m in I.bio_metrics:
-        I.compute_metric(m, covariate=covariate, resolution=resolution)
+        I.compute_metric(m, covariate=covariate, resolution=resolution, methods = methods)
     logger.info(f'Biological conservation metrics calculations: {t.stop()} s.')
 
     # Integration runs evaluation
@@ -215,6 +231,7 @@ def integration_diagnostics():
 
     # Write final exec time
     logger.info(f'Execution was completed successfully in total {T.stop()} s.')
+'''
 
 ########################################################################
 
@@ -227,26 +244,37 @@ def choose_preprocessing_option():
     # Data loading and preparation
     pp, chosen_int = chosen.split(':') 
     logger.info('Choose preprocessing option: ' + '|'.join([pp, chosen_int]))
-    
-    # Understand which integration output needs to be picked up
-    path_chosen = path_data + 'GE_spaces.txt' if chosen_int == 'original' else path_results + f'/{chosen_int}/{chosen_int}.txt'
-    # Check if the chosen integration output is available
-    if not os.path.exists(path_chosen):
-        print('Run this integration method first!')
-        sys.exit()
 
-    # Pick the chosen pp output
-    with open(path_chosen, 'rb') as f:
-        pp_out = pickle.load(f) 
-    
+    adata = anndata.read_h5ad(path_data + 'Integration.h5ad')
+
+    # Pick the chosen pp and integration method
+    if(chosen_int != 'BBKNN'):
+        if(chosen_int != 'original'):
+            pca = adata.obsm[f'{pp}|{chosen_int}|X_corrected']
+            del adata.obsm
+            del adata.obsp
+        else:
+            pca = adata.obsm[f'{pp}|{chosen_int}|X_pca']
+            del adata.obsm
+            del adata.obsp
+    else:
+        pca = adata.obsm[f"{pp}|original|X_pca"]
+        del adata.obsm
+        del adata.obsp
+        adata.obsm[f"{pp}|original|X_pca"] = pca
+
+
     # Assemble adata
-    g = pp_out[pp] if chosen_int != 'scVI' else pp_out
-    only_int = True if chosen_int != 'original' else False
     for k in [5, 10, 15, 30, 50, 100]:
-        g.compute_kNNs(k=k, n_components=n_comps) # 6 kNN graphs
+        if(chosen_int != 'BBKNN'):
+            adata = compute_kNNs(adata, pca, pp, chosen_int, k, n_components=n_comps) # 6 kNN graphs
+        else:
+            covariate='seq_run'
+            adata = compute_BBKNN(adata, pp , covariate, k , n_components=n_comps, trim=None)
+        if(chosen_int == 'BBKNN' and k == 100):
+            del adata.obsm[f"{pp}|original|X_pca"]
 
     # Save
-    adata = g.to_adata()
     adata.write(path_data + 'preprocessed.h5ad')
 
     # Free disk memory and clean integration folders (if requested)

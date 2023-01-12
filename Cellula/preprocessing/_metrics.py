@@ -9,6 +9,9 @@ import scanpy as sc
 from scipy.stats import chi2
 from scipy.special import binom
 from scipy.sparse.csgraph import connected_components
+import leidenalg
+import igraph as ig
+import anndata
 
 from .._utils import chunker
 
@@ -105,31 +108,51 @@ def kbet(index, batch, alpha=0.05):
 
 ##
 
+def leiden_clustering(A, res=0.5):
+    """
+    Compute leiden clustering, at some resolution.
+    """
+    g = sc._utils.get_igraph_from_adjacency(A, directed=True)
+    part = leidenalg.find_partition(
+        g,
+        leidenalg.RBConfigurationVertexPartition,
+        resolution_parameter=res,
+        seed=1234
+    )
+    labels = np.array(part.membership)
 
-def graph_conn(adata, conn, labels=None, resolution=0.2):
+    return labels
+
+##
+
+
+def graph_conn(A, labels=None, resolution=0.2):
     """
     Compute the graph connectivity metric of some kNN representation (conn).
     """
-    # Prep adata
-    adata.uns['neighbors'] = {}
-    adata.obsp['connectivities'] = conn
+    # Prep adata: Skip this 2 lines
+    #adata.uns['neighbors'] = {}
+    #adata.obsp['connectivities'] = conn 
     
     # Compute the graph connectivity metric, for each separate cluster
     per_group_results = []
     
     # Labels 
     if labels is None:
-        sc.tl.leiden(adata, resolution=resolution, key_added='groups') # Dataset-specific tuning
-        labels = adata.obs['groups']
+        #Substitute function leiden clustering ( in mail )
+        labels = leiden_clustering(A, res=resolution) #A e' la matrice di connectivties
+        labels = pd.Categorical(labels)
     else:
-        adata.obs['groups'] = pd.Series(labels).astype('category')
+        pass
 
     # Here we go
-    for g in labels.cat.categories:
-        adata_sub = adata[adata.obs['groups'].isin([g]), :]
+    #for g in labels.cat.categories:
+    for g in labels.categories:
+        test = labels == g
+        A_sub = A[test,test]
         # Calculate connected components labels
         _, l = connected_components(
-            adata_sub.obsp["connectivities"], connection="strong"
+            A_sub, connection="strong"
         )
         tab = pd.value_counts(l)
         per_group_results.append(tab.max() / sum(tab))
@@ -177,23 +200,6 @@ def kNN_retention_perc(original_idx, int_idx):
 
 ##
 
-
-def leiden_from_kNN(adata, conn, resolution=0.2):
-    """
-    Compute Leiden clustering from an adata and an already pre-computed kNN connectivity matrix.
-    """
-    M = adata.copy() # Do not overwrite
-    M.uns['neighbors'] = {}
-    M.obsp['connectivities'] = conn
-    sc.tl.leiden(M, resolution=resolution, random_state=1234)
-    leiden = M.obs['leiden'].values
-    del M
-    gc.collect()
-
-    return leiden
-
-
-##
 
 
 def binom_sum(x, k=2):

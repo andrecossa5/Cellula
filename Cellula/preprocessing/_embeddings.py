@@ -11,21 +11,28 @@ from joblib import cpu_count
 
 ##
 
-
-def embeddings(adata, paga_groups='sample', layer='scaled', conn_key=None, umap_only=True):
+def embeddings(adata, paga_groups='sample', rep='BBKNN', layer='scaled', conn_key=None, umap_only=True, k = 15, n_components = 30):
     '''
     Compute paga, paga initialized umap, fa and tSNE embeddings. Return them in a df of embeddings cooridinates,
     with the top 5 PCs coordinates.
     '''
     # Build mock adata
-    if conn_key is not None:
-        layer = conn_key.split('|')[0]
-        obsm_key = '|'.join(conn_key.split('|')[:3])
-        dist_key = conn_key.replace("conn","dist")
-    elif layer is not None:
+    if layer is not None and rep != 'scVI' and rep != 'original' and rep != 'BBKNN':
+        obsm_key = f'{layer}|{rep}|X_corrected' 
+        conn_key = f'{layer}|{rep}|X_corrected|{k}_NN_{n_components}_comp_conn' 
+        dist_key = f'{layer}|{rep}|X_corrected|{k}_NN_{n_components}_comp_dist' 
+    elif layer == 'lognorm' and rep == 'scVI':
+        obsm_key = f'{layer}|{rep}|X_corrected' 
+        conn_key = f'{layer}|{rep}|X_corrected|{k}_NN_{n_components}_comp_conn' 
+        dist_key = f'{layer}|{rep}|X_corrected|{k}_NN_{n_components}_comp_dist'
+    elif layer is not None and rep == 'BBKNN':
         obsm_key = f'{layer}|original|X_pca' 
-        conn_key = f'{layer}|original|X_pca|15_NN_30_comp_conn' 
-        dist_key = f'{layer}|original|X_pca|15_NN_30_comp_dist' 
+        conn_key = f'{layer}|{rep}|X_corrected|{k}_NN_{n_components}_comp_conn' 
+        dist_key = f'{layer}|{rep}|X_corrected|{k}_NN_{n_components}_comp_dist'
+    elif layer is not None and rep == 'original':
+        obsm_key = f'{layer}|{rep}|X_pca' 
+        conn_key = f'{layer}|{rep}|X_pca|{k}_NN_{n_components}_comp_conn' 
+        dist_key = f'{layer}|{rep}|X_pca|{k}_NN_{n_components}_comp_dist' 
     else:
         raise KeyError('Unknown keys.')
 

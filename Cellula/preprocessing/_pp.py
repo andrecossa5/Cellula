@@ -409,10 +409,10 @@ def compute_BBKNN(adata, layer = 'scaled', covariate='seq_run', k=30, n_componen
             pynndescent_random_state=1234,
             metric='euclidean'
         )
-
-        adata.obsp[f'{layer}|BBKNN|X_pca|{k}_NN_{n_components}_comp_dist'] = BBKNN[0]
-        adata.obsp[f'{layer}|BBKNN|X_pca|{k}_NN_{n_components}_comp_conn'] = BBKNN[1]
-        adata.obsm[f'{layer}|BBKNN|X_pca|{k}_NN_{n_components}_comp_idx'] = get_indices_from_connectivities(BBKNN[1], k)
+        # X_corrected in this case is equal to X_pca original
+        adata.obsp[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_dist'] = BBKNN[0]
+        adata.obsp[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_conn'] = BBKNN[1]
+        adata.obsm[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_idx'] = get_indices_from_connectivities(BBKNN[1], k)
 
         return adata
         

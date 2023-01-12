@@ -250,18 +250,21 @@ def bar(df, y, x=None, by=None, c='grey', s=0.35, a=1, l=None, ax=None, annot_si
 ##
 
 
-def box(df, x, y, by=None, c=None, a=1, l=None, s=0.5, ax=None, with_stats=False, pairs=None):
+def box(df, x, y, by=None, c=None, a=1, l=None, s=0.5, ax=None, with_stats=False, pairs=None, params=None):
     """
     Base box plot.
     """
 
-    params = {   
-        'showcaps' : False,
-        'fliersize': 0,
-        'boxprops' : {'edgecolor': 'white', 'linewidth': 0.5}, 
-        'medianprops': {"color": "white", "linewidth": 1.2},
-        'whiskerprops':{"color": "black", "linewidth": 1}
-    }
+    if params is None:
+        params = {   
+            'showcaps' : False,
+            'fliersize': 0,
+            'boxprops' : {'edgecolor': 'white', 'linewidth': 0.5}, 
+            'medianprops': {"color": "white", "linewidth": 1.2},
+            'whiskerprops':{"color": "black", "linewidth": 1}
+        }
+    else:
+        pass
     
     if isinstance(c, str):
         ax = sns.boxplot(data=df, x=x, y=y, color=c, ax=ax, saturation=a, width=s, **params) 

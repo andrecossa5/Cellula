@@ -49,7 +49,7 @@ def kbet_one_chunk(index, batch, null_dist):
 ##
 
 
-def choose_K_for_kBET(meta, covariate):
+def choose_K_for_kBET(adata, covariate):
     """
     Use the heuristic set in Buttner et al. 2018 to choose the optimal number of NN (K)
     to evaluate the kBET metric.
@@ -57,13 +57,15 @@ def choose_K_for_kBET(meta, covariate):
 
     # Check 'seq_run' is in meta
     try:
-        meta[covariate]
+        adata.obs[covariate]
+        #meta[covariate]
     except:
         print(f'No {covariate} in cells meta! Reformat.')
         sys.exit()
 
     # Calculate K 
-    K = np.min(pd.Series(meta['seq_run'].value_counts()).values) // 4
+    #K = np.min(pd.Series(meta['seq_run'].value_counts()).values) // 4
+    K = np.min(pd.Series(adata.obs['seq_run'].value_counts()).values) // 4
 
     return K
     

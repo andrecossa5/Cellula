@@ -84,8 +84,9 @@ if not args.skip:
     # Code
     import pickle
     from Cellula._utils import *
-    from Cellula.preprocessing._Int_evaluator import Int_evaluator
+    from Cellula.preprocessing._Int_evaluator import *
     from Cellula.preprocessing._metrics import choose_K_for_kBET
+    import anndata
 
     #-----------------------------------------------------------------#
 
@@ -102,9 +103,8 @@ if not args.skip:
 
     # Check if the ./runs/step_{i}/logs_1_pp.txt are present, 
     # along with the GE_space dictionary in path_data
-    to_check = [ (path_data, 'GE_spaces.txt'), (path_runs, 'logs_pp.txt') ]
-    if not all([ os.path.exists(path) for path in [ ''.join(x) for x in to_check ] ]):
-        print('Run pp.py beforehand!')
+    if not os.path.exists(path_data + 'reduced.h5ad'):
+        print('Run pp or integration algorithm(s) beforehand!')
         sys.exit()
 
     #-----------------------------------------------------------------#
@@ -127,12 +127,11 @@ def kBET():
     logger.info(f'Execute kBET: --n_pcs {n_pcs} --covariate {covariate}')
 
     # Load pickled GE_spaces
-    with open(path_data + 'GE_spaces.txt', 'rb') as f:
-        GE_spaces = pickle.load(f) 
+    adata = anndata.read_h5ad(path_data + 'reduced.h5ad')
 
     # Instantiate int_evaluator class
-    I = Int_evaluator(GE_spaces)
-    del GE_spaces
+    I = Int_evaluator(adata)
+    
 
     logger.info(f'Data loading and preparation: {t.stop()} s.')
 
@@ -142,16 +141,22 @@ def kBET():
     # and 1 found using the heuristic specified in Buttner et al. 2018.
 
     # Define k_range
-    k_range = [ 15, 30, 50, 100, 250, 500, choose_K_for_kBET(I.GE_spaces['red'].matrix.obs, covariate) ]
+    #k_range = [ 15, 30, 50, 100, 250, 500, choose_K_for_kBET(adata, covariate) ]
+    k_range = [ 15, 30 ]
+    print(k_range)
 
-    # Compute kNN indices and kBET 
+    # Compute kNN indices and kBET
+    int_method = 'original' 
     for k in k_range:
         t.start()
-        logger.info(f'Begin operations on all GE_spaces, for k {k}...')
-        I.compute_all_kNN_graphs(k=k, n_components=n_pcs)
-        I.compute_metric(metric='kBET', covariate=covariate)
+        for layer in adata.layers:
+            logger.info(f'Begin operations on all GE_spaces, for k {k}...')
+            pca = adata.obsm[f'{layer}|{int_method}|X_pca']
+            adata = compute_kNNs(adata, pca , pp = layer , int_method = int_method, k = k, n_components=n_pcs)
+            print(adata.obsp)
+        I.compute_metric(metric='kBET', covariate=covariate, k = k)
         logger.info(f'kBET calculations finished for k {k}: {t.stop()} s.')
-
+        print(I.batch_removal_scores['kBET'])
     # Extract results and take the integration decision
     t.start()
     logger.info(f'Extract results and take the integration decision...')
@@ -160,6 +165,7 @@ def kBET():
     df = pd.DataFrame().from_dict(I.batch_removal_scores['kBET'], 
             orient='index'
         ).reset_index().rename(columns={'index':'rep', 0:'acceptance_rate'})
+    print(df)
     df['pp_option'] = df['rep'].map(lambda x: x.split('|')[0])
     df['kNN'] = df['rep'].map(lambda x: x.split('|')[2])
     df['k'] = df['kNN'].map(lambda x: x.split('_')[:1][0]).astype(int)

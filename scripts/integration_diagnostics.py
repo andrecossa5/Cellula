@@ -205,10 +205,10 @@ def integration_diagnostics():
     # Batch removal metrics
     t.start()
     for m in I.batch_metrics:
-        I.compute_metric(m, covariate=covariate, methods = methods)
+        I.compute_metric(m, covariate=covariate, methods = methods, k=k, n_components = n_comps)
     logger.info(f'Batch removal metrics calculations: {t.stop()} s.')
     print("End")
-'''
+
     # Bio conservation metrics
     t.start()
     for m in I.bio_metrics:
@@ -231,7 +231,7 @@ def integration_diagnostics():
 
     # Write final exec time
     logger.info(f'Execution was completed successfully in total {T.stop()} s.')
-'''
+
 
 ########################################################################
 

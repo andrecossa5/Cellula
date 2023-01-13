@@ -147,22 +147,23 @@ def kBET():
 
     # Compute kNN indices and kBET
     int_method = 'original' 
+    all_removal_batch = {}
     for k in k_range:
         t.start()
         for layer in adata.layers:
             logger.info(f'Begin operations on all GE_spaces, for k {k}...')
             pca = adata.obsm[f'{layer}|{int_method}|X_pca']
             adata = compute_kNNs(adata, pca , pp = layer , int_method = int_method, k = k, n_components=n_pcs)
-            print(adata.obsp)
         I.compute_metric(metric='kBET', covariate=covariate, k = k)
         logger.info(f'kBET calculations finished for k {k}: {t.stop()} s.')
-        print(I.batch_removal_scores['kBET'])
+        all_removal_batch.update(I.batch_removal_scores['kBET'])
+        print( all_removal_batch)
     # Extract results and take the integration decision
     t.start()
     logger.info(f'Extract results and take the integration decision...')
 
     # Create df
-    df = pd.DataFrame().from_dict(I.batch_removal_scores['kBET'], 
+    df = pd.DataFrame().from_dict(all_removal_batch, 
             orient='index'
         ).reset_index().rename(columns={'index':'rep', 0:'acceptance_rate'})
     print(df)

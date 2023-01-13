@@ -15,7 +15,6 @@ import anndata
 
 from ._GE_space import GE_space
 from ._integration import format_metric_dict, summary_metrics, rank_runs
-#from ._metrics import kbet, graph_conn, entropy_bb, kNN_retention_perc, leiden_from_kNN, custom_ARI
 from ._metrics import kbet, graph_conn, entropy_bb, kNN_retention_perc, custom_ARI
 from ._neighbors import _NN, kNN_graph, get_indices_from_connectivities
 from ..plotting._plotting import plot_rankings
@@ -39,20 +38,20 @@ class Int_evaluator:
 
     ##
 
-    #def leiden_clustering(A, res=0.5):
-    #"""
-    #Compute leiden clustering, at some resolution.
-    #"""
-    #g = sc._utils.get_igraph_from_adjacency(A, directed=True)
-    #part = leidenalg.find_partition(
-    #    g,
-    #    leidenalg.RBConfigurationVertexPartition,
-    #    resolution_parameter=res,
-    #    seed=1234
-    #)
-    #labels = np.array(part.membership)
-#
-    #return labels
+    def leiden_clustering(self, A, res=0.5):
+        """
+        Compute leiden clustering, at some resolution.
+        """
+        g = sc._utils.get_igraph_from_adjacency(A, directed=True)
+        part = leidenalg.find_partition(
+            g,
+            leidenalg.RBConfigurationVertexPartition,
+            resolution_parameter=res,
+            seed=1234
+        )
+        labels = np.array(part.membership)
+  
+        return labels
 
     ##
     
@@ -123,7 +122,6 @@ class Int_evaluator:
             score = kbet(kNN, batch)[2]
         elif metric == 'graph_conn':
             #score = graph_conn(g.matrix, kNN, labels=labels)
-            print("Shape of kNN matrix: ", kNN.shape)
             score = graph_conn(kNN, labels=labels)
         elif metric == 'entropy_bb':
             score = entropy_bb(kNN, batch)
@@ -133,12 +131,11 @@ class Int_evaluator:
             key =f'{k}_NN_{n_components}_comp'
             metrics_key = '|'.join([pp, int_method, key])
             self.batch_removal_scores[metric][metrics_key] = round(score, 3)
-            print(self.batch_removal_scores)
         
 
     ##
 
-    def compute_bio(self, g, original_kNN, integrated_kNN, pp=None, int_method=None, resolution=0.2, metric=None, labels=None,k = 15, n_components = 30):
+    def compute_bio(self, original_kNN, integrated_kNN, pp=None, int_method=None, resolution=0.2, metric=None, labels=None,k = 15, n_components = 30):
         """
         Compute one of the available bio conservation metrics.
         """
@@ -147,11 +144,10 @@ class Int_evaluator:
         else:
             # Check if ground truth is provided and compute original and integrated labels 
             if labels is None:
-                g1 = leiden_from_kNN(g.matrix, original_kNN, resolution=resolution)
-                #g1 = leiden_clustering(A, res=resolution) A = matrice di connettivita' originale
+                g1 = self.leiden_clustering( original_kNN, res=resolution)
             else:
                 g1 = labels
-                #g2 = leiden_clustering(A, res=resolution) #A = matrice di connettivita' integrata
+            g2 = self.leiden_clustering( integrated_kNN, res=resolution)
             # Score metrics
             if metric == 'ARI':
                 score = custom_ARI(g1, g2)
@@ -198,10 +194,10 @@ class Int_evaluator:
         
             # Bio metrics
             if metric_type == 'bio': 
-                    original_kNN, integrated = self.get_kNNs(self.adata, layer = layer, metric=metric, metric_type=metric_type, methods = methods,  k = k ,n_components = n_components)
+                    original_kNN, integrated = self.get_kNNs( layer = layer, metric=metric, metric_type=metric_type, methods = methods,  k = k ,n_components = n_components)
                 # Compute for collected kNNs
                     for int_method, integrated_kNN in integrated.items():
-                        self.compute_bio(g, original_kNN, integrated_kNN, pp=layer, int_method=int_method, 
+                        self.compute_bio(original_kNN, integrated_kNN, pp=layer, int_method=int_method, 
                                     resolution=resolution, metric=metric, labels=labels)
                         gc.collect()
     ##

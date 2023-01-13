@@ -9,9 +9,11 @@ import scanpy as sc
 from scipy.stats import chi2
 from scipy.special import binom
 from scipy.sparse.csgraph import connected_components
+from scipy.sparse import csr_matrix
 import leidenalg
 import igraph as ig
 import anndata
+
 
 from .._utils import chunker
 
@@ -141,7 +143,7 @@ def graph_conn(A, labels=None, resolution=0.2):
     
     # Labels 
     if labels is None:
-        #Substitute function leiden clustering ( in mail )
+        
         labels = leiden_clustering(A, res=resolution) #A e' la matrice di connectivties
         labels = pd.Categorical(labels)
     else:
@@ -151,10 +153,9 @@ def graph_conn(A, labels=None, resolution=0.2):
     #for g in labels.cat.categories:
     for g in labels.categories:
         test = labels == g
-        A_sub = A[test,test]
         # Calculate connected components labels
         _, l = connected_components(
-            A_sub, connection="strong"
+           A[np.ix_(test, test)], connection="strong"
         )
         tab = pd.value_counts(l)
         per_group_results.append(tab.max() / sum(tab))

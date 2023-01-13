@@ -141,8 +141,8 @@ if not args.skip:
     if not os.path.exists(path_data + 'Integration.h5ad'):
         print('Run pp or integration algorithm(s) beforehand!')
         sys.exit()
-    else:
-        path_results += '/integration/'
+    #else:
+    #    path_results += '/integration/'
 
     #-----------------------------------------------------------------#
     
@@ -207,7 +207,6 @@ def integration_diagnostics():
     for m in I.batch_metrics:
         I.compute_metric(m, covariate=covariate, methods = methods, k=k, n_components = n_comps)
     logger.info(f'Batch removal metrics calculations: {t.stop()} s.')
-    print("End")
 
     # Bio conservation metrics
     t.start()

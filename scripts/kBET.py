@@ -70,7 +70,6 @@ my_parser.add_argument(
 
 # Parse arguments
 args = my_parser.parse_args()
-
 path_main = args.path_main
 version = args.version
 n_pcs = args.n_pcs
@@ -82,7 +81,6 @@ covariate = args.covariate
 if not args.skip:
 
     # Code
-    import pickle
     from Cellula._utils import *
     from Cellula.preprocessing._Int_evaluator import *
     from Cellula.preprocessing._metrics import choose_K_for_kBET
@@ -141,9 +139,7 @@ def kBET():
     # and 1 found using the heuristic specified in Buttner et al. 2018.
 
     # Define k_range
-    #k_range = [ 15, 30, 50, 100, 250, 500, choose_K_for_kBET(adata, covariate) ]
-    k_range = [ 15, 30 ]
-    print(k_range)
+    k_range = [ 15, 30, 50, 100, 250, 500, choose_K_for_kBET(adata, covariate) ]
 
     # Compute kNN indices and kBET
     int_method = 'original' 
@@ -151,13 +147,13 @@ def kBET():
     for k in k_range:
         t.start()
         for layer in adata.layers:
-            logger.info(f'Begin operations on all GE_spaces, for k {k}...')
+            logger.info(f'Begin operations on all representations, for k {k}...')
             pca = adata.obsm[f'{layer}|{int_method}|X_pca']
             adata = compute_kNNs(adata, pca , pp = layer , int_method = int_method, k = k, n_components=n_pcs)
         I.compute_metric(metric='kBET', covariate=covariate, k = k)
         logger.info(f'kBET calculations finished for k {k}: {t.stop()} s.')
         all_removal_batch.update(I.batch_removal_scores['kBET'])
-        print( all_removal_batch)
+
     # Extract results and take the integration decision
     t.start()
     logger.info(f'Extract results and take the integration decision...')

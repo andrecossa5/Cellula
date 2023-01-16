@@ -134,12 +134,10 @@ organism = args.organism
 if not args.skip:
 
     # Code
-    import pickle
     import Cellula.plotting._plotting_base
     from glob import glob
     from Cellula._utils import *
     from Cellula.preprocessing._pp import *
-    from Cellula.preprocessing._GE_space import GE_space
     from Cellula.preprocessing._embeddings import *
     from Cellula.plotting._plotting import *
     from Cellula.plotting._colors import create_colors
@@ -260,8 +258,6 @@ def preprocessing():
     # Matrix maipulation and linear dimensionality reduction (PCA)
 
     '''
-    Create a dictionary of GE_space() instances (each GE_space store a differentially pre-processed matrix and all its related 
-    reduced-dimension representations).
     4 pre-processing schemes are evaluated here: 
     1. HVGs subsetting
     2. HVGs subsetting and scaling

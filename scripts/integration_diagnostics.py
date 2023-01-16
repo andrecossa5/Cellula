@@ -116,14 +116,13 @@ n_comps = args.n_comps
 if not args.skip:
 
     # Code
-    import pickle
     import anndata
     from Cellula._utils import *
     from Cellula.plotting._plotting import *
     from Cellula.plotting._colors import create_colors
-    from Cellula.preprocessing._integration import fill_from_integration_dirs
     from Cellula.preprocessing._Int_evaluator import *
     from Cellula.preprocessing._pp import *
+    from Cellula.integration._integration_methods import *
 
     #-----------------------------------------------------------------#
 
@@ -141,9 +140,7 @@ if not args.skip:
     if not os.path.exists(path_data + 'Integration.h5ad'):
         print('Run pp or integration algorithm(s) beforehand!')
         sys.exit()
-    #else:
-    #    path_results += '/integration/'
-
+    
     #-----------------------------------------------------------------#
     
     # Set logger 
@@ -200,7 +197,6 @@ def integration_diagnostics():
                     plt.close()
     logger.info(f'Embeddings visualization: {t.stop()} s.')
 
-    #sys.exit('End plotting')
 
     # Batch removal metrics
     t.start()

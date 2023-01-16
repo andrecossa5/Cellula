@@ -7,7 +7,6 @@
 # Parsing CLI args 
 
 # Libraries
-import sys
 import argparse
 
 # Create the parser
@@ -118,6 +117,7 @@ if not args.skip:
     # Code
     from Cellula._utils import *
     from Cellula.preprocessing._pp import *
+    from Cellula.integration._integration_methods import *
     import anndata
 
     #-----------------------------------------------------------------#

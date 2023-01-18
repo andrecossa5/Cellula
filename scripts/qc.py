@@ -120,6 +120,7 @@ if not args.skip:
     from Cellula._utils import *
     from Cellula.plotting._plotting import *
     from Cellula.preprocessing._qc import *
+    import csv
 
     #-----------------------------------------------------------------#
 
@@ -167,7 +168,7 @@ def qc():
         'nUMIs' : nUMIs_t,
         'detected_genes' : detected_genes_t
     }
-    adata = QC(
+    adata, removed_cells = QC(
         adatas, 
         mode=qc_mode, 
         min_cells=3, 
@@ -181,6 +182,10 @@ def qc():
     logger.info(adata)
     adata.write(path_data + 'QC.h5ad')
     adata.obs.to_csv(path_data + 'cells_meta.csv')
+
+    #
+
+    np.savetxt(path_data+"removed_cells/Removed_Cells_QC.csv", removed_cells, delimiter =",", fmt ='% s')
    
     # Write final exec time
     logger.info(f'Execution was completed successfully in total {T.stop()} s.')

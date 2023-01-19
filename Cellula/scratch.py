@@ -122,19 +122,6 @@ fig = plot_embeddings(adata, layer='scaled', colors=colors)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Data
 # import scanpy as sc
 # adata = sc.read(path_data + 'clustered.h5ad')

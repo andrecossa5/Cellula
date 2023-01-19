@@ -39,11 +39,12 @@ def compute_Scanorama(adata, covariate='seq_run', layer='scaled', k=15, n_compon
         adata.obsm[f'{layer}|Scanorama|X_corrected|{k}_NN_{n_components}_comp_idx'] = idx
         adata.obsp[f'{layer}|Scanorama|X_corrected|{k}_NN_{n_components}_comp_dist'] = dist
         adata.obsp[f'{layer}|Scanorama|X_corrected|{k}_NN_{n_components}_comp_conn'] = conn
+
         return adata
 
 ##
 
-def compute_Harmony(adata, covariates='seq_run', n_components=30,layer = 'scaled', k = 15):
+def compute_Harmony(adata, covariates='seq_run', n_components=30,layer='scaled', k=15):
         """
         Compute the Hramony batch- (covariate) corrected representation of original pca.
         """

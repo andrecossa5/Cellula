@@ -57,3 +57,4 @@ dependencies:
     - wot==1.0.8.post2
     - scarches
     - dadapy==0.1.1 
+    - fastcluster

@@ -221,3 +221,7 @@ def custom_ARI(g1, g2):
     max_index = 0.5 * (ai_sum + bi_sum)
 
     return (index - expected_index) / (max_index - expected_index)
+
+
+
+  

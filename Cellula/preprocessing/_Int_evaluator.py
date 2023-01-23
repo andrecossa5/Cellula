@@ -8,12 +8,8 @@ import pandas as pd
 import scanpy as sc
 from sklearn.metrics import normalized_mutual_info_score
 import sys
-import leidenalg
-import igraph as ig
-import anndata
-
 from ._integration import format_metric_dict, summary_metrics, rank_runs
-from ._metrics import kbet, graph_conn, entropy_bb, kNN_retention_perc, custom_ARI
+from ._metrics import kbet, graph_conn, entropy_bb, kNN_retention_perc, custom_ARI, leiden_clustering
 from ._neighbors import _NN, kNN_graph, get_indices_from_connectivities
 from ..plotting._plotting import plot_rankings
 
@@ -36,24 +32,7 @@ class Int_evaluator:
 
     ##
 
-    def leiden_clustering(self, A, res=0.5):
-        """
-        Compute leiden clustering, at some resolution.
-        """
-        g = sc._utils.get_igraph_from_adjacency(A, directed=True)
-        part = leidenalg.find_partition(
-            g,
-            leidenalg.RBConfigurationVertexPartition,
-            resolution_parameter=res,
-            seed=1234
-        )
-        labels = np.array(part.membership)
-  
-        return labels
-
-    ##
-    
-    def get_kNNs(self, layer = 'scaled', metric=None, metric_type=None, methods = None,  k = 15 ,n_components = 30):
+    def get_kNNs(self, layer = 'scaled', metric=None, metric_type=None, methods=None,  k=15 ,n_components=30):
             """
             Get needed kNNs for metrics computation.
             """
@@ -119,7 +98,6 @@ class Int_evaluator:
         if metric == 'kBET':
             score = kbet(kNN, batch)[2]
         elif metric == 'graph_conn':
-            #score = graph_conn(g.matrix, kNN, labels=labels)
             score = graph_conn(kNN, labels=labels)
         elif metric == 'entropy_bb':
             score = entropy_bb(kNN, batch)
@@ -142,10 +120,10 @@ class Int_evaluator:
         else:
             # Check if ground truth is provided and compute original and integrated labels 
             if labels is None:
-                g1 = self.leiden_clustering( original_kNN, res=resolution)
+                g1 = leiden_clustering( original_kNN, res=resolution)
             else:
                 g1 = labels
-            g2 = self.leiden_clustering( integrated_kNN, res=resolution)
+            g2 = leiden_clustering( integrated_kNN, res=resolution)
             # Score metrics
             if metric == 'ARI':
                 score = custom_ARI(g1, g2)

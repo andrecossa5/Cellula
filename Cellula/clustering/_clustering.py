@@ -5,6 +5,9 @@ _clusterign.py: utils for clustering
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist
+import leidenalg
+import igraph as ig
+import scanpy as sc
 
 from ..preprocessing._metrics import custom_ARI
 

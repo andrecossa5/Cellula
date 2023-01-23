@@ -117,8 +117,6 @@ if not args.skip:
     # Code
     from Cellula._utils import *
     from Cellula.preprocessing._pp import *
-    from Cellula.integration._integration_methods import *
-    import anndata
 
     #-----------------------------------------------------------------#
 
@@ -150,9 +148,7 @@ def Integration():
     logger.info('Execute Integration...')
 
     # Load anndata
-    adata = anndata.read_h5ad(path_data + 'reduced.h5ad')
-    adata_raw = sc.read(path_data + 'lognorm.h5ad')
-    adata_raw = red(adata_raw, mode='raw')
+    adata = sc.read(path_data + 'reduced.h5ad')
 
     logger.info(f'Data loading and preparation: {t.stop()} s.')
     
@@ -163,7 +159,8 @@ def Integration():
         for layer in adata.layers:
             t.start()
             logger.info(f'Begin Scanorama for {layer} reduced.h5ad...')
-            adata = compute_Scanorama(adata, covariate, layer = layer)
+            if layer != 'raw':
+                adata = compute_Scanorama(adata, covariate, layer = layer)
             logger.info(f'Scanorama completed for {layer} reduced.h5ad: {t.stop()} s.')
     else:
         print("Scanorama not computed")
@@ -171,7 +168,8 @@ def Integration():
         for layer in adata.layers:
             t.start()
             logger.info(f'Begin Harmony for {layer} reduced.h5ad...')
-            adata = compute_Harmony(adata, covariates = covariates, n_components=n_pcs,layer = layer)
+            if layer != 'raw':
+                adata = compute_Harmony(adata, covariates = covariates, n_components=n_pcs,layer = layer)
             logger.info(f'Harmony completed for {layer} reduced.h5ad: {t.stop()} s.')
     else:
         print("Harmony not computed")
@@ -179,19 +177,18 @@ def Integration():
         for layer in adata.layers:
             t.start()
             logger.info(f'Begin BBKNN for {layer} reduced.h5ad...')
-            adata = compute_BBKNN(adata, layer = layer, covariate=covariate, k=k)
+            if layer != 'raw':
+                adata = compute_BBKNN(adata, layer = layer, covariate=covariate, k=k)
             logger.info(f'BBKNN completed for {layer} reduced.h5ad: {t.stop()} s.')
     else:
         print("BBKNN not computed")
     if 'all' in method  or 'scVI' in method:
-        t.start()
-        logger.info(f'Begin scVI for raw lognorm.h5ad...')
-        adata_raw = compute_scVI(adata_raw, categorical_covs=categoricals, continuous_covs=continuous, k=k, n_components=n_pcs) 
-        adata.obsm["lognorm|scVI|X_corrected"] =  adata_raw.obsm["lognorm|scVI|X_corrected"]
-        adata.obsm[f'lognorm|scVI|X_corrected|{k}_NN_{n_pcs}_comp_idx']  = adata_raw.obsm[f'lognorm|scVI|X_corrected|{k}_NN_{n_pcs}_comp_idx'] 
-        adata.obsp[f'lognorm|scVI|X_corrected|{k}_NN_{n_pcs}_comp_dist'] = adata_raw.obsp[f'lognorm|scVI|X_corrected|{k}_NN_{n_pcs}_comp_dist']
-        adata.obsp[f'lognorm|scVI|X_corrected|{k}_NN_{n_pcs}_comp_conn'] = adata_raw.obsp[f'lognorm|scVI|X_corrected|{k}_NN_{n_pcs}_comp_conn']
-        logger.info(f'scVI completed for raw lognorm.h5ad: {t.stop()} s.')
+        for layer in adata.layers:
+            t.start()
+            logger.info(f'Begin scVI for reduced.h5ad...')
+            if layer == 'raw':
+                adata = compute_scVI(adata, categorical_covs=categoricals, continuous_covs=continuous, k=k, n_components=n_pcs)
+            logger.info(f'scVI completed for raw lognorm.h5ad: {t.stop()} s.')
     else:
         print("scVI not computed")
     

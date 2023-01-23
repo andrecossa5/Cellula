@@ -127,3 +127,23 @@ def rescale(x):
     else:
         return x
 
+##
+
+def get_representation(adata, layer=None, method='original', k=None, n_components=None, only_index=False):
+    """
+    Take out desired representation from a adata.obsm/obsp.
+    """
+    embedding_type = 'X_pca' if method == 'original' else 'X_corrected'
+    if method != 'BBKNN' and k is None and n_components is None:
+        representation = adata.obsm[f'{layer}|{method}|{embedding_type}']
+    elif method == 'BBKNN' and k is None and n_components is None:
+        raise ValueError('The BBKNN method has no associated X_corrected embedding.')
+    else:
+        representation = (
+            adata.obsm[f'{layer}|{method}|{embedding_type}|{k}_NN_{n_components}_comp_idx'],
+            adata.obsp[f'{layer}|{method}|{embedding_type}|{k}_NN_{n_components}_comp_conn'],
+            adata.obsp[f'{layer}|{method}|{embedding_type}|{k}_NN_{n_components}_comp_dist']
+        )
+        if only_index:
+            representation = representation[0]
+    return representation

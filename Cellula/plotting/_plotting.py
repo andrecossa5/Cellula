@@ -15,6 +15,8 @@ plt.style.use('default')
 
 from ._plotting_base import *
 from ..preprocessing._embeddings import embeddings
+from Cellula._utils import get_representation
+
 
 
 ##
@@ -177,43 +179,34 @@ def pca_var_plot(exp_var, cum_sum, title, ax):
         where='mid', label='Cumulative explained variance'
     )
     ax.set(xlabel='PC rank', ylabel='Explained variance ratio', title=title)
-    ax.legend(loc='best')
+    ax.legend(fontsize=6, loc='center right')
 
     return ax
-
-
 ##
-
-
 def explained_variance_plot(adata, figsize=(10,7)):
     # Figure
     fig = plt.figure(figsize=figsize)
     # Axes
-    pca_keys = list(adata.obsm.keys())
     i = 0
-    for key in pca_keys:
-        ax = plt.subplot(2, 2, i+1)
+    for k in adata.obsm:
+        ax = plt.subplot(2, 3, i+1)
         i = i + 1
         pca_var_plot(
-            adata.uns[key.replace('X_pca','pca_var_ratios')], 
-            adata.uns[key.replace('X_pca','cum_sum_eigenvalues')], 
-            key.split('|')[0], 
+            adata.uns[k.replace('X_pca','pca_var_ratios')], 
+            adata.uns[k.replace('X_pca','cum_sum_eigenvalues')], 
+            k.split('|')[0], 
             ax=ax
         )
     fig.tight_layout()
 
     return fig
-
-
 ##
-
-
 def plot_biplot_PCs(adata, layer=None, covariate='sample', colors=None):
     """
     Plot a biplot of the first 5 PCs, colored by a cell attribute.
     """
     # Data
-    embs = adata.obsm[f'{layer}|original|X_pca']
+    embs = get_representation(adata, layer=layer, method='original')
     df_ = pd.DataFrame(
         data=embs[:,:5], 
         columns=[f'PC{i}' for i in range(1,6)],
@@ -261,7 +254,7 @@ def plot_biplot_PCs(adata, layer=None, covariate='sample', colors=None):
 ##
 
 #plot_embeddings(adata, layer='scaled', colors=colors)
-def plot_embeddings(adata, layer=None, rep = 'original', obsp_key=None, colors=None, a=1, s=0.1, umap_only=True):
+def plot_embeddings(adata, layer=None, rep='original', colors=None, a=1, s=0.1, umap_only=True, k=15, n_components=30):
     """
     Plot QC covariates in the UMAP embeddings obtained from original data.
     """
@@ -272,15 +265,16 @@ def plot_embeddings(adata, layer=None, rep = 'original', obsp_key=None, colors=N
         paga_groups='sample', 
         rep = rep,
         layer=layer,
-        conn_key=obsp_key,
-        umap_only=umap_only
+        umap_only=umap_only,
+        k=k,
+        n_components=n_components
     ).loc[:, ['UMAP1', 'UMAP2']]
 
     df = df.join(adata.obs)
     covariates = ['seq_run', 'sample', 'nUMIs', 'cycle_diff']
 
     # Fig
-    fig, axs = plt.subplots(1,4, figsize=(12,4))
+    fig, axs = plt.subplots(1,4, figsize=(12,4), constrained_layout=True)
 
     for i, cov in enumerate(covariates):
         
@@ -297,7 +291,7 @@ def plot_embeddings(adata, layer=None, rep = 'original', obsp_key=None, colors=N
         else:
             add_legend(df, cov, ax=axs[i], colors=c)
 
-    fig.tight_layout()
+    #fig.tight_layout()
 
     return fig
 
@@ -305,16 +299,14 @@ def plot_embeddings(adata, layer=None, rep = 'original', obsp_key=None, colors=N
 ##
 
 
-def plot_orig_int_embeddings(adata, layer = None, rep_1='original', rep_2='BBKNN', colors=None, a=1, s=0.1, k = 15, n_components = 30):
+def plot_orig_int_embeddings(adata, layer=None, rep_1='original', rep_2='BBKNN', colors=None, a=1, s=0.1, k=15, n_components=30):
     """
     Plot QC covariates in the UMAP embeddings obtained from original and integrated data.
     """
 
     # Prep data
-    #orig = g.to_adata(rep=rep_1)
-    #integrated = g.to_adata(rep=rep_2)
-    umap_orig = embeddings(adata, paga_groups='sample', rep=rep_1, layer = layer, umap_only=True, k = k, n_components = n_components).loc[:, ['UMAP1', 'UMAP2']]
-    umap_int = embeddings(adata, paga_groups='sample', rep=rep_2, layer = layer, umap_only=True, k = k, n_components = n_components).loc[:, ['UMAP1', 'UMAP2']]
+    umap_orig = embeddings(adata, paga_groups='sample', rep=rep_1, layer=layer, umap_only=True, k=k, n_components=n_components).loc[:, ['UMAP1', 'UMAP2']]
+    umap_int = embeddings(adata, paga_groups='sample', rep=rep_2, layer=layer, umap_only=True, k=k, n_components=n_components).loc[:, ['UMAP1', 'UMAP2']]
     umap_orig = umap_orig.join(adata.obs)
     umap_int = umap_int.join(adata.obs)
     covariates = ['seq_run', 'sample', 'nUMIs', 'cycle_diff']

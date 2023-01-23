@@ -8,21 +8,21 @@ import pandas as pd
 import numpy as np 
 import scanpy as sc 
 import pegasus as pg
+import anndata
 from harmony import harmonize
 from scvi.model import SCVI
 from bbknn.matrix import bbknn
+from scanorama import correct_scanpy
 from sklearn.decomposition import PCA 
 from pegasus.tools import predefined_signatures, load_signatures_from_file 
 from sklearn.cluster import KMeans  
 
 from ._neighbors import _NN, kNN_graph, get_indices_from_connectivities
 from ..dist_features._signatures import scanpy_score, wot_zscore, wot_rank
-from Cellula.preprocessing.scanorama import correct_scanpy 
+from Cellula._utils import get_representation
 
 
 ##
-
-
 def _sig_scores(adata, score_method='scanpy', organism='human'):
     """
     Calculate pegasus scores for cell cycle, ribosomal and apoptotic genes.
@@ -36,11 +36,20 @@ def _sig_scores(adata, score_method='scanpy', organism='human'):
 
     # Calculate scores
     if score_method == 'scanpy':
-        scores = pd.concat([ scanpy_score(adata, x, n_bins=50) for x in signatures.values() ], axis=1)
+            scores = pd.concat(
+                    [ scanpy_score(adata, x, n_bins=50) for x in signatures.values() ],
+                    axis=1
+            )
     elif score_method == 'wot_zscore':
-        scores = pd.concat([ wot_zscore(adata, x) for x in signatures.values() ],axis=1)
+            scores = pd.concat(
+                    [ wot_zscore(adata, x) for x in signatures.values() ],
+                    axis=1
+            )
     elif score_method == 'wot_rank':
-        scores = pd.concat([ wot_rank(adata, x) for x in signatures.values() ], axis=1)
+            scores = pd.concat(
+                    [ wot_rank(adata, x) for x in signatures.values() ],
+                    axis=1
+            )
 
     scores.columns = signatures.keys()
     scores['cycle_diff'] = scores['G2/M'] - scores['G1/S']
@@ -55,14 +64,13 @@ def _sig_scores(adata, score_method='scanpy', organism='human'):
     codes = np.zeros(scores.shape[0], dtype=np.int32)
     codes[cycle_idx & (cc_values[:, 0] == scores['cycling'].values)] = 1
     codes[cycle_idx & (cc_values[:, 1] == scores['cycling'].values)] = 2
-    scores['cc_phase'] = pd.Categorical.from_codes(codes, categories=['Others', 'G1/S', 'G2/M'])
+
+    scores['cc_phase'] = pd.Categorical.from_codes(codes, 
+            categories = ['Others', 'G1/S', 'G2/M']
+    )
 
     return scores
-
-
 ##
-
-
 def pp(adata, mode='scanpy', target_sum=50*1e4, n_HVGs=2000, score_method='scanpy', organism='human'):
     """
     Pre-processing pp_wrapper on QCed and merged adata.
@@ -73,24 +81,24 @@ def pp(adata, mode='scanpy', target_sum=50*1e4, n_HVGs=2000, score_method='scanp
     adata = adata[:, adata.var['robust']]
 
     if mode == 'scanpy': # Size normalization + pegasus batch aware HVGs selection
-        sc.pp.normalize_total(
-            adata, 
-            target_sum=target_sum,
-            exclude_highly_expressed=True,
-            max_fraction=0.2
-        )
-        sc.pp.log1p(adata)
-        pg.highly_variable_features(adata, batch='sample', n_top=n_HVGs)
+            sc.pp.normalize_total(
+                    adata, 
+                    target_sum=target_sum,
+                    exclude_highly_expressed=True,
+                    max_fraction=0.2
+            )
+            sc.pp.log1p(adata)
+            pg.highly_variable_features(adata, batch='sample', n_top=n_HVGs)
 
     elif mode == 'pearson': # Perason residuals workflow
-        sc.experimental.pp.highly_variable_genes(
-            adata, flavor='pearson_residuals', n_top_genes=n_HVGs
-        )
-        sc.experimental.pp.normalize_pearson_residuals(adata)
-        adata.var = adata.var.drop(columns=['highly_variable_features'])
-        adata.var['highly_variable_features'] = adata.var['highly_variable']
-        adata.var = adata.var.drop(columns=['highly_variable'])
-        adata.var = adata.var.rename(columns={'means':'mean', 'variances':'var'})
+            sc.experimental.pp.highly_variable_genes(
+                    adata, flavor="pearson_residuals", n_top_genes=n_HVGs
+            )
+            sc.experimental.pp.normalize_pearson_residuals(adata)
+            adata.var = adata.var.drop(columns=['highly_variable_features'])
+            adata.var['highly_variable_features'] = adata.var['highly_variable']
+            adata.var = adata.var.drop(columns=['highly_variable'])
+            adata.var = adata.var.rename(columns={'means':'mean', 'variances':'var'})
 
     # Calculate signature scores, if necessary
     if not any([ 'cycling' == x for x in adata.obs.columns ]):
@@ -98,11 +106,7 @@ def pp(adata, mode='scanpy', target_sum=50*1e4, n_HVGs=2000, score_method='scanp
         adata.obs = adata.obs.join(scores)
 
     return adata 
-
-
 ##
-
-
 class my_PCA:
     """
     A class to store the results of a sklearn PCA (i.e., embeddings, loadings and 
@@ -132,79 +136,49 @@ class my_PCA:
         self.cum_sum_eigenvalues = np.cumsum(self.var_ratios)
 
         return self
-
-
 ##
-
-
-def red(adata, mode='log-normalized'):
+def red(adata):
     """
     Reduce to HVGs the input counts matrix.
     """
-    if mode == 'raw':
-        adata_raw = adata.raw.to_adata()[:, adata.var_names].copy()
-        adata_raw.layers['counts'] = adata_raw.X
-        adata_raw.layers['lognorm'] = adata.X
-        adata_raw = adata_raw[:, adata.var['highly_variable_features']].copy()
-        adata = adata_raw
-        adata.layers['lognorm'] = adata.X
-    else:
-        adata = adata[:, adata.var['highly_variable_features']].copy()
-        adata.layers['lognorm'] = adata.X
+    adata = adata[:, adata.var['highly_variable_features']].copy()
+    adata.layers['lognorm'] = adata.X
+    adata.layers['raw'] = adata.raw.to_adata()[:, adata.var_names].X
+
     return adata
-
-
 ##
-
-
 def scale(adata):
     """
     Scale to 0 mean and unit variance the current matrix.
     """
-    a_ = sc.pp.scale(adata, copy=True)
-    adata.layers['scaled'] = a_.X
+    adata_mock = sc.pp.scale(adata, copy=True)
+    adata.layers['scaled'] = adata_mock.X
     return adata
-    
-
 ##
-
-
 def regress(adata):
     """
     Regress-out 'mito_perc', 'nUMIs' technical covariates from the current matrix.
     """
-    a_ = sc.pp.regress_out(adata, ['mito_perc', 'nUMIs'], n_jobs=8, copy=True)
-    adata.layers['regressed'] = a_.X
+    adata_mock = sc.pp.regress_out(adata, ['mito_perc', 'nUMIs'], n_jobs=8, copy=True)
+    adata.layers['regressed'] = adata_mock.X
     return adata
-
-
 ##
-
-
 def regress_and_scale(adata):
     """
     Regress-out 'mito_perc', 'nUMIs' technical covariates from the current matrix, and scale counts.
     """
     if 'regressed' not in adata.layers:
         raise KeyError('Regress out covariates first!')
-    a_ = adata.copy()
-    a_.X = a_.layers['regressed']
-    a_ = scale(a_)
-    adata.layers['regressed_and_scaled'] = a_.layers['scaled']
+    adata_mock= adata.copy()
+    adata_mock.X = adata_mock.layers['regressed']
+    adata_mock = scale(adata_mock)
+    adata.layers['regressed_and_scaled'] = adata_mock.layers['scaled']
     return adata
-
-
 ##
-
-
 def update_key(key, l):
     new_key = key+l
     return new_key
-
-
 ##
-
-
 def pca(adata, n_pcs=50, layer='scaled'):
     """
     Compute my_PCA of the current matrix, and store its outputs in adata slots.
@@ -224,34 +198,8 @@ def pca(adata, n_pcs=50, layer='scaled'):
     adata.uns[update_key(key, '|pca_var_ratios')] = model.var_ratios
     adata.uns[update_key(key, '|cum_sum_eigenvalues')] = np.cumsum(model.var_ratios)
 
-    return adata
-    
-    
+    return adata  
 ##
-
-
-def get_representation(adata, layer=None, obsm_key=None, obsp_key=None):
-    """
-    Take out desired representation from a adata.obsm/obsp.
-    """
-    if layer is not None:
-        X = adata.obsm[f'{layer}|original|X_pca'] 
-    elif obsm_key is not None:
-        try:
-            X = adata.obsm[obsm_key]
-        except:
-            ValueError(f'No embeddings found on {obsm_key} name. Change representation.')
-    elif obsp_key is not None:
-        try:
-            X = adata.obsm[obsp_key]
-        except:
-            ValueError(f'No embeddings found on {obsp_key} name. Change representation.')
-    return X
-    
-
-##
-
-
 def compute_kNN(adata, k=15, n_components=30, layer=None, obsm_key=None, obsp_key=None, 
     only_index=False):
     """
@@ -286,3 +234,114 @@ def compute_kNN(adata, k=15, n_components=30, layer=None, obsm_key=None, obsp_ke
         adata.obsp[k_conn] = conn
 
     gc.collect()
+##
+
+def compute_Scanorama(adata, covariate='seq_run', layer='scaled', k=15, n_components=30):
+        """
+        Compute the scanorama batch-(covariate) corrected representation of adata.
+        """
+
+        # Compute Scanorama latent space
+        key = f'{layer}|Scanorama|X_corrected'
+        categories = adata.obs[covariate].cat.categories.to_list()
+        adata_mock = anndata.AnnData(X=adata.layers[layer], obs=adata.obs, var=adata.var)
+        splitted = [ adata_mock[adata_mock.obs[covariate] == c, :].copy() for c in categories ]
+        corrected = correct_scanpy(splitted, return_dimred=True)
+
+        # Add representation
+        X_corrected = np.concatenate(
+            [ x.obsm['X_scanorama'] for x in corrected ]
+            , axis=0
+        )
+
+        adata.obsm[key] = X_corrected
+        idx, dist, conn = kNN_graph(adata.obsm[key], k=k, n_components=n_components)
+        adata.obsm[f'{layer}|Scanorama|X_corrected|{k}_NN_{n_components}_comp_idx'] = idx
+        adata.obsp[f'{layer}|Scanorama|X_corrected|{k}_NN_{n_components}_comp_dist'] = dist
+        adata.obsp[f'{layer}|Scanorama|X_corrected|{k}_NN_{n_components}_comp_conn'] = conn
+        return adata
+
+##
+
+def compute_Harmony(adata, covariates='seq_run', n_components=30,layer = 'scaled', k = 15):
+        """
+         Compute the Harmony batch- (covariate) corrected representation of the original PCA space.
+        """
+        key = f'{layer}|Harmony|X_corrected'
+        X_original = get_representation(adata, layer = layer, method = 'original')
+
+        X_corrected = harmonize(
+            X_original[:, :n_components],
+            adata.obs,
+            covariates,
+            n_clusters=None,
+            n_jobs=-1,
+            random_state=1234,
+            max_iter_harmony=1000,
+        )
+
+        adata.obsm[key] =  X_corrected
+        idx, dist, conn = kNN_graph(adata.obsm[key], k=k, n_components=n_components)
+        adata.obsm[f'{layer}|Harmony|X_corrected|{k}_NN_{n_components}_comp_idx'] = idx
+        adata.obsp[f'{layer}|Harmony|X_corrected|{k}_NN_{n_components}_comp_dist'] = dist
+        adata.obsp[f'{layer}|Harmony|X_corrected|{k}_NN_{n_components}_comp_conn'] = conn
+        return adata
+
+##
+
+def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_perc', 'nUMIs'],
+        n_layers=2, n_latent=30, n_hidden=128, max_epochs=None, k = 15, n_components= 30):
+        """
+        Compute the scVI (Lopez et al., 2018) batch-corrected latent space.
+        """
+
+        # Check
+        adata_mock = anndata.AnnData(X=adata.X, obs=adata.obs, var=adata.var)
+        adata_mock.layers['counts'] = adata.layers['raw']
+        assert adata_mock.layers['counts'] is not None
+
+        # Prep
+        SCVI.setup_anndata(adata_mock,
+            categorical_covariate_keys=categorical_covs,
+            continuous_covariate_keys=continuous_covs
+        )
+        vae = SCVI(adata_mock, 
+            gene_likelihood="nb", 
+            n_layers=n_layers, 
+            n_latent=n_latent, 
+            n_hidden=n_hidden
+        )
+        
+        # Train and add trained model to GE_space
+        vae.train(train_size=1.0, max_epochs=max_epochs)
+        adata.obsm['raw|scVI|X_corrected'] = vae.get_latent_representation()
+        idx, dist, conn = kNN_graph(adata.obsm["raw|scVI|X_corrected"], k=k, n_components=n_latent)
+        adata.obsm[f'raw|scVI|X_corrected|{k}_NN_{n_components}_comp_idx'] = idx
+        adata.obsp[f'raw|scVI|X_corrected|{k}_NN_{n_components}_comp_dist'] = dist
+        adata.obsp[f'raw|scVI|X_corrected|{k}_NN_{n_components}_comp_conn'] = conn
+        return adata
+
+##
+
+def compute_BBKNN(adata, layer = 'scaled', covariate='seq_run', k=30, n_components=30, trim=None):
+        """
+        Compute the BBKNN batch-(covariate) corrected kNN graph on the original PCA space.
+        """
+        # Run BBKNN
+        X_original = get_representation(adata, layer = layer, method = 'original')
+
+        X_corrected = bbknn(
+            X_original[:, :n_components], 
+            adata.obs[covariate],
+            use_annoy=False,
+            neighbors_within_batch=k//len(adata.obs[covariate].cat.categories),
+            pynndescent_n_neighbors=50, 
+            trim=trim,
+            pynndescent_random_state=1234,
+            metric='euclidean'
+        )
+        # X_corrected in this case is equal to X_pca original
+        adata.obsp[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_dist'] = X_corrected[0]
+        adata.obsp[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_conn'] = X_corrected[1]
+        adata.obsm[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_idx'] = get_indices_from_connectivities(X_corrected[1], k)
+        return adata

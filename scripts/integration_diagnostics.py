@@ -116,13 +116,11 @@ n_comps = args.n_comps
 if not args.skip:
 
     # Code
-    import anndata
     from Cellula._utils import *
     from Cellula.plotting._plotting import *
     from Cellula.plotting._colors import create_colors
     from Cellula.preprocessing._Int_evaluator import *
     from Cellula.preprocessing._pp import *
-    from Cellula.integration._integration_methods import *
 
     #-----------------------------------------------------------------#
 
@@ -162,7 +160,7 @@ def integration_diagnostics():
     logger.info(f'Execute 3_integration_diagnostics: --k {k} --covariate {covariate} --resolution {resolution} --n_comps {n_comps}')
 
     # Load Integration.h5ad
-    adata = anndata.read_h5ad(path_data + 'Integration.h5ad')
+    adata = sc.read(path_data + 'Integration.h5ad')
 
     logger.info(f'Loading data: {t.stop()} s.')
 
@@ -180,22 +178,35 @@ def integration_diagnostics():
     t.start()
 
     for layer in adata.layers:
-        with PdfPages(path_viz + f'orig_int_embeddings_{layer}.pdf') as pdf:
-            for int_rep in methods:
-                i = 0
-                if layer == 'regressed' and int_rep == 'scVI':
-                    i = 1
-                elif layer == 'regressed_and_scaled' and int_rep == 'scVI':
-                    i = 1
-                elif layer == 'scaled' and int_rep == 'scVI':
-                    i = 1
-                else:
-                    i = 0
-                if i == 0:
-                    fig = plot_orig_int_embeddings(adata, layer = layer, rep_1='original', rep_2=int_rep, colors=colors)
-                    pdf.savefig()  
-                    plt.close()
+         with PdfPages(path_viz + f'orig_int_embeddings_{layer}.pdf') as pdf:
+             for int_rep in methods:
+                 if layer != 'raw' and int_rep != 'scVI' and int_rep != 'BBKNN':
+                     fig = plot_orig_int_embeddings(adata, layer = layer, rep_1='original', rep_2=int_rep, colors=colors)
+                 elif layer == 'raw' and int_rep == 'scVI':
+                     fig = plot_orig_int_embeddings(adata, layer = layer, rep_1='original', rep_2=int_rep, colors=colors)
+                 else:
+                     print("No embedding")
+                 pdf.savefig()  
+                 plt.close()
     logger.info(f'Embeddings visualization: {t.stop()} s.')
+ 
+    #for layer in adata.layers:
+    #    with PdfPages(path_viz + f'orig_int_embeddings_{layer}.pdf') as pdf:
+    #        for int_rep in methods:
+    #            i = 0
+    #            if layer == 'regressed' and int_rep == 'scVI':
+    #                i = 1
+    #            elif layer == 'regressed_and_scaled' and int_rep == 'scVI':
+    #                i = 1
+    #            elif layer == 'scaled' and int_rep == 'scVI':
+    #                i = 1
+    #            else:
+    #                i = 0
+    #            if i == 0:
+    #                fig = plot_orig_int_embeddings(adata, layer = layer, rep_1='original', rep_2=int_rep, colors=colors)
+    #                pdf.savefig()  
+    #                plt.close()
+    #logger.info(f'Embeddings visualization: {t.stop()} s.')
 
 
     # Batch removal metrics
@@ -240,7 +251,7 @@ def choose_preprocessing_option():
     pp, chosen_int = chosen.split(':') 
     logger.info('Choose preprocessing option: ' + '|'.join([pp, chosen_int]))
 
-    adata = anndata.read_h5ad(path_data + 'Integration.h5ad')
+    adata = sc.read(path_data + 'Integration.h5ad')
 
     # Pick the chosen pp and integration method
     if(chosen_int != 'BBKNN'):

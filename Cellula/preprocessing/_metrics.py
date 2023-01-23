@@ -112,45 +112,20 @@ def kbet(index, batch, alpha=0.05):
 
 ##
 
-def leiden_clustering(A, res=0.5):
-    """
-    Compute leiden clustering, at some resolution.
-    """
-    g = sc._utils.get_igraph_from_adjacency(A, directed=True)
-    part = leidenalg.find_partition(
-        g,
-        leidenalg.RBConfigurationVertexPartition,
-        resolution_parameter=res,
-        seed=1234
-    )
-    labels = np.array(part.membership)
-
-    return labels
-
-##
-
 
 def graph_conn(A, labels=None, resolution=0.2):
     """
     Compute the graph connectivity metric of some kNN representation (conn).
     """
-    # Prep adata: Skip this 2 lines
-    #adata.uns['neighbors'] = {}
-    #adata.obsp['connectivities'] = conn 
-    
     # Compute the graph connectivity metric, for each separate cluster
     per_group_results = []
-    
     # Labels 
-    if labels is None:
-        
+    if labels is None:    
         labels = leiden_clustering(A, res=resolution) #A e' la matrice di connectivties
         labels = pd.Categorical(labels)
     else:
         pass
-
     # Here we go
-    #for g in labels.cat.categories:
     for g in labels.categories:
         test = labels == g
         # Calculate connected components labels
@@ -162,9 +137,7 @@ def graph_conn(A, labels=None, resolution=0.2):
     
     return np.mean(per_group_results)
 
-
 ##
-
 
 def entropy_bb(index, batch):
     """
@@ -229,3 +202,20 @@ def custom_ARI(g1, g2):
     max_index = 0.5 * (ai_sum + bi_sum)
 
     return (index - expected_index) / (max_index - expected_index)
+
+    ##
+
+def leiden_clustering(A, res=0.5):
+    """
+    Compute leiden clustering, at some resolution.
+    """
+    g = sc._utils.get_igraph_from_adjacency(A, directed=True)
+    part = leidenalg.find_partition(
+        g,
+        leidenalg.RBConfigurationVertexPartition,
+        resolution_parameter=res,
+        seed=1234
+    )
+    labels = np.array(part.membership)
+
+    return labels

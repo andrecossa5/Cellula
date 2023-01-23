@@ -120,7 +120,6 @@ my_parser.add_argument(
 
 # Parse arguments
 args = my_parser.parse_args()
-
 path_main = args.path_main
 version = args.version
 normalization_method = args.norm
@@ -283,7 +282,7 @@ def preprocessing():
     #-----------------------------------------------------------------#
 
     # Visualize % explained variance of top50 PCs, for each PCA space
-    fig = explained_variance_plot(adata, figsize=(10,7))
+    fig = explained_variance_plot(adata_red, figsize=(12,8))
     fig.savefig(path_viz + 'explained_variance.pdf')
 
     #-----------------------------------------------------------------#
@@ -312,6 +311,7 @@ def preprocessing():
             for layer in adata_red.layers:
                 compute_kNN(adata_red, layer=layer) # Default here
                 fig = plot_embeddings(adata_red, layer=layer, colors=colors)
+                fig.suptitle(layer)
                 pdf.savefig()  
                 plt.close()
 

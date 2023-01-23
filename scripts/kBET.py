@@ -84,7 +84,6 @@ if not args.skip:
     from Cellula._utils import *
     from Cellula.preprocessing._Int_evaluator import *
     from Cellula.preprocessing._metrics import choose_K_for_kBET
-    import anndata
 
     #-----------------------------------------------------------------#
 
@@ -125,7 +124,7 @@ def kBET():
     logger.info(f'Execute kBET: --n_pcs {n_pcs} --covariate {covariate}')
 
     # Load pickled GE_spaces
-    adata = anndata.read_h5ad(path_data + 'reduced.h5ad')
+    adata = sc.read(path_data + 'reduced.h5ad')
 
     # Instantiate int_evaluator class
     I = Int_evaluator(adata)
@@ -148,8 +147,8 @@ def kBET():
         t.start()
         for layer in adata.layers:
             logger.info(f'Begin operations on all representations, for k {k}...')
-            pca = adata.obsm[f'{layer}|{int_method}|X_pca']
-            adata = compute_kNNs(adata, pca , pp = layer , int_method = int_method, k = k, n_components=n_pcs)
+            X_pca = get_representation(adata, layer=layer, int_method=int_method)
+            adata = compute_kNNs(adata, X_pca, pp=layer, int_method=int_method, k=k, n_components=n_pcs)
         I.compute_metric(metric='kBET', covariate=covariate, k = k)
         logger.info(f'kBET calculations finished for k {k}: {t.stop()} s.')
         all_removal_batch.update(I.batch_removal_scores['kBET'])

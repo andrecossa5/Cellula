@@ -7,39 +7,22 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 from joblib import cpu_count
+from Cellula._utils import get_representation
 
 
 ##
 
-def embeddings(adata, paga_groups='sample', rep='BBKNN', layer='scaled', conn_key=None, umap_only=True, k = 15, n_components = 30):
+def embeddings(adata, paga_groups='sample', rep='original', layer='lognorm', umap_only=True, k=15, n_components=30):
     '''
     Compute paga, paga initialized umap, fa and tSNE embeddings. Return them in a df of embeddings cooridinates,
     with the top 5 PCs coordinates.
     '''
     # Build mock adata
-    if layer is not None and rep != 'scVI' and rep != 'original' and rep != 'BBKNN':
-        obsm_key = f'{layer}|{rep}|X_corrected' 
-        conn_key = f'{layer}|{rep}|X_corrected|{k}_NN_{n_components}_comp_conn' 
-        dist_key = f'{layer}|{rep}|X_corrected|{k}_NN_{n_components}_comp_dist' 
-    elif layer == 'lognorm' and rep == 'scVI':
-        obsm_key = f'{layer}|{rep}|X_corrected' 
-        conn_key = f'{layer}|{rep}|X_corrected|{k}_NN_{n_components}_comp_conn' 
-        dist_key = f'{layer}|{rep}|X_corrected|{k}_NN_{n_components}_comp_dist'
-    elif layer is not None and rep == 'BBKNN':
-        obsm_key = f'{layer}|original|X_pca' 
-        conn_key = f'{layer}|{rep}|X_corrected|{k}_NN_{n_components}_comp_conn' 
-        dist_key = f'{layer}|{rep}|X_corrected|{k}_NN_{n_components}_comp_dist'
-    elif layer is not None and rep == 'original':
-        obsm_key = f'{layer}|{rep}|X_pca' 
-        conn_key = f'{layer}|{rep}|X_pca|{k}_NN_{n_components}_comp_conn' 
-        dist_key = f'{layer}|{rep}|X_pca|{k}_NN_{n_components}_comp_dist' 
-    else:
-        raise KeyError('Unknown keys.')
-
     a = anndata.AnnData(X=adata.layers[layer], obs=adata.obs)
-    a.obsm['X_pca'] = adata.obsm[obsm_key]
-    a.obsp['nn_connectivities'] = adata.obsp[conn_key]
-    a.obsp['nn_distances'] = adata.obsp[dist_key]
+    a.obsm['X_pca'] = get_representation(adata, layer=layer, method=rep)
+    graph = get_representation(adata, layer=layer, method=rep, k=k, n_components=n_components)
+    a.obsp['nn_connectivities'] = graph[1]
+    a.obsp['nn_distances'] = graph[2]
     a.uns['nn'] = {
         'connectivities_key': 'nn_connectivities',
         'distances_key': 'nn_distances', 

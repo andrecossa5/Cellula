@@ -2,61 +2,141 @@
 _integration.py: integration utils. 
 """
 
-import os
-from glob import glob
-import numpy as np
-import pandas as pd
-import scanpy as sc
+import gc
+import sys
+import pandas as pd 
+import numpy as np 
+import scanpy as sc 
+import anndata
+from harmony import harmonize
+from scvi.model import SCVI
+from bbknn.matrix import bbknn
+from scanorama import correct_scanpy
 
+from ._neighbors import _NN, kNN_graph, get_indices_from_connectivities
+from ..dist_features._signatures import scanpy_score, wot_zscore, wot_rank
+from .._utils import get_representation
 from .._utils import rescale
 
 
-def fill_from_integration_dirs(GE_spaces, path_results):
+##
+
+
+def compute_Scanorama(adata, covariate='seq_run', layer='scaled', k=15, n_components=30):
     """
-    A piece of code that take a dictionary of GE_spaces and a folder with integration results,
-    and fill GE_spaces attributes with the appropriate algorithm output. 
+    Compute the scanorama batch-(covariate) corrected representation of adata.
     """
-    # Walk down ./results_and_plots/pp/step_{i}/integration/ folder
-    for x in os.walk(path_results):
-        for y in glob(os.path.join(x[0], '*.txt')):
+    # Compute Scanorama latent space
+    key = f'{layer}|Scanorama|X_corrected'
+    categories = adata.obs[covariate].cat.categories.to_list()
+    adata_mock = anndata.AnnData(X=adata.layers[layer], obs=adata.obs, var=adata.var)
+    splitted = [ adata_mock[adata_mock.obs[covariate] == c, :].copy() for c in categories ]
+    corrected = correct_scanpy(splitted, return_dimred=True)
 
-            # Open any encountered pickle
-            with open(y, 'rb') as f:
-                integrated = pickle.load(f)
+    # Add representation
+    X_corrected = np.concatenate([ x.obsm['X_scanorama'] for x in corrected ], axis=0)
+    adata.obsm[key] = X_corrected
+    idx, dist, conn = kNN_graph(adata.obsm[key], k=k, n_components=n_components)
+    adata.obsm[f'{layer}|Scanorama|X_corrected|{k}_NN_{n_components}_comp_idx'] = idx
+    adata.obsp[f'{layer}|Scanorama|X_corrected|{k}_NN_{n_components}_comp_dist'] = dist
+    adata.obsp[f'{layer}|Scanorama|X_corrected|{k}_NN_{n_components}_comp_conn'] = conn
 
-            # Objects checks
-            try:
-                el = integrated[list(integrated.keys())[0]]
-                if isinstance(el, GE_space):
-                    pass
-                else:
-                    continue
-            except:
-                el = integrated
-                if isinstance(el, GE_space):
-                    pass
-                else:
-                    continue
+    return adata
 
-            # Figure out which attribute needs to be added to GE_spaces objects
-            key_to_add = el.int_methods[0]
 
-            # If the pickled file store the same GE_spaces, only with a newly calculated integration 
-            # attribute, fill the new slots in the original objects dictionary 
-            if key_to_add != 'scVI':
-                for k in GE_spaces:
-                    GE_spaces[k].__dict__['int_methods'] += integrated[k].__dict__['int_methods']
-                    GE_spaces[k].__dict__[key_to_add] = integrated[k].__dict__[key_to_add]
-            else:
-                GE_spaces['raw_red'] = el.pca() # Compute also PCA on raw, reduced matrix on which scVI has ben computed
-            
-            del integrated
-            del el
-            
-            # Collect garbage
-            gc.collect()
+##
 
-    return GE_spaces
+
+def compute_Harmony(adata, covariates='seq_run', n_components=30,layer = 'scaled', k = 15):
+    """
+     Compute the Harmony batch- (covariate) corrected representation of the original PCA space.
+    """
+    key = f'{layer}|Harmony|X_corrected'
+    X_original = get_representation(adata, layer = layer, method = 'original')
+
+    X_corrected = harmonize(
+        X_original[:, :n_components],
+        adata.obs,
+        covariates,
+        n_clusters=None,
+        n_jobs=-1,
+        random_state=1234,
+        max_iter_harmony=1000,
+    )
+
+    adata.obsm[key] =  X_corrected
+    idx, dist, conn = kNN_graph(adata.obsm[key], k=k, n_components=n_components)
+    adata.obsm[f'{layer}|Harmony|X_corrected|{k}_NN_{n_components}_comp_idx'] = idx
+    adata.obsp[f'{layer}|Harmony|X_corrected|{k}_NN_{n_components}_comp_dist'] = dist
+    adata.obsp[f'{layer}|Harmony|X_corrected|{k}_NN_{n_components}_comp_conn'] = conn
+
+    return adata
+
+
+##
+
+
+def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_perc', 'nUMIs'],
+    n_layers=2, n_latent=30, n_hidden=128, max_epochs=None, k = 15, n_components= 30):
+    """
+    Compute the scVI (Lopez et al., 2018) batch-corrected latent space.
+    """
+    # Check adata
+    adata_mock = anndata.AnnData(X=adata.X, obs=adata.obs, var=adata.var)
+    adata_mock.layers['counts'] = adata.layers['raw']
+    assert adata_mock.layers['counts'] is not None
+
+    # Prep
+    SCVI.setup_anndata(adata_mock,
+        categorical_covariate_keys=categorical_covs,
+        continuous_covariate_keys=continuous_covs
+    )
+    vae = SCVI(adata_mock, 
+        gene_likelihood="nb", 
+        n_layers=n_layers, 
+        n_latent=n_latent, 
+        n_hidden=n_hidden
+    )
+    
+    # Train and add trained model to GE_space
+    vae.train(train_size=1.0, max_epochs=max_epochs)
+    adata.obsm['raw|scVI|X_corrected'] = vae.get_latent_representation()
+
+    # Add latent space
+    idx, dist, conn = kNN_graph(adata.obsm["raw|scVI|X_corrected"], k=k, n_components=n_latent)
+    adata.obsm[f'raw|scVI|X_corrected|{k}_NN_{n_components}_comp_idx'] = idx
+    adata.obsp[f'raw|scVI|X_corrected|{k}_NN_{n_components}_comp_dist'] = dist
+    adata.obsp[f'raw|scVI|X_corrected|{k}_NN_{n_components}_comp_conn'] = conn
+
+    return adata
+
+
+##
+
+
+def compute_BBKNN(adata, layer = 'scaled', covariate='seq_run', k=30, n_components=30, trim=None):
+    """
+    Compute the BBKNN batch-(covariate) corrected kNN graph on the original PCA space.
+    """
+    # Run BBKNN
+    X_original = get_representation(adata, layer = layer, method = 'original')
+    X_corrected = bbknn(
+        X_original[:, :n_components], 
+        adata.obs[covariate],
+        use_annoy=False,
+        neighbors_within_batch=k//len(adata.obs[covariate].cat.categories),
+        pynndescent_n_neighbors=50, 
+        trim=trim,
+        pynndescent_random_state=1234,
+        metric='euclidean'
+    )
+
+    # X_corrected in this case is equal to X_pca original
+    adata.obsp[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_dist'] = X_corrected[0]
+    adata.obsp[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_conn'] = X_corrected[1]
+    adata.obsm[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_idx'] = get_indices_from_connectivities(X_corrected[1], k)
+   
+    return adata
 
 
 ##

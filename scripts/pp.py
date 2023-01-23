@@ -14,19 +14,19 @@ import argparse
 my_parser = argparse.ArgumentParser(
     prog='pp',
     description=
-        '''
-        Pre-processing operations.
-        Starting from the $path_main/data/step/QC.h5ad AnnData, (filtered and concatenated raw matrices)
-        this tool performs log-normalization, Hyper-variable Genes selection (HVGs) and scoring of gene sets 
-        useful to inspect cells quality (i.e., apoptosis, cell cycle, ribosomal genes...). 
-        Then, it creates 4 pre-processed version of the original, full gene expression matrix: 
-        i) reduced (HVGs only); ii) reduced and scaled (HVGs expression is z-scored); 
-        iii) reduced and regressed (the contribute of nUMIs and mitochondrial percentage is 
-        regressed out from HVGs expression); iv) reduced, regressed and scaled (same as iii), but with
-        additional scaling of resulting values). 
-        The dimensionality of these matrices is reduced with PCA, and the resulting, alternative 
-        gene expression spaces are saved for later use. Visualization is produced along the way.
-        '''
+    '''
+    Pre-processing operations.
+    Starting from the $path_main/data/step/QC.h5ad AnnData, (filtered and concatenated raw matrices)
+    this tool performs log-normalization, Hyper-variable Genes selection (HVGs) and scoring of gene sets 
+    useful to inspect cells quality (i.e., apoptosis, cell cycle, ribosomal genes...). 
+    Then, it creates 4 pre-processed version of the original, full gene expression matrix: 
+    i) reduced (HVGs only); ii) reduced and scaled (HVGs expression is z-scored); 
+    iii) reduced and regressed (the contribute of nUMIs and mitochondrial percentage is 
+    regressed out from HVGs expression); iv) reduced, regressed and scaled (same as iii), but with
+    additional scaling of resulting values). 
+    The dimensionality of these matrices is reduced with PCA, and the resulting, alternative 
+    gene expression spaces are saved for later use. Visualization is produced along the way.
+    '''
 )
 
 # Add arguments
@@ -107,15 +107,10 @@ my_parser.add_argument(
     '--custom_meta', 
     action='store_true',
     help=
-    '''Use the newly formatted cells_meta.csv file in ./data/version.
-    Default: False. Note: at least sample and seq_run columns must be provided'''
-)
-
-# Skip
-my_parser.add_argument(
-    '--skip', 
-    action='store_true',
-    help='Skip analysis. Default: False.'
+    '''
+    Use the newly formatted cells_meta.csv file in ./data/version.
+    Default: False. Note: at least sample and seq_run columns must be provided
+    '''
 )
 
 # Parse arguments
@@ -130,43 +125,41 @@ organism = args.organism
 ########################################################################
 
 # Preparing run: import code, prepare directories, set logger
-if not args.skip:
 
-    # Code
-    import Cellula.plotting._plotting_base
-    from glob import glob
-    from Cellula._utils import *
-    from Cellula.preprocessing._pp import *
-    from Cellula.preprocessing._embeddings import *
-    from Cellula.plotting._plotting import *
-    from Cellula.plotting._colors import create_colors
+# Code
+import Cellula.plotting._plotting_base
+from Cellula._utils import *
+from Cellula.preprocessing._pp import *
+from Cellula.preprocessing._embeddings import *
+from Cellula.plotting._plotting import *
+from Cellula.plotting._colors import create_colors
 
-    #-----------------------------------------------------------------#
+#-----------------------------------------------------------------#
 
-    # Set other paths 
-    path_data = path_main + '/data/'
-    path_results = path_main + '/results_and_plots/pp/'
-    path_runs = path_main + '/runs/'
-    path_viz = path_main + '/results_and_plots/vizualization/pp/'
+# Set other paths 
+path_data = path_main + '/data/'
+path_results = path_main + '/results_and_plots/pp/'
+path_runs = path_main + '/runs/'
+path_viz = path_main + '/results_and_plots/vizualization/pp/'
 
-    # Create step_{i} folders. Overwrite, if they have already been created
-    to_make = [ (path_runs, version), (path_results, version), (path_viz, version), (path_data, version) ]
-    for x, y in to_make:
-        if x == path_data or x == path_runs:
-            make_folder(x, y, overwrite=False)
-        else:
-            make_folder(x, y, overwrite=True)
+# Create step_{i} folders. Overwrite, if they have already been created
+to_make = [ (path_runs, version), (path_results, version), (path_viz, version), (path_data, version) ]
+for x, y in to_make:
+    if x == path_data or x == path_runs:
+        make_folder(x, y, overwrite=False)
+    else:
+        make_folder(x, y, overwrite=True)
 
-    # Update paths
-    path_data += f'/{version}/'
-    path_runs += f'/{version}/'
-    path_results += f'/{version}/' 
-    path_viz += f'/{version}/' 
+# Update paths
+path_data += f'/{version}/'
+path_runs += f'/{version}/'
+path_results += f'/{version}/' 
+path_viz += f'/{version}/' 
 
-    #-----------------------------------------------------------------#
+#-----------------------------------------------------------------#
 
-    # Set logger 
-    logger = set_logger(path_runs, 'logs_pp.txt')
+# Set logger 
+logger = set_logger(path_runs, 'logs_pp.txt')
 
 ########################################################################
 
@@ -188,9 +181,9 @@ def preprocessing():
     # Remove cells, if necessary
     if args.remove:
         path_cells = path_main + '/data/removed_cells/'
-        removed = [ y for x in os.walk(path_cells) for y in glob(os.path.join(x[0], '*.csv'))]
-        cells_to_remove = pd.concat([ pd.read_csv(x, index_col=0) for x in removed ], axis=0)['cell'].to_list()
-        adata = adata[~adata.obs_names.isin(cells_to_remove), :]
+        removed = pd.concat([ pd.read_csv(path_cells + x, index_col=0) for x in os.listdir(path_cells) ], axis=0)
+        removed_cells = removed['cell'].to_list()
+        adata = adata[~adata.obs_names.isin(removed_cells), :]
 
     # Format adata.obs
     if args.custom_meta:
@@ -315,10 +308,10 @@ def preprocessing():
                 pdf.savefig()  
                 plt.close()
 
-
-        adata_red.write(path_data + 'reduced.h5ad')
-
         logger.info(f'Original cell embeddings vizualization: {t.stop()} s.')
+
+    # Sava
+    adata_red.write(path_data + 'reduced.h5ad')
 
     #-----------------------------------------------------------------#
 
@@ -329,8 +322,7 @@ def preprocessing():
 
 # Run program
 if __name__ == "__main__":
-    if not args.skip:
-        preprocessing()
+    preprocessing()
 
 #######################################################################
 

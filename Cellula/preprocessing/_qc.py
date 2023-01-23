@@ -123,6 +123,7 @@ def QC(adatas, mode='seurat', min_cells=3, min_genes=200, nmads=5, path_viz=None
     
     # For each adata, produce a figure
     with PdfPages(path_viz + 'original_QC_by_sample.pdf') as pdf:
+        
         removed_cells = []
         for s, adata in adatas.items():
 

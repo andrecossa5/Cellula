@@ -61,7 +61,6 @@ def choose_K_for_kBET(adata, covariate):
     # Check 'seq_run' is in meta
     try:
         adata.obs[covariate]
-        #meta[covariate]
     except:
         print(f'No {covariate} in cells meta! Reformat.')
         sys.exit()

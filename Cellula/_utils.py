@@ -104,7 +104,6 @@ def fix_sorting(L):
     """
     Sort a list with strings beginning with numbers.
     """
-    L = list(df_separation['kNN'].unique())
     numeric_sorted = sorted([ int(x.split('_')[0]) for x in L ])
     new_L = []
     for x in numeric_sorted:
@@ -127,7 +126,9 @@ def rescale(x):
     else:
         return x
 
+
 ##
+
 
 def get_representation(adata, layer=None, method='original', k=None, n_components=None, only_index=False):
     """
@@ -146,4 +147,5 @@ def get_representation(adata, layer=None, method='original', k=None, n_component
         )
         if only_index:
             representation = representation[0]
+            
     return representation

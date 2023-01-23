@@ -11,7 +11,7 @@ from sklearn.metrics import davies_bouldin_score, silhouette_score
 from .._utils import rescale
 from ..preprocessing._neighbors import get_indices_from_connectivities
 from ..preprocessing._integration import format_metric_dict, rank_runs, summary_metrics
-from ._clustering import compute_inertia, kNN_purity
+from ._clustering_metrics import compute_inertia, kNN_purity
 from ..plotting._plotting import plot_rankings
 
 

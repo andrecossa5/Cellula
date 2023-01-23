@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist
 
-from ..preprocessing._metrics import custom_ARI
+from .._utils import custom_ARI
 
 
 ##

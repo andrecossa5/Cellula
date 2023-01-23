@@ -14,7 +14,6 @@ import anndata
 import scanpy as sc
 from pegasus.tools.diff_expr import _de_test as DE
 
-from ..preprocessing import _GE_space as ge
 from .._utils import rescale, Timer
 from ._dist_features import one_hot_from_labels
 from ..ML._ML import classification

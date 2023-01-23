@@ -12,8 +12,6 @@ import leidenalg
 import igraph as ig
 import anndata
 
-
-from ._GE_space import GE_space
 from ._integration import format_metric_dict, summary_metrics, rank_runs
 from ._metrics import kbet, graph_conn, entropy_bb, kNN_retention_perc, custom_ARI
 from ._neighbors import _NN, kNN_graph, get_indices_from_connectivities

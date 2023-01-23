@@ -15,7 +15,6 @@ plt.style.use('default')
 
 from ._plotting_base import *
 from ..preprocessing._embeddings import embeddings
-from ..preprocessing._GE_space import GE_space
 
 
 ##

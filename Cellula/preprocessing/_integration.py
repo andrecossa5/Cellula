@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 
-from ._GE_space import GE_space
 from .._utils import rescale
 
 

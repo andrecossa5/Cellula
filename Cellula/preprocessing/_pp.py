@@ -36,20 +36,11 @@ def _sig_scores(adata, score_method='scanpy', organism='human'):
 
     # Calculate scores
     if score_method == 'scanpy':
-            scores = pd.concat(
-                    [ scanpy_score(adata, x, n_bins=50) for x in signatures.values() ],
-                    axis=1
-            )
+        scores = pd.concat([ scanpy_score(adata, x, n_bins=50) for x in signatures.values() ], axis=1)
     elif score_method == 'wot_zscore':
-            scores = pd.concat(
-                    [ wot_zscore(adata, x) for x in signatures.values() ],
-                    axis=1
-            )
+        scores = pd.concat([ wot_zscore(adata, x) for x in signatures.values() ],axis=1)
     elif score_method == 'wot_rank':
-            scores = pd.concat(
-                    [ wot_rank(adata, x) for x in signatures.values() ],
-                    axis=1
-            )
+        scores = pd.concat([ wot_rank(adata, x) for x in signatures.values() ], axis=1)
 
     scores.columns = signatures.keys()
     scores['cycle_diff'] = scores['G2/M'] - scores['G1/S']
@@ -64,10 +55,7 @@ def _sig_scores(adata, score_method='scanpy', organism='human'):
     codes = np.zeros(scores.shape[0], dtype=np.int32)
     codes[cycle_idx & (cc_values[:, 0] == scores['cycling'].values)] = 1
     codes[cycle_idx & (cc_values[:, 1] == scores['cycling'].values)] = 2
-
-    scores['cc_phase'] = pd.Categorical.from_codes(codes, 
-            categories = ['Others', 'G1/S', 'G2/M']
-    )
+    scores['cc_phase'] = pd.Categorical.from_codes(codes, categories=['Others', 'G1/S', 'G2/M'])
 
     return scores
 
@@ -85,24 +73,24 @@ def pp(adata, mode='scanpy', target_sum=50*1e4, n_HVGs=2000, score_method='scanp
     adata = adata[:, adata.var['robust']]
 
     if mode == 'scanpy': # Size normalization + pegasus batch aware HVGs selection
-            sc.pp.normalize_total(
-                    adata, 
-                    target_sum=target_sum,
-                    exclude_highly_expressed=True,
-                    max_fraction=0.2
-            )
-            sc.pp.log1p(adata)
-            pg.highly_variable_features(adata, batch='sample', n_top=n_HVGs)
+        sc.pp.normalize_total(
+            adata, 
+            target_sum=target_sum,
+            exclude_highly_expressed=True,
+            max_fraction=0.2
+        )
+        sc.pp.log1p(adata)
+        pg.highly_variable_features(adata, batch='sample', n_top=n_HVGs)
 
     elif mode == 'pearson': # Perason residuals workflow
-            sc.experimental.pp.highly_variable_genes(
-                    adata, flavor="pearson_residuals", n_top_genes=n_HVGs
-            )
-            sc.experimental.pp.normalize_pearson_residuals(adata)
-            adata.var = adata.var.drop(columns=['highly_variable_features'])
-            adata.var['highly_variable_features'] = adata.var['highly_variable']
-            adata.var = adata.var.drop(columns=['highly_variable'])
-            adata.var = adata.var.rename(columns={'means':'mean', 'variances':'var'})
+        sc.experimental.pp.highly_variable_genes(
+            adata, flavor='pearson_residuals', n_top_genes=n_HVGs
+        )
+        sc.experimental.pp.normalize_pearson_residuals(adata)
+        adata.var = adata.var.drop(columns=['highly_variable_features'])
+        adata.var['highly_variable_features'] = adata.var['highly_variable']
+        adata.var = adata.var.drop(columns=['highly_variable'])
+        adata.var = adata.var.rename(columns={'means':'mean', 'variances':'var'})
 
     # Calculate signature scores, if necessary
     if not any([ 'cycling' == x for x in adata.obs.columns ]):

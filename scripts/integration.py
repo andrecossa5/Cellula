@@ -90,13 +90,6 @@ my_parser.add_argument(
     help='Continuous covariates included in the model. Default: nUMIs and mito_perc.'
 )
 
-# Skip
-my_parser.add_argument(
-    '--skip', 
-    action='store_true',
-    help='Skip analysis. Default: False.'
-)
-
 # Parse arguments
 args = my_parser.parse_args()
 path_main = args.path_main
@@ -112,26 +105,25 @@ continuous = args.continuous
 ########################################################################
 
 # Preparing run: import code, prepare directories, set logger
-if not args.skip:
 
-    # Code
-    from Cellula._utils import *
-    from Cellula.preprocessing._pp import *
+# Code
+from Cellula._utils import *
+from Cellula.preprocessing._pp import *
+from Cellula.preprocessing._integration import *
 
-    #-----------------------------------------------------------------#
+#-----------------------------------------------------------------#
 
-    # Set other paths
-    path_data = path_main + f'/data/{version}/'
-    path_runs = path_main + '/runs/'
-    
+# Set other paths
+path_data = path_main + f'/data/{version}/'
+path_runs = path_main + '/runs/'
 
-    # Update paths
-    path_runs += f'/{version}/'
+# Update paths
+path_runs += f'/{version}/'
 
-    #-----------------------------------------------------------------#
-    
-    # Set logger 
-    logger = set_logger(path_runs, 'logs_Integration.txt')
+#-----------------------------------------------------------------#
+
+# Set logger 
+logger = set_logger(path_runs, 'logs_Integration.txt')
 
 ########################################################################
 

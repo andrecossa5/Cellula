@@ -91,13 +91,6 @@ my_parser.add_argument(
     help='Number of latent embeddings components to compute kNNs on. Default: 30.'
 )
 
-# Skip
-my_parser.add_argument(
-    '--skip', 
-    action='store_true',
-    help='Skip analysis. Default: False.'
-)
-
 # Parse arguments
 args = my_parser.parse_args()
 
@@ -113,37 +106,35 @@ n_comps = args.n_comps
 ########################################################################
 
 # Preparing run: import code, prepare directories, set logger
-if not args.skip:
 
-    # Code
-    from Cellula._utils import *
-    from Cellula.plotting._plotting import *
-    from Cellula.plotting._colors import create_colors
-    from Cellula.preprocessing._Int_evaluator import *
-    from Cellula.preprocessing._pp import *
+# Code
+from Cellula._utils import *
+from Cellula.plotting._plotting import *
+from Cellula.plotting._colors import create_colors
+from Cellula.preprocessing._Int_evaluator import *
+from Cellula.preprocessing._pp import *
+from Cellula.preprocessing._integration import *
 
-    #-----------------------------------------------------------------#
+#-----------------------------------------------------------------#
 
-    # Set other paths
-    path_data = path_main + f'/data/{version}/'
-    path_results = path_main + '/results_and_plots/pp/'
-    path_runs = path_main + '/runs/'
-    path_viz = path_main + '/results_and_plots/vizualization/pp/'
+# Set other paths
+path_data = path_main + f'/data/{version}/'
+path_results = path_main + '/results_and_plots/pp/'
+path_runs = path_main + '/runs/'
+path_viz = path_main + '/results_and_plots/vizualization/pp/'
+# Update paths
+path_runs += f'/{version}/'
+path_results += f'/{version}/' 
+path_viz += f'/{version}/' 
+if not os.path.exists(path_data + 'Integration.h5ad'):
+    print('Run pp or integration algorithm(s) beforehand!')
+    sys.exit()
 
-    # Update paths
-    path_runs += f'/{version}/'
-    path_results += f'/{version}/' 
-    path_viz += f'/{version}/' 
+#-----------------------------------------------------------------#
 
-    if not os.path.exists(path_data + 'Integration.h5ad'):
-        print('Run pp or integration algorithm(s) beforehand!')
-        sys.exit()
-    
-    #-----------------------------------------------------------------#
-    
-    # Set logger 
-    mode = 'a' if chosen is not None else 'w'
-    logger = set_logger(path_runs, 'logs_integration_diagnostics.txt', mode=mode)
+# Set logger 
+mode = 'a' if chosen is not None else 'w'
+logger = set_logger(path_runs, 'logs_integration_diagnostics.txt', mode=mode)
 
 ########################################################################
 

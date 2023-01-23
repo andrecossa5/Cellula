@@ -216,7 +216,7 @@ def preprocessing():
     adata.raw = adata.copy()
     adata = pp(
         adata, 
-        mode=normalization_method, 
+        mode=normalization_method,  
         target_sum=50*1e4, 
         n_HVGs=n_HVGs, 
         score_method=scoring_method,

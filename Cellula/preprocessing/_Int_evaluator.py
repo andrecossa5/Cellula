@@ -10,7 +10,7 @@ import scanpy as sc
 from sklearn.metrics import normalized_mutual_info_score
 from ._integration import format_metric_dict, summary_metrics, rank_runs
 from ._metrics import kbet, graph_conn, entropy_bb, kNN_retention_perc
-from .._utils import custom_ARI
+from .._utils import custom_ARI, get_representation
 from ._neighbors import _NN, kNN_graph, get_indices_from_connectivities
 from ..clustering._clustering import leiden_clustering
 from ..plotting._plotting import plot_rankings
@@ -30,155 +30,94 @@ class Int_evaluator:
         self.adata = adata
         self.batch_removal_scores = {}
         self.bio_conservation_scores = {}
+        methods = pd.Series([ x.split('|')[1] for x in self.adata.obsp.keys() ]).unique()
+        self.methods = [ x for x in methods if x != 'original' ]
         self.batch_metrics = ['kBET', 'entropy_bb', 'graph_conn']
         self.bio_metrics = ['kNN_retention_perc', 'NMI', 'ARI']
 
     ##
 
-    def get_kNNs(self, layer = 'scaled', metric=None, metric_type=None, methods=None,  k=15 ,n_components=30):
-            """
-            Get needed kNNs for metrics computation.
-            """
-            if methods == None:
-                if metric_type == 'batch': 
-                    kNN_feature = 'idx' if metric != 'graph_conn' else 'conn'
-                    d = {'original' : self.adata.obsm[f'{layer}|original|X_pca|{k}_NN_{n_components}_comp_{kNN_feature}'] if kNN_feature == 'idx' else self.adata.obsp[f'{layer}|original|X_pca|{k}_NN_{n_components}_comp_{kNN_feature}']}
-                    return d
-            else:
-                if metric_type == 'batch': 
-                    d = {}
-                    kNN_feature = 'idx' if metric != 'graph_conn' else 'conn'
-                    original = { 'original' : self.adata.obsm[f'{layer}|original|X_pca|{k}_NN_{n_components}_comp_{kNN_feature}'] if kNN_feature == 'idx' else self.adata.obsp[f'{layer}|original|X_pca|{k}_NN_{n_components}_comp_{kNN_feature}']}
-                    integrated = {}
-                    for m in methods:
-                        i = 0
-                        if layer == 'regressed' and m == 'scVI':
-                            i = 1
-                        elif layer == 'regressed_and_scaled' and m == 'scVI':
-                            i = 1
-                        elif layer == 'scaled' and m == 'scVI':
-                            i = 1
-                        else:
-                            i = 0
-                        if i == 0:
-                            if kNN_feature == 'idx':
-                                integrated[m] = self.adata.obsm[f'{layer}|{m}|X_corrected|{k}_NN_{n_components}_comp_{kNN_feature}']
-                            else:
-                                integrated[m] = self.adata.obsp[f'{layer}|{m}|X_corrected|{k}_NN_{n_components}_comp_{kNN_feature}']
-                    d = {**original}
-                    d.update(integrated)
+    def get_kNNs(self, layer='scaled', metric=None, k=15, n_components=30):
+        """
+        Get needed kNNs for metrics computation.
+        """
+        # Batch metrics
+        if metric in self.batch_metrics:
+            only_index = False if metric == 'graph_conn' else True
+            methods = self.methods
 
-                    return d
+        # Bio metrics
+        elif metric in self.bio_metrics:
+            only_index = True if metric == 'kNN_retention_perc' else False
+            methods = self.methods + ['original']
 
-                else:
-                    kNN_feature = 'idx' if metric == 'kNN_retention_perc' else 'conn'
-                    original_kNN = self.adata.obsm[f'{layer}|original|X_pca|{k}_NN_{n_components}_comp_{kNN_feature}'] if kNN_feature == 'idx' else self.adata.obsp[f'{layer}|original|X_pca|{k}_NN_{n_components}_comp_{kNN_feature}']
-                    integrated = {}
-                    for m in methods:
-                        i = 0
-                        if layer == 'regressed' and m == 'scVI':
-                            i = 1
-                        elif layer == 'regressed_and_scaled' and m == 'scVI':
-                            i = 1
-                        elif layer == 'scaled' and m == 'scVI':
-                            i = 1
-                        else:
-                            i = 0
-                        if i == 0:
-                            if kNN_feature == 'idx':
-                                integrated[m] = self.adata.obsm[f'{layer}|{m}|X_corrected|{k}_NN_{n_components}_comp_{kNN_feature}']
-                            else:
-                                integrated[m] = self.adata.obsp[f'{layer}|{m}|X_corrected|{k}_NN_{n_components}_comp_{kNN_feature}']
+        # Get representations
+        reps = {}
+        for m in methods:
+            try:
+                reps[m] = get_representation(self.adata, layer=layer, method=m, k=k, 
+                    n_components=n_components, only_index=only_index) 
+            except:
+                print(f'{m} is not available for layer {layer}')
 
-                        return original_kNN, integrated
+        return reps
 
     ##
 
-    def compute_batch(self, kNN, batch, pp=None, int_method=None, metric=None, labels=None, k = 15, n_components = 30):
+    def compute_metric(self, metric, layer='scaled', batch='seq_run', k=15, n_components=30,
+        labels=None, resolution=0.5):
         """
         Compute one  of the available batch correction metrics.
         """
-        if metric == 'kBET':
-            score = kbet(kNN, batch)[2]
-        elif metric == 'graph_conn':
-            score = graph_conn(kNN, labels=labels)
-        elif metric == 'entropy_bb':
-            score = entropy_bb(kNN, batch)
-        
-        # Add to batch_removal_scores[metric]
-        if score is not None:
-            key =f'{k}_NN_{n_components}_comp'
-            metrics_key = '|'.join([pp, int_method, key])
-            self.batch_removal_scores[metric][metrics_key] = round(score, 3)
-        
+        # Get kNN representations for the chosen layer
+        reps = self.get_kNNs(layer=layer, metric=metric, k=k, n_components=n_components)
 
-    ##
+        # Compute metric
+        d_metric = {}
 
-    def compute_bio(self, original_kNN, integrated_kNN, pp=None, int_method=None, resolution=0.2, metric=None, labels=None,k = 15, n_components = 30):
-        """
-        Compute one of the available bio conservation metrics.
-        """
-        if metric == 'kNN_retention_perc':
-            score = kNN_retention_perc(original_kNN, integrated_kNN)
-        else:
-            # Check if ground truth is provided and compute original and integrated labels 
-            if labels is None:
-                g1 = leiden_clustering( original_kNN, res=resolution)
-            else:
-                g1 = labels
-            g2 = leiden_clustering( integrated_kNN, res=resolution)
-            # Score metrics
-            if metric == 'ARI':
-                score = custom_ARI(g1, g2)
-            elif metric == 'NMI':
-                score = normalized_mutual_info_score(g1, g2, average_method='arithmetic')
-
-        # Add to bio_conservation_scores[metric]
-        if score is not None:
-            key =f'{k}_NN_{n_components}_comp'
-            metrics_key = '|'.join([pp, int_method,key])
-            self.bio_conservation_scores[metric][metrics_key] = round(score, 3)
-
-    ##
-
-    def compute_metric(self, metric=None, covariate='seq_run', labels=None, resolution=0.2, methods = None, k=15, n_components = 30):
-        """
-        Compute one of the available metrics.
-        """
-        
-        # Check metric_type Add dict[metric] to the appropriate scores attribute
         if metric in self.batch_metrics:
-            metric_type = 'batch'
-            self.batch_removal_scores[metric] = {}
+
+            for int_method in reps:
+                kNN = reps[int_method]
+                if metric == 'kBET':
+                    score = kbet(kNN, batch)[2]
+                elif metric == 'graph_conn':
+                    score = graph_conn(kNN[1], labels=labels)
+                elif metric == 'entropy_bb':
+                    score = entropy_bb(kNN, batch)
+                d_metric[int_method] = score
+
+            self.batch_removal_scores[metric] = d_metric
+
         elif metric in self.bio_metrics:
-            metric_type = 'bio'
-            self.bio_conservation_scores[metric] = {}
-        else:
-            raise Exception('Unknown metric. Specify one among known batch and bio metrics')
 
-        # Loop over adata and extract the data needed for metric computation
-        
-        for layer in self.adata.layers:
-            
-            
-            batch = self.adata.obs[covariate] # Batch labels
+            for int_method in self.methods:
+                original_kNN = reps['original']
+                integrated_kNN = reps[int_method]  
+                if metric == 'kNN_retention_perc':
+                    score = kNN_retention_perc(original_kNN, integrated_kNN)
+                else:
+                    # Check if ground truth is provided and compute original and integrated labels 
+                    if labels is None:
+                        g1 = leiden_clustering(original_kNN, res=resolution)
+                    else:
+                        g1 = labels
+                    g2 = leiden_clustering(integrated_kNN, res=resolution)
 
-            # Batch metrics
-            if metric_type == 'batch': 
-                d = self.get_kNNs(layer = layer, metric=metric, metric_type=metric_type, methods = methods, k = k ,n_components = n_components)
-                # Compute for collected kNNs
-                for int_method, kNN in d.items():
-                        self.compute_batch(kNN, batch, pp = layer, int_method=int_method, metric=metric, labels=labels, k = k)
-                        gc.collect()
-        
-            # Bio metrics
-            if metric_type == 'bio': 
-                    original_kNN, integrated = self.get_kNNs( layer = layer, metric=metric, metric_type=metric_type, methods = methods,  k = k ,n_components = n_components)
-                # Compute for collected kNNs
-                    for int_method, integrated_kNN in integrated.items():
-                        self.compute_bio(original_kNN, integrated_kNN, pp=layer, int_method=int_method, 
-                                    resolution=resolution, metric=metric, labels=labels)
-                        gc.collect()
+                    if metric == 'ARI':
+                        score = custom_ARI(g1, g2)
+                    elif metric == 'NMI':
+                        score = normalized_mutual_info_score(g1, g2, average_method='arithmetic')
+                d_metric[int_method] = score
+            
+            self.bio_conservation_scores[metric] = d_metric
+                    
+        ## Add to batch_removal_scores[metric]
+        # if score is not None:
+        #     key =f'{k}_NN_{n_components}_comp'
+        #     metrics_key = '|'.join([layer, int_method, key])
+        #     self.batch_removal_scores[metric][metrics_key] = round(score, 3)
+
     ##
     
     def evaluate_runs(self, path, by='cumulative_score'):
@@ -234,29 +173,8 @@ class Int_evaluator:
 
         return fig
 
-def method_integration_list(adata, k = 15, n_components = 30):
-    method = []
-    try:
-        if type(adata.obsm["lognorm|Harmony|X_corrected"]) is np.ndarray:
-            method.append('Harmony')
-    except KeyError:
-        print("Harmony not computed")
-    try:
-        if type(adata.obsm["lognorm|Scanorama|X_corrected"]) is np.ndarray:
-            method.append('Scanorama')
-    except KeyError:
-        print("Scanorama not computed")
-    try:
-        if type(adata.obsm["lognorm|scVI|X_corrected"]) is np.ndarray:
-            method.append('scVI')
-    except KeyError:
-        print("scVI not computed")
-    try:
-        if type(adata.obsm[f'lognorm|BBKNN|X_corrected|{k}_NN_{n_components}_comp_idx']) is np.ndarray:
-            method.append('BBKNN')
-    except KeyError:
-        print("BBKNN not computed")
-    return method
+
+##
 
 
 def compute_kNNs(adata, matrix, pp, int_method , k, n_components):

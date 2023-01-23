@@ -47,7 +47,7 @@ def compute_Scanorama(adata, covariate='seq_run', layer='scaled', k=15, n_compon
 ##
 
 
-def compute_Harmony(adata, covariates='seq_run', n_components=30,layer = 'scaled', k = 15):
+def compute_Harmony(adata, covariates='seq_run', n_components=30, layer='scaled', k=15):
     """
      Compute the Harmony batch- (covariate) corrected representation of the original PCA space.
     """

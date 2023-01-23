@@ -61,13 +61,6 @@ my_parser.add_argument(
     help='The covariate for which kNN-mixing needs to be checked. Default: seq_run.'
 )
 
-# Skip
-my_parser.add_argument(
-    '--skip', 
-    action='store_true',
-    help='Skip analysis. Default: False.'
-)
-
 # Parse arguments
 args = my_parser.parse_args()
 path_main = args.path_main
@@ -123,13 +116,12 @@ def kBET():
 
     logger.info(f'Execute kBET: --n_pcs {n_pcs} --covariate {covariate}')
 
-    # Load pickled GE_spaces
+    # Load reduced adata
     adata = sc.read(path_data + 'reduced.h5ad')
 
     # Instantiate int_evaluator class
     I = Int_evaluator(adata)
     
-
     logger.info(f'Data loading and preparation: {t.stop()} s.')
 
     #-----------------------------------------------------------------#
@@ -149,7 +141,7 @@ def kBET():
             logger.info(f'Begin operations on all representations, for k {k}...')
             X_pca = get_representation(adata, layer=layer, int_method=int_method)
             adata = compute_kNNs(adata, X_pca, pp=layer, int_method=int_method, k=k, n_components=n_pcs)
-        I.compute_metric(metric='kBET', covariate=covariate, k = k)
+        I.compute_metric(metric='kBET', covariate=covariate, k=k)
         logger.info(f'kBET calculations finished for k {k}: {t.stop()} s.')
         all_removal_batch.update(I.batch_removal_scores['kBET'])
 
@@ -194,7 +186,6 @@ def kBET():
 
 # Run program
 if __name__ == "__main__":
-    if not args.skip:
-        kBET()
+    kBET()
 
-#######################################################################
+######################################################################

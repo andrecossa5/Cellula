@@ -115,6 +115,10 @@ from Cellula.preprocessing._Int_evaluator import *
 from Cellula.preprocessing._pp import *
 from Cellula.preprocessing._integration import *
 
+path_main = '/Users/IEO5505/Desktop/cellula_ex/'
+version = 'default'
+chosen = None
+
 #-----------------------------------------------------------------#
 
 # Set other paths
@@ -122,11 +126,12 @@ path_data = path_main + f'/data/{version}/'
 path_results = path_main + '/results_and_plots/pp/'
 path_runs = path_main + '/runs/'
 path_viz = path_main + '/results_and_plots/vizualization/pp/'
+
 # Update paths
 path_runs += f'/{version}/'
 path_results += f'/{version}/' 
 path_viz += f'/{version}/' 
-if not os.path.exists(path_data + 'Integration.h5ad'):
+if not os.path.exists(path_data + 'integration.h5ad'):
     print('Run pp or integration algorithm(s) beforehand!')
     sys.exit()
 
@@ -151,7 +156,7 @@ def integration_diagnostics():
     logger.info(f'Execute 3_integration_diagnostics: --k {k} --covariate {covariate} --resolution {resolution} --n_comps {n_comps}')
 
     # Load Integration.h5ad
-    adata = sc.read(path_data + 'Integration.h5ad')
+    adata = sc.read(path_data + 'integration.h5ad')
 
     logger.info(f'Loading data: {t.stop()} s.')
 
@@ -163,53 +168,44 @@ def integration_diagnostics():
 
     # Compute and compare embeddings
     colors = create_colors(adata.obs)
-    methods = method_integration_list(adata)
 
-
-    t.start()
-
-    for layer in adata.layers:
-         with PdfPages(path_viz + f'orig_int_embeddings_{layer}.pdf') as pdf:
-             for int_rep in methods:
-                 if layer != 'raw' and int_rep != 'scVI' and int_rep != 'BBKNN':
-                     fig = plot_orig_int_embeddings(adata, layer = layer, rep_1='original', rep_2=int_rep, colors=colors)
-                 elif layer == 'raw' and int_rep == 'scVI':
-                     fig = plot_orig_int_embeddings(adata, layer = layer, rep_1='original', rep_2=int_rep, colors=colors)
-                 else:
-                     print("No embedding")
-                 pdf.savefig()  
-                 plt.close()
-    logger.info(f'Embeddings visualization: {t.stop()} s.')
- 
-    #for layer in adata.layers:
-    #    with PdfPages(path_viz + f'orig_int_embeddings_{layer}.pdf') as pdf:
-    #        for int_rep in methods:
-    #            i = 0
-    #            if layer == 'regressed' and int_rep == 'scVI':
-    #                i = 1
-    #            elif layer == 'regressed_and_scaled' and int_rep == 'scVI':
-    #                i = 1
-    #            elif layer == 'scaled' and int_rep == 'scVI':
-    #                i = 1
-    #            else:
-    #                i = 0
-    #            if i == 0:
-    #                fig = plot_orig_int_embeddings(adata, layer = layer, rep_1='original', rep_2=int_rep, colors=colors)
-    #                pdf.savefig()  
-    #                plt.close()
-    #logger.info(f'Embeddings visualization: {t.stop()} s.')
-
+   #t.start()
+    # for layer in adata.layers:
+    #     with PdfPages(path_viz + f'orig_int_embeddings_{layer}.pdf') as pdf:
+    #         for int_rep in methods:
+    #             if layer != 'raw' and int_rep != 'scVI' and int_rep != 'BBKNN':
+    #                 fig = plot_orig_int_embeddings(adata, 
+    #                     layer=layer, rep_1='original', rep_2=int_rep, colors=colors
+    #                 )
+    #             elif layer == 'raw' and int_rep == 'scVI':
+    #                 fig = plot_orig_int_embeddings(adata, 
+    #                     layer=layer, rep_1='original', rep_2=int_rep, colors=colors
+    #                 )
+    #             else:
+    #                 print("No embedding")
+# 
+    #             pdf.savefig()  
+    #             plt.close()
+# 
+    # logger.info(f'Embeddings visualization: {t.stop()} s.')
 
     # Batch removal metrics
+
+
+    """
+    I.compute_metric(metric, layer='scaled', batch='seq_run', k=15, n_components=30,
+        labels=None, resolution=0.5)
+    """
+    
     t.start()
     for m in I.batch_metrics:
-        I.compute_metric(m, covariate=covariate, methods = methods, k=k, n_components = n_comps)
+        I.compute_metric(m, covariate=covariate, methods=methods, k=k, n_components = n_comps)
     logger.info(f'Batch removal metrics calculations: {t.stop()} s.')
 
     # Bio conservation metrics
     t.start()
     for m in I.bio_metrics:
-        I.compute_metric(m, covariate=covariate, resolution=resolution, methods = methods)
+        I.compute_metric(m, covariate=covariate, resolution=resolution, methods=methods)
     logger.info(f'Biological conservation metrics calculations: {t.stop()} s.')
 
     # Integration runs evaluation

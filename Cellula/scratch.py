@@ -1,39 +1,69 @@
-import pickle
-import anndata
-import Cellula.plotting._plotting_base
+from Cellula._utils import *
+from Cellula.plotting._plotting import *
+from Cellula.plotting._colors import create_colors
+from Cellula.preprocessing._Int_evaluator import *
 from Cellula.preprocessing._pp import *
+from Cellula.preprocessing._integration import *
 
 
-path_main = 
+# Set other paths and options
+path_main = '/Users/IEO5505/Desktop/cellula_ex/'
+version = 'default'
+chosen = None
+
+path_data = path_main + f'/data/{version}/'
+path_results = path_main + '/results_and_plots/pp/'
+path_runs = path_main + '/runs/'
+path_viz = path_main + '/results_and_plots/vizualization/pp/'
+
+path_runs += f'/{version}/'
+path_results += f'/{version}/' 
+path_viz += f'/{version}/' 
+
+mode = 'a' if chosen is not None else 'w'
+
+# Read adata
+adata = sc.read(path_data + 'integration.h5ad')
+
+# Refractoring _Int_evaluator
+I = Int_evaluator(adata)
+
+
+dir(I)
+
+I.adata
+I.batch_metrics
+I.bio_metrics
+I.bio_conservation_scores
+I.batch_removal_scores
+
+m = metric = 'NMI'
+covariate = 'seq_run'
+methods = ['Harmony', 'Scanorama'] # I.methods
+k = 15
+n_comps = n_components = 30
+labels = None
+resolution = 0.5
 
 
 
 
 
+I.compute_metric(metric, covariate=covariate, methods=methods, k=k, n_components=n_comps)
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# if metric in I.batch_metrics:
+#     metric_type = 'batch'
+#     I.batch_removal_scores[metric] = {}
+#     batch = I.adata.obs[covariate] 
+# elif metric in I.bio_metrics:
+#     metric_type = 'bio'
+#     I.bio_conservation_scores[metric] = {}
+# else:
+#     raise Exception('Unknown metric. Specify one among known batch and bio metrics')
 
 
 

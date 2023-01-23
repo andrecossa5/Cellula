@@ -120,7 +120,7 @@ def graph_conn(A, labels=None, resolution=0.2):
     per_group_results = []
     # Labels 
     if labels is None:    
-        labels = leiden_clustering(A, res=resolution) #A e' la matrice di connectivties
+        labels = leiden_clustering(A, res=resolution) #A e' la matrice di connectivities
         labels = pd.Categorical(labels)
     else:
         pass

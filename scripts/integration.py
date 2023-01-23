@@ -115,15 +115,12 @@ from Cellula.preprocessing._integration import *
 
 # Set other paths
 path_data = path_main + f'/data/{version}/'
-path_runs = path_main + '/runs/'
-
-# Update paths
-path_runs += f'/{version}/'
+path_runs = path_main + f'/runs/{version}/'
 
 #-----------------------------------------------------------------#
 
 # Set logger 
-logger = set_logger(path_runs, 'logs_Integration.txt')
+logger = set_logger(path_runs, 'logs_integration.txt')
 
 ########################################################################
 
@@ -137,7 +134,7 @@ def Integration():
     t = Timer()
     t.start()
     
-    logger.info('Execute Integration...')
+    logger.info('Execute integration...')
 
     # Load anndata
     adata = sc.read(path_data + 'reduced.h5ad')
@@ -186,7 +183,8 @@ def Integration():
     
 
     # Save results
-    adata.write(path_data + 'Integration.h5ad')
+    adata.write(path_data + 'integration.h5ad')
+
     #-----------------------------------------------------------------#
 
     # Write final exec time

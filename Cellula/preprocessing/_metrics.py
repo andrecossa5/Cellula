@@ -2,6 +2,7 @@
 _metrics.py: integration metrics functions.
 """
 
+import sys
 from joblib import cpu_count, parallel_backend, Parallel, delayed
 import numpy as np
 import pandas as pd
@@ -14,8 +15,8 @@ import leidenalg
 import igraph as ig
 import anndata
 
-
 from .._utils import chunker
+from ..clustering._clustering import leiden_clustering
 
 
 ##
@@ -66,7 +67,6 @@ def choose_K_for_kBET(adata, covariate):
         sys.exit()
 
     # Calculate K 
-    #K = np.min(pd.Series(meta['seq_run'].value_counts()).values) // 4
     K = np.min(pd.Series(adata.obs['seq_run'].value_counts()).values) // 4
 
     return K
@@ -203,19 +203,5 @@ def custom_ARI(g1, g2):
 
     return (index - expected_index) / (max_index - expected_index)
 
-    ##
 
-def leiden_clustering(A, res=0.5):
-    """
-    Compute leiden clustering, at some resolution.
-    """
-    g = sc._utils.get_igraph_from_adjacency(A, directed=True)
-    part = leidenalg.find_partition(
-        g,
-        leidenalg.RBConfigurationVertexPartition,
-        resolution_parameter=res,
-        seed=1234
-    )
-    labels = np.array(part.membership)
-
-    return labels
+##

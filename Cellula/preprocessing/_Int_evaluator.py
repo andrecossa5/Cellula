@@ -2,15 +2,16 @@
 _Int_evaluator.py: The Int_evaluator class
 """
 
+import sys
 import gc
 import numpy as np
 import pandas as pd
 import scanpy as sc
 from sklearn.metrics import normalized_mutual_info_score
-import sys
 from ._integration import format_metric_dict, summary_metrics, rank_runs
-from ._metrics import kbet, graph_conn, entropy_bb, kNN_retention_perc, custom_ARI, leiden_clustering
+from ._metrics import kbet, graph_conn, entropy_bb, kNN_retention_perc, custom_ARI
 from ._neighbors import _NN, kNN_graph, get_indices_from_connectivities
+from ..clustering._clustering import leiden_clustering
 from ..plotting._plotting import plot_rankings
 
 ##

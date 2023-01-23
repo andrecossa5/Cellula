@@ -15,6 +15,25 @@ from ..preprocessing._metrics import custom_ARI
 ##
 
 
+def leiden_clustering(A, res=0.5):
+    """
+    Compute leiden clustering, at some resolution.
+    """
+    g = sc._utils.get_igraph_from_adjacency(A, directed=True)
+    part = leidenalg.find_partition(
+        g,
+        leidenalg.RBConfigurationVertexPartition,
+        resolution_parameter=res,
+        seed=1234
+    )
+    labels = np.array(part.membership)
+
+    return labels
+
+
+##
+
+
 def cluster_QC(df, QC_covariates):
     """
     Create a summary df for QC stats of a certain clustering solution.
@@ -84,3 +103,6 @@ def kNN_purity(index, solution):
         purity.append(np.sum(labels == ref) / labels.size)
     
     return np.median(purity)
+
+
+##

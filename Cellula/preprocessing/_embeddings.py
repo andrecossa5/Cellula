@@ -7,10 +7,11 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 from joblib import cpu_count
-from Cellula._utils import get_representation
+from .._utils import get_representation
 
 
 ##
+
 
 def embeddings(adata, paga_groups='sample', rep='original', layer='lognorm', umap_only=True, k=15, n_components=30):
     '''

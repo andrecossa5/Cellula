@@ -146,7 +146,7 @@ def entropy_bb(index, batch):
     SH = []
     for i in range(index.shape[0]):
         freqs = batch[index[i, :]].value_counts(normalize=True).values
-        SH.append( - np.sum(freqs * np.log(freqs + 0.00001))) # Avoid 0 division
+        SH.append(-np.sum(freqs * np.log(freqs + 0.00001))) # Avoid 0 division
     
     return np.median(SH)
 

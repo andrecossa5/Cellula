@@ -286,11 +286,10 @@ def choose_preprocessing_option():
 
 # Run program(s)
 if __name__ == "__main__":
-    if not args.skip:
-        if chosen is None:
-            integration_diagnostics()
-        else:
-            choose_preprocessing_option()
+    if chosen is None:
+        integration_diagnostics()
+    else:
+        choose_preprocessing_option()
 
 #######################################################################
 

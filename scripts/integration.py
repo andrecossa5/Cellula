@@ -196,7 +196,6 @@ def Integration():
 
 # Run program
 if __name__ == "__main__":
-    if not args.skip:
-        Integration()
+    Integration()
 
 #######################################################################

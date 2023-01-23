@@ -1,99 +1,43 @@
 import pickle
 import anndata
 import Cellula.plotting._plotting_base
-from glob import glob
-from Cellula._utils import *
 from Cellula.preprocessing._pp import *
-from Cellula.preprocessing._GE_space import GE_space
-from Cellula.preprocessing._embeddings import *
-from Cellula.plotting._plotting import *
-from Cellula.plotting._colors import create_colors
 
-clustered = sc.read('/Users/IEO5505/Desktop/eif4a3_first_analysis/data/default/clustered.h5ad')
-adata = anndata.AnnData(
-    X=clustered.raw[:, clustered.var_names].X, 
-    obs=clustered.obs.iloc[:, :-8],
-    var=clustered.var.iloc[:, :0]
-)
-custom_meta = False
-remove = False
 
-if remove:
-    path_cells = path_main + '/data/removed_cells/'
-    removed = [ y for x in os.walk(path_cells) for y in glob(os.path.join(x[0], '*.csv'))]
-    cells_to_remove = pd.concat([ pd.read_csv(x, index_col=0) for x in removed ], axis=0)['cell'].to_list()
-    adata = adata[~adata.obs_names.isin(cells_to_remove), :]
+path_main = 
 
-# Format adata.obs
-if custom_meta:
-    try:
-        meta = pd.read_csv(path_data + 'cells_meta.csv', index_col=0)
-        # Format cols as pd.Categoricals
-        for x in meta.columns:
-            test = meta[x].dtype in ['int64', 'int32', 'int8'] and meta[x].unique().size < 50
-            if meta[x].dtype == 'object' or test:
-                meta[x] = pd.Categorical(meta[x])
-        adata.obs = meta
-    except:
-        logger.info('Cannot read cells_meta.csv. Format .csv file correctly!')
-        sys.exit()
-else:
-    adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.startswith('passing')]
-    adata.obs['seq_run'] = 'run_1' # Assumed only one run of sequencing
-    adata.obs['seq_run'] = pd.Categorical(adata.obs['seq_run'])
-    adata.obs['sample'] = pd.Categorical(adata.obs['sample'])
 
-# Create colors
-colors = create_colors(adata.obs)
 
-adata.raw = adata.copy()
-adata = pp(
-    adata, 
-    mode='scanpy', 
-    target_sum=50*1e4, 
-    n_HVGs=2000, 
-    score_method='scanpy',
-    organism='mouse'
-)
 
-QC_covariates = [
-    'nUMIs', 'detected_genes', 'mito_perc', \
-    'cell_complexity', 'cycle_diff', 'cycling', \
-    'ribo_genes', 'apoptosis'
-]
-QC_df = adata.obs.loc[:, QC_covariates + ['sample']]
-summary = QC_df.groupby('sample').median()
 
-# Visualize QC metrics 
-fig = QC_plot(adata.obs, 'sample', QC_covariates, colors, labels=False, figsize=(12, 10))
 
-# NEW from here
 
-adata_red = red(adata)
-# adatas = {
-#     'red' : adata_red,
-#     'red_s' : scale(adata_red),
-#     'reg' : regress(adata_red)
-# }
-adata_red = scale(adata_red)
-adata_red = regress(adata_red)
-adata_red = regress_and_scale(adata_red)
 
-for layer in adata_red.layers:
-    adata = pca(adata_red, layer=layer)
 
-explained_variance_plot(adata, figsize=(10,7))
 
-for layer in adata.layers:
-    pass
-    for cov in ['seq_run', 'sample', 'nUMIs', 'cycle_diff']:
-        pass
-        fig = plot_biplot_PCs(adata, layer=layer, covariate=cov, colors=colors)
 
-for layer in adata.layers:
-    compute_kNN(adata, layer='scaled') # Default here
 
-fig = plot_embeddings(adata, layer='scaled', colors=colors)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

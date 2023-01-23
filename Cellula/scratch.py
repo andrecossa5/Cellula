@@ -214,3 +214,74 @@ def compute_GSEA(self, covariate='effect_size', by='Adjusted P-value',
 # 
 # ref_path = 'ref_model/'
 # scanvae.save(ref_path, overwrite=True)
+
+
+
+
+
+
+
+
+
+
+
+
+def get_representation(adata, layer=None, method='original', k=15, n_components=30, 
+    representation_type='embedding', only_index=False):
+    """
+    Take out desired representation from adata.obsm/obsp.
+    """
+    if representation_type == 'embedding':
+
+        representations = {
+            key : adata.obsm[key] for key in adata.obsm \
+            # if key.split('|')[0] == layer and key.split('|')[1] == method and method != 'BBKNN'
+        }
+        assert len(representations) == 1
+        representations = list(representations.values())[0]
+
+    else: 
+        # representations_keys = [ 
+        #     key for key in adata.obsm \
+        #     if key.split('|')[0] == layer and key.split('|')[1] == method and # n_components in key.split('|')[2] and k in key.split('|')[2] 
+        # ]
+        # representations_conn_dist = [ 
+        #     key for i in adata.obsp \
+        #     if key.split('|')[0] == layer and key.split('|')[1] == method and # n_components in i.split('|')[2] and k in i.split('|')[2]
+        # ]
+        # representation = [ *representations_keys, *representations_conn_dist ]
+# 
+        # if only_index:
+        #     representation = representations_keys
+
+    return representations
+
+
+
+
+regex = f'scaled\|original\|X_pca\|15_NN_30_comp_'
+
+
+
+
+# indeces = []
+# connectivities = []
+# distanze = []
+
+
+
+
+
+representations_keys = [ 
+    key for key in adata.obsm \
+    if key.split('|')[0] == layer and key.split('|')[1] == method and # n_components in key.split('|')[2] and k in key.split('|')[2] 
+]
+
+representations_conn_dist = [ 
+     key for i in adata.obsp \
+     if key.split('|')[0] == layer and key.split('|')[1] == method and # n_components in i.split('|')[2] and k in i.split('|')[2]
+]
+
+representation = [ *representations_keys, *representations_conn_dist ]
+if only_index:
+     representation = representations_keys

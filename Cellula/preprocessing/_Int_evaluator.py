@@ -31,7 +31,8 @@ class Int_evaluator:
         self.batch_removal_scores = {}
         self.bio_conservation_scores = {}
         methods = pd.Series([ x.split('|')[1] for x in self.adata.obsp.keys()]).unique()
-        self.methods = [ x for x in methods if x != 'original' ]
+        self.methods = methods
+        #self.methods = [ x for x in methods if x != 'original' ]
         self.batch_metrics = ['kBET', 'entropy_bb', 'graph_conn']
         self.bio_metrics = ['kNN_retention_perc', 'NMI', 'ARI']
 
@@ -49,7 +50,8 @@ class Int_evaluator:
         # Bio metrics
         elif metric in self.bio_metrics:
             only_index = True if metric == 'kNN_retention_perc' else False
-            methods = self.methods + ['original']
+            #methods = self.methods + ['original']
+            methods = self.methods
 
         # Get representations
         reps = {}
@@ -85,12 +87,12 @@ class Int_evaluator:
                     score = graph_conn(kNN[1], labels=labels)
                 elif metric == 'entropy_bb':
                     score = entropy_bb(kNN, batch)
-                d_metric[int_method] = score
+                metrics_key = '|'.join([layer, int_method])
+                d_metric[metrics_key] = score
 
-            self.batch_removal_scores[metric] = d_metric
+            self.batch_removal_scores.setdefault(metric, {}).update(d_metric)
 
         elif metric in self.bio_metrics:
-
             for int_method in reps:
                 original_kNN = reps['original']
                 integrated_kNN = reps[int_method]  
@@ -108,17 +110,11 @@ class Int_evaluator:
                         score = custom_ARI(g1, g2)
                     elif metric == 'NMI':
                         score = normalized_mutual_info_score(g1, g2, average_method='arithmetic')
-                d_metric[int_method] = score
-            
-            self.bio_conservation_scores[metric] = d_metric
-                    
-        ## Add to batch_removal_scores[metric]
-        # if score is not None:
-        #     key =f'{k}_NN_{n_components}_comp'
-        #     metrics_key = '|'.join([layer, int_method, key])
-        #     self.batch_removal_scores[metric][metrics_key] = round(score, 3)
+                metrics_key = '|'.join([layer, int_method])
+                d_metric[metrics_key] = score
 
-    ##
+            self.bio_conservation_scores.setdefault(metric, {}).update(d_metric)
+
     
     def evaluate_runs(self, path, by='cumulative_score'):
         """
@@ -136,7 +132,7 @@ class Int_evaluator:
         df.to_excel(path + 'integration_diagnostics_results.xlsx', index=False)
 
         # Create summary and rankings dfs
-        runs = [ x for x in df['run'].unique() if x.split('|')[0] != 'original' ] # Filter out original runs
+        runs = [ x for x in df['run'].unique() if x.split('|')[1] != 'original' ] # Filter out original runs
         df = df[df['run'].isin(runs)]
 
         # Rankings df

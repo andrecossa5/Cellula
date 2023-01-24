@@ -30,9 +30,7 @@ class Int_evaluator:
         self.adata = adata
         self.batch_removal_scores = {}
         self.bio_conservation_scores = {}
-        methods = pd.Series([ x.split('|')[1] for x in self.adata.obsp.keys()]).unique()
-        self.methods = methods
-        #self.methods = [ x for x in methods if x != 'original' ]
+        self.methods = pd.Series([ x.split('|')[1] for x in self.adata.obsp.keys()]).unique()
         self.batch_metrics = ['kBET', 'entropy_bb', 'graph_conn']
         self.bio_metrics = ['kNN_retention_perc', 'NMI', 'ARI']
 
@@ -50,7 +48,6 @@ class Int_evaluator:
         # Bio metrics
         elif metric in self.bio_metrics:
             only_index = True if metric == 'kNN_retention_perc' else False
-            #methods = self.methods + ['original']
             methods = self.methods
 
         # Get representations

@@ -163,7 +163,7 @@ def integration_diagnostics():
     # Here we go
 
     # Compute and compare embeddings
-    colors = create_colors(adata.obs)
+    #colors = create_colors(adata.obs)
 
    #t.start()
     # for layer in adata.layers:
@@ -187,11 +187,6 @@ def integration_diagnostics():
 
     # Batch removal metrics
 
-
-    """
-    I.compute_metric(metric, layer='scaled', batch='seq_run', k=15, n_components=30,
-        labels=None, resolution=0.5)
-    """
 
     t.start()
     for m in I.batch_metrics:
@@ -236,7 +231,7 @@ def choose_preprocessing_option():
     pp, chosen_int = chosen.split(':') 
     logger.info('Choose preprocessing option: ' + '|'.join([pp, chosen_int]))
 
-    adata = sc.read(path_data + 'Integration.h5ad')
+    adata = sc.read(path_data + 'integration.h5ad')
 
     # Pick the chosen pp and integration method
     if(chosen_int != 'BBKNN'):

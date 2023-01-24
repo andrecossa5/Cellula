@@ -30,7 +30,7 @@ class Int_evaluator:
         self.adata = adata
         self.batch_removal_scores = {}
         self.bio_conservation_scores = {}
-        methods = pd.Series([ x.split('|')[1] for x in self.adata.obsp.keys() ]).unique()
+        methods = pd.Series([ x.split('|')[1] for x in self.adata.obsp.keys()]).unique()
         self.methods = [ x for x in methods if x != 'original' ]
         self.batch_metrics = ['kBET', 'entropy_bb', 'graph_conn']
         self.bio_metrics = ['kNN_retention_perc', 'NMI', 'ARI']
@@ -64,7 +64,7 @@ class Int_evaluator:
 
     ##
 
-    def compute_metric(self, metric, layer='scaled', batch='seq_run', k=15, n_components=30,
+    def compute_metric(self, metric, layer='scaled', covariate='seq_run', k=15, n_components=30,
         labels=None, resolution=0.5):
         """
         Compute one  of the available batch correction metrics.
@@ -76,7 +76,7 @@ class Int_evaluator:
         d_metric = {}
 
         if metric in self.batch_metrics:
-
+            batch = self.adata.obs[covariate]
             for int_method in reps:
                 kNN = reps[int_method]
                 if metric == 'kBET':
@@ -91,7 +91,7 @@ class Int_evaluator:
 
         elif metric in self.bio_metrics:
 
-            for int_method in self.methods:
+            for int_method in reps:
                 original_kNN = reps['original']
                 integrated_kNN = reps[int_method]  
                 if metric == 'kNN_retention_perc':
@@ -99,10 +99,10 @@ class Int_evaluator:
                 else:
                     # Check if ground truth is provided and compute original and integrated labels 
                     if labels is None:
-                        g1 = leiden_clustering(original_kNN, res=resolution)
+                        g1 = leiden_clustering(original_kNN[1], res=resolution)
                     else:
                         g1 = labels
-                    g2 = leiden_clustering(integrated_kNN, res=resolution)
+                    g2 = leiden_clustering(integrated_kNN[1], res=resolution)
 
                     if metric == 'ARI':
                         score = custom_ARI(g1, g2)
@@ -136,7 +136,7 @@ class Int_evaluator:
         df.to_excel(path + 'integration_diagnostics_results.xlsx', index=False)
 
         # Create summary and rankings dfs
-        runs = [ x for x in df['run'].unique() if x.split('|')[1] != 'original' ] # Filter out original runs
+        runs = [ x for x in df['run'].unique() if x.split('|')[0] != 'original' ] # Filter out original runs
         df = df[df['run'].isin(runs)]
 
         # Rankings df

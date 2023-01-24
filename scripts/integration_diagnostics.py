@@ -115,7 +115,7 @@ from Cellula.preprocessing._Int_evaluator import *
 from Cellula.preprocessing._pp import *
 from Cellula.preprocessing._integration import *
 
-path_main = '/Users/IEO5505/Desktop/cellula_ex/'
+path_main = '/Users/IEO6214/Desktop/Refractoring_test'
 version = 'default'
 chosen = None
 
@@ -196,16 +196,18 @@ def integration_diagnostics():
     I.compute_metric(metric, layer='scaled', batch='seq_run', k=15, n_components=30,
         labels=None, resolution=0.5)
     """
-    
+
     t.start()
     for m in I.batch_metrics:
-        I.compute_metric(m, covariate=covariate, methods=methods, k=k, n_components = n_comps)
+        for layer in adata.layers:
+            I.compute_metric(m, layer=layer, covariate=covariate, k=15, n_components=30)
     logger.info(f'Batch removal metrics calculations: {t.stop()} s.')
 
     # Bio conservation metrics
     t.start()
     for m in I.bio_metrics:
-        I.compute_metric(m, covariate=covariate, resolution=resolution, methods=methods)
+        for layer in adata.layers:
+            I.compute_metric(m, layer=layer, k=15, n_components=30, labels=None, resolution=resolution)
     logger.info(f'Biological conservation metrics calculations: {t.stop()} s.')
 
     # Integration runs evaluation

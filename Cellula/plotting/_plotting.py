@@ -20,8 +20,6 @@ from Cellula._utils import get_representation
 
 
 ##
-
-
 def plot_clustermap(df, row_colors=None, palette='mako', title=None, label=None, 
                 no_cluster=False, figsize=(11, 10), annot=False, annot_size=5,
                 colors_ratio=0.5
@@ -53,11 +51,7 @@ def plot_clustermap(df, row_colors=None, palette='mako', title=None, label=None,
     # fig.fig.legend(handles, v, loc='lower center', bbox_to_anchor=(0.12, 0.5), ncol=1, frameon=False)
     # fig.ax_cbar.set_position((0.325, 0.05, 0.5, 0.02))
     # plt.show()
-
-
 ## 
-
-
 def plot_heatmap(df, palette='mako', ax=None, title=None, x_names=True, y_names=True, x_names_size=7,
     y_names_size=7, xlabel=None, ylabel=None, annot=False, annot_size=5, label=None, shrink=1.0, cb=True):
     """
@@ -72,11 +66,7 @@ def plot_heatmap(df, palette='mako', ax=None, title=None, x_names=True, y_names=
     ax.set_yticklabels(ax.get_yticklabels(), fontsize=y_names_size)
 
     return ax
-
-
 ##
-
-
 def plot_rankings(df, df_rankings, df_summary, feature='score', by='score', assessment=None, loc='lower left', 
     bbox_to_anchor=(0.1, 0.25), figsize=(8,5), legend=True):
     """
@@ -131,11 +121,7 @@ def plot_rankings(df, df_rankings, df_summary, feature='score', by='score', asse
     fig.tight_layout()
      
     return fig
-
-
 ##
-
-
 def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), labels=False, rotate=False, 
     legend=True, bbox_to_anchor=(0.93, 0.05)):
     """
@@ -163,11 +149,7 @@ def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), labels=Fals
     fig.tight_layout()
     
     return fig
-
-
 ##
-
-
 def pca_var_plot(exp_var, cum_sum, title, ax):
     """
     Plot
@@ -249,11 +231,7 @@ def plot_biplot_PCs(adata, layer=None, covariate='sample', colors=None):
     fig.tight_layout()
 
     return fig
-
-
 ##
-
-#plot_embeddings(adata, layer='scaled', colors=colors)
 def plot_embeddings(adata, layer=None, rep='original', colors=None, a=1, s=0.1, umap_only=True, k=15, n_components=30):
     """
     Plot QC covariates in the UMAP embeddings obtained from original data.
@@ -291,14 +269,8 @@ def plot_embeddings(adata, layer=None, rep='original', colors=None, a=1, s=0.1, 
         else:
             add_legend(df, cov, ax=axs[i], colors=c)
 
-    #fig.tight_layout()
-
     return fig
-
-
 ##
-
-
 def plot_orig_int_embeddings(adata, layer=None, rep_1='original', rep_2='BBKNN', colors=None, a=1, s=0.1, k=15, n_components=30):
     """
     Plot QC covariates in the UMAP embeddings obtained from original and integrated data.
@@ -337,11 +309,7 @@ def plot_orig_int_embeddings(adata, layer=None, rep_1='original', rep_2='BBKNN',
     fig.tight_layout()
 
     return fig
-
-
 ##
-
-
 def cluster_separation_plot(clustering_solutions, df_kNN):
     """
     Visualize quality of all partitionings obtained from a certain kNN graph.
@@ -379,12 +347,8 @@ def cluster_separation_plot(clustering_solutions, df_kNN):
     fig.tight_layout()
     plt.subplots_adjust(wspace=0.15, hspace=0.15)
 
-    return fig
-
-    
+    return fig    
 ##
-
-
 def _prep_paga_umap(adata, clustering_solutions, sol=None, rep='original', color_fun=None):
     """
     Compute paga and umap coordinates for a clustering solution.
@@ -399,11 +363,7 @@ def _prep_paga_umap(adata, clustering_solutions, sol=None, rep='original', color
     a.uns[f'{sol}_colors'] = list(colors[sol].values())
 
     return a, df, colors
-
-
 ##
-
-
 def top_3_paga_umap(adata, clustering_solutions, top_sol, s=13, color_fun=None, figsize=(15,10)):
     """
     Plot PAGA and umap embeddings of top3 ranked clustering solutions.
@@ -423,21 +383,13 @@ def top_3_paga_umap(adata, clustering_solutions, top_sol, s=13, color_fun=None, 
         axs[1,i].axis('off')
     
     return fig
-
-
 ##
-
-
 def ji(x, y):
     """
     Jaccard Index util.
     """
     return len(set(x)&set(y)) / len(set(x)|set(y))
-
-
 ##
-
-
 def ji_cells_one_couple(sol, sol_1_name, sol_2_name, ax=None, x_names_size=10, y_names_size=10, annot_size=7):
     """
     JI among clusters cells, considering two clustering solutions.
@@ -459,10 +411,7 @@ def ji_cells_one_couple(sol, sol_1_name, sol_2_name, ax=None, x_names_size=10, y
         annot_size=annot_size, cb=True, label='JI cells'
     )
 
-
 ##
-
-
 def ji_markers_one_couple(markers, sol_1_name, sol_2_name, ax=None, x_names_size=10, y_names_size=10, annot_size=7):
     """
     JI among clusters cells, considering two clustering solutions.
@@ -490,11 +439,7 @@ def ji_markers_one_couple(markers, sol_1_name, sol_2_name, ax=None, x_names_size
         x_names_size=x_names_size, y_names_size=y_names_size, annot=True, 
         annot_size=annot_size, cb=True, label='JI markers'
     )
-
-
 ##
-
-
 def top_3_ji_cells(markers, sol, title_size=10, figsize=(16, 10)):
     """
     Top 3 solutions cells JI, by cluster.
@@ -510,11 +455,7 @@ def top_3_ji_cells(markers, sol, title_size=10, figsize=(16, 10)):
     ji_markers_one_couple(markers, sol.columns[1], sol.columns[2], ax=axs[1, 2])
         
     return fig
-
-
 ##    
-
-
 def genes_log2FC_and_perc(adata, genes, sol, g):
     """
     Util for log2FC and cell_perc calculations.
@@ -526,11 +467,7 @@ def genes_log2FC_and_perc(adata, genes, sol, g):
     )
     perc = np.sum(adata[test_cells, genes].X > 0, axis=0) / test_cells.sum()
     return np.asarray(log2FC).flatten(), np.asarray(perc).flatten()
-
-
 ##
-
-
 def dot_plot(adata, markers, s, n=5, ax=None, size=10, legend=True):
     """
     Markers dotplot for a cluster solution.
@@ -569,11 +506,7 @@ def dot_plot(adata, markers, s, n=5, ax=None, size=10, legend=True):
     ax.set(title=s, ylabel='', xlabel='Cluster')
     ax.tick_params(axis='both', which='both', labelsize=size)
     ax.legend(loc='center left', bbox_to_anchor=(1.05, 0.5), frameon=False)
-
-
 ##
-
-
 def top_3_dot_plots(adata, markers, top_3, figsize=(11, 8)):
     """
     Dotplot top_3 clustering solutions.

@@ -87,7 +87,8 @@ class Int_evaluator:
                     score = graph_conn(kNN[1], labels=labels)
                 elif metric == 'entropy_bb':
                     score = entropy_bb(kNN, batch)
-                metrics_key = '|'.join([layer, int_method])
+                key = f'{k}_NN_{n_components}_comp'
+                metrics_key = '|'.join([layer, int_method, key])
                 d_metric[metrics_key] = score
 
             self.batch_removal_scores.setdefault(metric, {}).update(d_metric)
@@ -110,7 +111,8 @@ class Int_evaluator:
                         score = custom_ARI(g1, g2)
                     elif metric == 'NMI':
                         score = normalized_mutual_info_score(g1, g2, average_method='arithmetic')
-                metrics_key = '|'.join([layer, int_method])
+                key = f'{k}_NN_{n_components}_comp'
+                metrics_key = '|'.join([layer, int_method, key])
                 d_metric[metrics_key] = score
 
             self.bio_conservation_scores.setdefault(metric, {}).update(d_metric)

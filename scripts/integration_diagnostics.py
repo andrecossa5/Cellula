@@ -115,12 +115,6 @@ from Cellula.preprocessing._Int_evaluator import *
 from Cellula.preprocessing._pp import *
 from Cellula.preprocessing._integration import *
 
-path_main = '/Users/IEO6214/Desktop/Refractoring_test'
-version = 'default'
-chosen = None
-covariate = 'seq_run'
-resolution = 0.2
-
 #-----------------------------------------------------------------#
 
 # Set other paths

@@ -115,9 +115,6 @@ from Cellula.preprocessing._Int_evaluator import *
 from Cellula.preprocessing._pp import *
 from Cellula.preprocessing._integration import *
 
-path_main = '/Users/IEO6214/Desktop/Refractoring_test'
-version = 'default'
-
 #-----------------------------------------------------------------#
 
 # Set other paths
@@ -176,8 +173,8 @@ def integration_diagnostics():
                 try:
                      fig = plot_orig_int_embeddings(adata, 
                          layer=layer, rep_1='original', rep_2=int_rep, colors=colors
-                     )
-                     pdf.savefig()  
+                     )  
+                     pdf.savefig() 
                      plt.close()
                 except:
                     print(f'Embedding {int_rep} is not available for layer {layer}')

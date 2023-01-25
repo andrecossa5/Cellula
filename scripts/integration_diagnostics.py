@@ -115,6 +115,9 @@ from Cellula.preprocessing._Int_evaluator import *
 from Cellula.preprocessing._pp import *
 from Cellula.preprocessing._integration import *
 
+path_main = '/Users/IEO6214/Desktop/Refractoring_test'
+version = 'default'
+
 #-----------------------------------------------------------------#
 
 # Set other paths
@@ -163,31 +166,25 @@ def integration_diagnostics():
     # Here we go
 
     # Compute and compare embeddings
-    #colors = create_colors(adata.obs)
+    colors = create_colors(adata.obs)
+    methods = pd.Series([ x.split('|')[1] for x in adata.obsp.keys()]).unique()
+    methods = [ x for x in methods if x != 'original']
+    t.start()
+    for layer in adata.layers:
+         with PdfPages(path_viz + f'orig_int_embeddings_{layer}.pdf') as pdf:
+             for int_rep in methods:
+                try:
+                     fig = plot_orig_int_embeddings(adata, 
+                         layer=layer, rep_1='original', rep_2=int_rep, colors=colors
+                     )
+                     pdf.savefig()  
+                     plt.close()
+                except:
+                    print(f'Embedding {int_rep} is not available for layer {layer}')
 
-   #t.start()
-    # for layer in adata.layers:
-    #     with PdfPages(path_viz + f'orig_int_embeddings_{layer}.pdf') as pdf:
-    #         for int_rep in methods:
-    #             if layer != 'raw' and int_rep != 'scVI' and int_rep != 'BBKNN':
-    #                 fig = plot_orig_int_embeddings(adata, 
-    #                     layer=layer, rep_1='original', rep_2=int_rep, colors=colors
-    #                 )
-    #             elif layer == 'raw' and int_rep == 'scVI':
-    #                 fig = plot_orig_int_embeddings(adata, 
-    #                     layer=layer, rep_1='original', rep_2=int_rep, colors=colors
-    #                 )
-    #             else:
-    #                 print("No embedding")
-# 
-    #             pdf.savefig()  
-    #             plt.close()
-# 
-    # logger.info(f'Embeddings visualization: {t.stop()} s.')
+    logger.info(f'Embeddings visualization: {t.stop()} s.')
 
     # Batch removal metrics
-
-
     t.start()
     for m in I.batch_metrics:
         for layer in adata.layers:

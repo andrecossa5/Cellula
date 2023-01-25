@@ -128,13 +128,12 @@ def kBET():
     k_range = [ 15, 30, 50, 100, 250, 500, choose_K_for_kBET(adata, covariate) ]
 
     # Compute kNN indices and kBET
-    int_method = 'original' 
     all_removal_batch = {}
     for k in k_range:
         t.start()
         logger.info(f'Begin operations on all representations, for k {k}...')
         for layer in adata.layers:
-            adata = compute_kNNs(adata, pp=layer, int_method=int_method, k=k, n_components=n_pcs)
+            adata = compute_kNNs(adata, pp=layer, int_method='original', k=k, n_components=n_pcs)
             I.compute_metric(metric='kBET', layer=layer, covariate=covariate, k=k, n_components=n_pcs)
             all_removal_batch.update(I.batch_removal_scores['kBET'])
         logger.info(f'kBET calculations finished for k {k}: {t.stop()} s.')

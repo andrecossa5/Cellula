@@ -172,15 +172,17 @@ class Int_evaluator:
 ##
 
 
-def compute_kNNs(adata, matrix, pp, int_method , k, n_components):
+def compute_kNNs(adata, pp, int_method , k, n_components):
 
     if (int_method != 'original'):
+        matrix = get_representation(adata, layer=pp, method=int_method)
         idx, dist, conn = kNN_graph(matrix, k=k, n_components=n_components)
         adata.obsm[f'{pp}|{int_method}|X_corrected|{k}_NN_{n_components}_comp_idx'] = idx
         adata.obsp[f'{pp}|{int_method}|X_corrected|{k}_NN_{n_components}_comp_dist'] = dist
         adata.obsp[f'{pp}|{int_method}|X_corrected|{k}_NN_{n_components}_comp_conn'] = conn
         return adata
     else:
+        matrix = get_representation(adata, layer=pp)
         idx, dist, conn = kNN_graph(matrix, k=k, n_components=n_components)
         adata.obsm[f'{pp}|{int_method}|X_pca|{k}_NN_{n_components}_comp_idx'] = idx
         adata.obsp[f'{pp}|{int_method}|X_pca|{k}_NN_{n_components}_comp_dist'] = dist

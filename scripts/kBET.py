@@ -134,8 +134,7 @@ def kBET():
         t.start()
         logger.info(f'Begin operations on all representations, for k {k}...')
         for layer in adata.layers:
-            X_pca = get_representation(adata, layer=layer, method=int_method)
-            adata = compute_kNNs(adata, X_pca, pp=layer, int_method=int_method, k=k, n_components=n_pcs)
+            adata = compute_kNNs(adata, pp=layer, int_method=int_method, k=k, n_components=n_pcs)
             I.compute_metric(metric='kBET', layer=layer, covariate=covariate, k=k, n_components=n_pcs)
             all_removal_batch.update(I.batch_removal_scores['kBET'])
         logger.info(f'kBET calculations finished for k {k}: {t.stop()} s.')

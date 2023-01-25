@@ -212,7 +212,6 @@ def integration_diagnostics():
     # Write final exec time
     logger.info(f'Execution was completed successfully in total {T.stop()} s.')
 
-
 ########################################################################
 
 # choosing a prep option
@@ -224,38 +223,25 @@ def choose_preprocessing_option():
     # Data loading and preparation
     pp, chosen_int = chosen.split(':') 
     logger.info('Choose preprocessing option: ' + '|'.join([pp, chosen_int]))
-
+    logger.info(f'Execute for: --covariate {covariate} --n_comps {n_comps}')
     adata = sc.read(path_data + 'integration.h5ad')
 
     # Pick the chosen pp and integration method
-    if(chosen_int != 'BBKNN'):
-        if(chosen_int != 'original'):
-            pca = adata.obsm[f'{pp}|{chosen_int}|X_corrected']
-            del adata.obsm
-            del adata.obsp
-        else:
-            pca = adata.obsm[f'{pp}|{chosen_int}|X_pca']
-            del adata.obsm
-            del adata.obsp
+    new_adata = sc.AnnData(X=adata.X, obs=adata.obs, var=adata.var)
+    if(chosen_int != 'original' and chosen_int != 'BBKNN'):
+        new_adata.obsm[f'{pp}|{chosen_int}|X_corrected'] = get_representation(adata, layer=pp, method=chosen_int)
     else:
-        pca = adata.obsm[f"{pp}|original|X_pca"]
-        del adata.obsm
-        del adata.obsp
-        adata.obsm[f"{pp}|original|X_pca"] = pca
+        new_adata.obsm[f'{pp}|original|X_pca'] = get_representation(adata, layer=pp)
 
-
-    # Assemble adata
+    # k calculation
     for k in [5, 10, 15, 30, 50, 100]:
         if(chosen_int != 'BBKNN'):
-            adata = compute_kNNs(adata, pca, pp, chosen_int, k, n_components=n_comps) # 6 kNN graphs
+            new_adata = compute_kNNs(new_adata, pp=pp, int_method=chosen_int, k=k, n_components=n_comps) # 6 kNN graphs
         else:
-            covariate='seq_run'
-            adata = compute_BBKNN(adata, pp , covariate, k , n_components=n_comps, trim=None)
-        if(chosen_int == 'BBKNN' and k == 100):
-            del adata.obsm[f"{pp}|original|X_pca"]
+            new_adata = compute_BBKNN(new_adata, pp, covariate=covariate, k=k, n_components=n_comps, trim=None)
 
     # Save
-    adata.write(path_data + 'preprocessed.h5ad')
+    new_adata.write(path_data + 'preprocessed.h5ad')
 
     # Free disk memory and clean integration folders (if requested)
     if delete:

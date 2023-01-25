@@ -119,7 +119,7 @@ def compute_BBKNN(adata, layer = 'scaled', covariate='seq_run', k=30, n_componen
     Compute the BBKNN batch-(covariate) corrected kNN graph on the original PCA space.
     """
     # Run BBKNN
-    X_original = get_representation(adata, layer = layer, method = 'original')
+    X_original = get_representation(adata, layer=layer, method='original')
     X_corrected = bbknn(
         X_original[:, :n_components], 
         adata.obs[covariate],

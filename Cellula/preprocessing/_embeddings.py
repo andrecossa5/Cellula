@@ -13,7 +13,7 @@ from .._utils import get_representation
 ##
 
 
-def embeddings(adata, paga_groups='sample', rep='original', layer='lognorm', umap_only=True, k=15, n_components=30):
+def embeddings(adata, paga_groups='sample', layer='lognorm', rep='original', k=15, n_components=30, umap_only=True):
     '''
     Compute paga, paga initialized umap, fa and tSNE embeddings. Return them in a df of embeddings cooridinates,
     with the top 5 PCs coordinates.
@@ -27,7 +27,7 @@ def embeddings(adata, paga_groups='sample', rep='original', layer='lognorm', uma
     a.uns['nn'] = {
         'connectivities_key': 'nn_connectivities',
         'distances_key': 'nn_distances', 
-        'params' : { 'n_neighbors' : 15, 'method' : 'umap' }
+        'params' : { 'n_neighbors' : k, 'method' : 'umap' }
     }
 
     # Store first 5 'primary' cell embeddings components

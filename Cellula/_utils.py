@@ -102,6 +102,24 @@ def chunker(n):
 ##
 
 
+def callfun(func, *args, verbose=False, **kwargs):
+    """
+    Helper function caller.
+    """
+    if verbose:
+        print(f'{func.__name__} called with *args {args} and **kwargs {kwargs}')
+
+    t = Timer()
+    t.start()
+    out = func(*args, **kwargs)
+    print(f'Elapsed time: {t.stop()}')
+    
+    return out
+
+
+##
+
+
 def fix_sorting(L):
     """
     Sort a list with strings beginning with numbers.

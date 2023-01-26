@@ -114,7 +114,7 @@ def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_per
 ##
 
 
-def compute_BBKNN(adata, layer = 'scaled', covariate='seq_run', k=30, n_components=30, trim=None):
+def compute_BBKNN(adata, layer='scaled', covariate='seq_run', k=30, n_components=30, trim=None):
     """
     Compute the BBKNN batch-(covariate) corrected kNN graph on the original PCA space.
     """

@@ -2,6 +2,7 @@
 _neighbors.py: nearest neighbors functions.
 """
 
+from Cellula._utils import *
 from joblib import cpu_count
 import numpy as np
 import pandas as pd
@@ -9,45 +10,53 @@ import scanpy as sc
 from umap.umap_ import nearest_neighbors 
 from hnswlib import Index 
 from umap.umap_ import fuzzy_simplicial_set 
-from scipy.sparse import coo_matrix 
+from scipy.sparse import coo_matrix, issparse
 from scanpy.neighbors import _get_sparse_matrix_from_indices_distances_umap 
 
 
 ##
 
 
-def _NN(X, k=15, n_components=30):
+def _NN(X, k=15, metric='euclidean', implementation='pyNNDescent', random_state=1234, metric_kwds={}):
     """
-    kNN search. pyNNDescent implementation and hsnwlib implementation available.
+    kNN search over an X obs x features matrix. pyNNDescent and hsnwlib implementation available.
     """
     # kNN search: UMAP
-    if k < 500:
+    if k < 500 and implementation == 'pyNNDescent':
         knn_indices, knn_dists, forest = nearest_neighbors(
-            X[:, :n_components],
+            X,
             k,
-            random_state=1234,
-            metric='euclidean', 
-            metric_kwds={},
-            angular=False
+            metric=metric, 
+            metric_kwds=metric_kwds,
+            angular=False,
+            random_state=random_state
         )
 
-    # kNN search: hnswlib
-    else:
-        # Build hnsw index
-        index = Index(space='l2', dim=X[:, :n_components].shape[1])
+    # kNN search: hnswlib. Only for euclidean and massive cases
+    elif metric in ['euclidean', 'l2', 'cosine'] and ( k>500 or implementation == 'hsnswlib' ):
+
+        metric = 'l2' if metric == 'euclidean' else metric
+        if issparse(X):
+            X = X.toarray()
+
+        index = Index(space=metric, dim=X.shape[1])
         index.init_index(
-            max_elements=X[:, :n_components].shape[0], 
+            max_elements=X.shape[0], 
             ef_construction=200, 
             M=20, 
             random_seed=1234
         )
-        # Set
         index.set_num_threads(cpu_count())
-        index.add_items(X[:, :n_components])
-        # Query
+        index.add_items(X)
         index.set_ef(200)
-        knn_indices, knn_distances = index.knn_query(X[:, :n_components], k=k)
-        knn_dists = np.sqrt(knn_distances)
+
+        knn_indices, knn_distances = index.knn_query(X, k=k)
+        if metric == 'l2':
+            knn_dists = np.sqrt(knn_distances)
+        else:
+            knn_dists = knn_distances
+    else:
+        raise Exception(f'Incorrect options: {metric}, {metric_kwds}, {implementation}')
 
     return (knn_indices, knn_dists)
 
@@ -55,17 +64,37 @@ def _NN(X, k=15, n_components=30):
 ##
 
 
-def kNN_graph(X, k=15, n_components=30):
+def get_idx_from_simmetric_matrix(X, k=15):
+    """
+    Given a simmetric affinity matrix, get its k NN indeces and their values.
+    """
+    assert X.shape[0] == X.shape[1]
+
+    idx = np.argsort(X, axis=1)
+    X = X[np.arange(X.shape[0])[:,None], idx]
+    idx = idx[:,:k]
+    X = X[:,:k]
+
+    return idx, X
+
+
+##
+
+
+def kNN_graph(X, k=15, from_affinity=False, nn_kwargs={}):
     """
     Compute kNN graph from some stored data X representation. Use umap functions for 
     both knn search and connectivities calculations. Code taken from scanpy.
     """
-    # kNN search (automatic algorithm decision, pyNNDescent or hsnwlib based on k)
-    knn_indices, knn_dists = _NN(X[:, :n_components], k)
-
-    # Compute connectivities as fuzzy simplicial set, then stored as a sparse fuzzy graph.
+    if from_affinity:
+        knn_indices, knn_dists = get_idx_from_simmetric_matrix(X, k=k)
+    else:
+        knn_indices, knn_dists = _NN(X, k, **nn_kwargs)
+    
+    # Compute connectivities
     connectivities = fuzzy_simplicial_set(
-        coo_matrix(([], ([], [])), shape=(X.shape[0], 1)),
+        coo_matrix(([], ([], [])), 
+        shape=(X.shape[0], 1)),
         k,
         None,
         None,
@@ -76,40 +105,53 @@ def kNN_graph(X, k=15, n_components=30):
     )
     connectivities = connectivities[0]
     
-    # Make knn_dists sparse
+    # Sparsiy
     distances = _get_sparse_matrix_from_indices_distances_umap(
         knn_indices, knn_dists, X.shape[0], k
     )
 
-    # Prep results
-    results = (knn_indices, distances, connectivities)
-
-    return results
+    return (knn_indices, distances, connectivities)
 
 
 ##
 
 
-def get_indices_from_connectivities(connectivities, k=15):
+def compute_kNN(adata, layer=None, int_method=None, k=15, n_comps=30, 
+    obsm_key=None, obsp_key=None, key_to_add=None, 
+    nn_kwargs={}, in_place=True):
     """
-    Create a np.array of (sorted) k nearest neighbors, starting from a connectivities matrix.
+    Compute kNN_graph on some adata layer
     """
-    # Define the number of neighbors to retain
-    k_ = min([ connectivities[i, :].count_nonzero() for i in range(connectivities.shape[0]) ])
-    if k_ < k:
-        k = k_
-    
-    # Create the numpy array of indeces
-    NN = []
-    for i in range(connectivities.shape[0]):
-        nonzero_idx = np.nonzero(connectivities[i, :])[1]
-        d = { 
-            k : v for k, v in \
-            zip(nonzero_idx, connectivities[i, nonzero_idx].toarray().flatten()) 
-        } 
-        d_ordered = {
-            k: v for k, v in sorted(d.items(), key=lambda item: item[1], reverse=True)
-        }
-        NN.append([i] + list(d_ordered.keys())[:k])
+    if layer is not None and int_method
 
-    return np.array(NN)
+    g = kNN_graph(X, k=15, from_affinity=from_affinity, **nn_kwargs)
+
+
+    return adata    
+
+
+
+
+##
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##
+
+
+
+
+
+

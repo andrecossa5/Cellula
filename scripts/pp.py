@@ -131,9 +131,11 @@ import Cellula.plotting._plotting_base
 from Cellula._utils import *
 from Cellula.preprocessing._pp import *
 from Cellula.preprocessing._embeddings import *
+from Cellula.preprocessing._neighbors import *
 from Cellula.plotting._plotting import *
 from Cellula.plotting._colors import create_colors
 
+#path_main = '/Users/IEO6214/Desktop/Refractoring_test'
 #-----------------------------------------------------------------#
 
 # Set other paths 
@@ -302,7 +304,7 @@ def preprocessing():
 
         with PdfPages(path_viz + f'original_embeddings.pdf') as pdf:
             for layer in adata_red.layers:
-                compute_kNN(adata_red, layer=layer) # Default here
+                adata_red = compute_kNN(adata_red, layer=layer, int_method='original') # Default here
                 fig = plot_embeddings(adata_red, layer=layer, colors=colors)
                 fig.suptitle(layer)
                 pdf.savefig()  

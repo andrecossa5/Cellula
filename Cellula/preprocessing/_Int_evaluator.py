@@ -11,7 +11,7 @@ from sklearn.metrics import normalized_mutual_info_score
 from ._integration import format_metric_dict, summary_metrics, rank_runs
 from ._metrics import kbet, graph_conn, entropy_bb, kNN_retention_perc
 from .._utils import custom_ARI, get_representation
-from ._neighbors import _NN, kNN_graph, get_indices_from_connectivities
+from ._neighbors import _NN, kNN_graph, get_idx_from_simmetric_matrix
 from ..clustering._clustering import leiden_clustering
 from ..plotting._plotting import plot_rankings
 
@@ -189,21 +189,3 @@ class Int_evaluator:
 
 
 ##
-
-
-def compute_kNNs(adata, pp, int_method , k, n_components):
-
-    if (int_method != 'original'):
-        matrix = get_representation(adata, layer=pp, method=int_method)
-        idx, dist, conn = kNN_graph(matrix, k=k, n_components=n_components)
-        adata.obsm[f'{pp}|{int_method}|X_corrected|{k}_NN_{n_components}_comp_idx'] = idx
-        adata.obsp[f'{pp}|{int_method}|X_corrected|{k}_NN_{n_components}_comp_dist'] = dist
-        adata.obsp[f'{pp}|{int_method}|X_corrected|{k}_NN_{n_components}_comp_conn'] = conn
-        return adata
-    else:
-        matrix = get_representation(adata, layer=pp)
-        idx, dist, conn = kNN_graph(matrix, k=k, n_components=n_components)
-        adata.obsm[f'{pp}|{int_method}|X_pca|{k}_NN_{n_components}_comp_idx'] = idx
-        adata.obsp[f'{pp}|{int_method}|X_pca|{k}_NN_{n_components}_comp_dist'] = dist
-        adata.obsp[f'{pp}|{int_method}|X_pca|{k}_NN_{n_components}_comp_conn'] = conn
-        return adata

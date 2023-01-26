@@ -12,14 +12,9 @@ import anndata
 from sklearn.decomposition import PCA 
 from pegasus.tools import predefined_signatures, load_signatures_from_file 
 from sklearn.cluster import KMeans  
-
-from ._neighbors import _NN, kNN_graph, get_indices_from_connectivities
 from ..dist_features._signatures import scanpy_score, wot_zscore, wot_rank
-from .._utils import get_representation
-
 
 ##
-
 
 def _sig_scores(adata, score_method='scanpy', organism='human'):
     """
@@ -210,45 +205,6 @@ def pca(adata, n_pcs=50, layer='scaled'):
     adata.uns[key + '|cum_sum_eigenvalues'] = np.cumsum(model.var_ratios)
 
     return adata  
-
-
-##
-
-
-def compute_kNN(adata, k=15, n_components=30, layer=None, obsm_key=None, obsp_key=None, 
-    only_index=False):
-    """
-    Compute kNN indeces or kNN fuzzy graphs for some data representation.
-    """
-    # Extract some representation
-    if layer is not None:
-        X = get_representation(adata, layer=layer)
-        obsm_key = f'{layer}|original|X_pca' 
-    elif obsm_key is not None:
-        X = get_representation(adata, obsm_key=obsm_key)
-    elif obsp_key is not None and obsp_key.split('|')[1] == 'BBKNN': 
-        X = get_representation(adata, obsm_key=obsm_key) 
-        k_idx = obsp_key + f'|{k}_NN_{n_components}_comp_idx'
-        idx = get_indices_from_connectivities(X, k)
-        adata.obsm[k_idx] = idx
-    else:
-        print('Provided key or layer is not valid.')
-        sys.exit()
-
-    if only_index:
-        k_idx = obsm_key + f'|{k}_NN_{n_components}_comp_idx' 
-        idx = _NN(X, k=k, n_components=n_components)[0]
-        adata.obsm[k_idx] = idx
-    else:
-        k_idx = obsm_key + f'|{k}_NN_{n_components}_comp_idx'
-        k_dist = obsm_key + f'|{k}_NN_{n_components}_comp_dist'
-        k_conn = obsm_key + f'|{k}_NN_{n_components}_comp_conn'
-        idx, dist, conn = kNN_graph(X, k=k, n_components=n_components)
-        adata.obsm[k_idx] = idx
-        adata.obsp[k_dist] = dist
-        adata.obsp[k_conn] = conn
-
-    gc.collect()
 
 
 ##

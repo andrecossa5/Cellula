@@ -4,6 +4,7 @@ _neighbors.py: nearest neighbors functions.
 
 from Cellula._utils import *
 from joblib import cpu_count
+import sys
 import numpy as np
 import pandas as pd
 import scanpy as sc
@@ -12,6 +13,7 @@ from hnswlib import Index
 from umap.umap_ import fuzzy_simplicial_set 
 from scipy.sparse import coo_matrix, issparse
 from scanpy.neighbors import _get_sparse_matrix_from_indices_distances_umap 
+
 
 
 ##
@@ -69,7 +71,6 @@ def get_idx_from_simmetric_matrix(X, k=15):
     Given a simmetric affinity matrix, get its k NN indeces and their values.
     """
     assert X.shape[0] == X.shape[1]
-
     idx = np.argsort(X, axis=1)
     X = X[np.arange(X.shape[0])[:,None], idx]
     idx = idx[:,:k]
@@ -112,49 +113,57 @@ def kNN_graph(X, k=15, from_distances=False, nn_kwargs={}):
 
     return (knn_indices, distances, connectivities)
 
-
 ##
-
 
 def compute_kNN(
     adata, 
-    layer=None, int_method=None, k=15, n_comps=30, # 1. layer=None, int_method=None
-    obsm_key=None, # 2. obsm_key
-    obsp_key=None, # 3. obsp_key
-    key_to_add=None, 
+    layer=None, int_method=None, k=15, n_components=30,
     nn_kwargs={}, 
-    in_place=True): # se True no return, se e' False, ritorna la tupla
+    ): # se True no return, se e' False, ritorna la tupla
     """
     Compute kNN_graph on some adata layer.
     """
-    if layer is not None and int_method
+    if layer is not None and int_method is not None:
+         X = get_representation(adata, layer=layer, method=int_method)
+    else:
+        print('Provided key or layer is not valid.')
+        sys.exit()
 
-    #g = kNN_graph(X, k=15, ..., nn_kwargs=nn_kwargs)
-
-
+    embedding_type = 'X_pca' if int_method == 'original' else 'X_corrected'
+    k_idx =  f'{layer}|{int_method}|{embedding_type}|{k}_NN_{n_components}_comp_idx'
+    k_dist = f'{layer}|{int_method}|{embedding_type}|{k}_NN_{n_components}_comp_dist'
+    k_conn = f'{layer}|{int_method}|{embedding_type}|{k}_NN_{n_components}_comp_conn'
+    idx, dist, conn = kNN_graph(X, k=k, nn_kwargs=nn_kwargs)
+    adata.obsm[k_idx] = idx
+    adata.obsp[k_dist] = dist
+    adata.obsp[k_conn] = conn
+    
     return adata    
-
-
-
-
 ##
 
+def get_indices_from_connectivities(connectivities, k=15):
+    """
+    Create a np.array of (sorted) k nearest neighbors, starting from a connectivities matrix.
+    """
+    # Define the number of neighbors to retain
+    k_ = min([ connectivities[i, :].count_nonzero() for i in range(connectivities.shape[0]) ])
+    if k_ < k:
+        k = k_
+    
+    # Create the numpy array of indeces
+    NN = []
+    for i in range(connectivities.shape[0]):
+        nonzero_idx = np.nonzero(connectivities[i, :])[1]
+        d = { 
+            k : v for k, v in \
+            zip(nonzero_idx, connectivities[i, nonzero_idx].toarray().flatten()) 
+        } 
+        d_ordered = {
+            k: v for k, v in sorted(d.items(), key=lambda item: item[1], reverse=True)
+        }
+        NN.append([i] + list(d_ordered.keys())[:k])
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-##
-
+    return np.array(NN)
 
 
 

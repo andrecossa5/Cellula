@@ -77,6 +77,7 @@ covariate = args.covariate
 from Cellula._utils import *
 from Cellula.preprocessing._Int_evaluator import *
 from Cellula.preprocessing._metrics import choose_K_for_kBET
+from Cellula.preprocessing._neighbors import *
 
 #-----------------------------------------------------------------#
 
@@ -138,7 +139,7 @@ def kBET():
         t.start()
         logger.info(f'Begin operations on all representations, for k {k}...')
         for layer in adata.layers:
-            adata = compute_kNNs(adata, pp=layer, int_method='original', k=k, n_components=n_pcs)
+            adata = compute_kNN(adata, layer=layer, int_method='original', k=k, n_components=n_pcs)
             I.compute_metric(metric='kBET', layer=layer, covariate=covariate, k=k, n_components=n_pcs)
             all_removal_batch.update(I.batch_removal_scores['kBET'])
         logger.info(f'kBET calculations finished for k {k}: {t.stop()} s.')

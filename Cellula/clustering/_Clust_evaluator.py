@@ -9,7 +9,7 @@ import scanpy as sc
 from sklearn.metrics import davies_bouldin_score, silhouette_score
 
 from .._utils import rescale
-from ..preprocessing._neighbors import get_indices_from_connectivities
+from ..preprocessing._neighbors import get_idx_from_simmetric_matrix
 from ..preprocessing._integration import format_metric_dict, rank_runs, summary_metrics
 from ._clustering_metrics import compute_inertia, kNN_purity
 from ..plotting._plotting import plot_rankings
@@ -90,7 +90,7 @@ class Clust_evaluator:
                     kNN_key = '_'.join(kNN.split('_')[1:-2])
                     nn = int(kNN_key.split('_')[0])
                     connectivities = self.adata.obsp[kNN]
-                    indices[kNN_key] = get_indices_from_connectivities(connectivities, k=nn)
+                    indices[kNN_key], _ = get_idx_from_simmetric_matrix(connectivities, k=nn)
                 # Compute kNN_purity
                 d = { 
                     k : kNN_purity(indices['_'.join(k.split('_')[:-1])], self.solutions[k]) \

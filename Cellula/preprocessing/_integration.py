@@ -13,10 +13,10 @@ from scvi.model import SCVI
 from bbknn.matrix import bbknn
 from scanorama import correct_scanpy
 
-from ._neighbors import _NN, kNN_graph, get_indices_from_connectivities
 from ..dist_features._signatures import scanpy_score, wot_zscore, wot_rank
 from .._utils import get_representation
 from .._utils import rescale
+from Cellula.preprocessing._neighbors import *
 
 
 ##
@@ -36,10 +36,7 @@ def compute_Scanorama(adata, covariate='seq_run', layer='scaled', k=15, n_compon
     # Add representation
     X_corrected = np.concatenate([ x.obsm['X_scanorama'] for x in corrected ], axis=0)
     adata.obsm[key] = X_corrected
-    idx, dist, conn = kNN_graph(adata.obsm[key], k=k, n_components=n_components)
-    adata.obsm[f'{layer}|Scanorama|X_corrected|{k}_NN_{n_components}_comp_idx'] = idx
-    adata.obsp[f'{layer}|Scanorama|X_corrected|{k}_NN_{n_components}_comp_dist'] = dist
-    adata.obsp[f'{layer}|Scanorama|X_corrected|{k}_NN_{n_components}_comp_conn'] = conn
+    adata = compute_kNN(adata, layer=layer, int_method='Scanorama', k=k, n_components=n_components)
 
     return adata
 
@@ -52,7 +49,7 @@ def compute_Harmony(adata, covariates='seq_run', n_components=30, layer='scaled'
      Compute the Harmony batch- (covariate) corrected representation of the original PCA space.
     """
     key = f'{layer}|Harmony|X_corrected'
-    X_original = get_representation(adata, layer = layer, method = 'original')
+    X_original = get_representation(adata, layer=layer, method='original')
 
     X_corrected = harmonize(
         X_original[:, :n_components],
@@ -65,10 +62,7 @@ def compute_Harmony(adata, covariates='seq_run', n_components=30, layer='scaled'
     )
 
     adata.obsm[key] =  X_corrected
-    idx, dist, conn = kNN_graph(adata.obsm[key], k=k, n_components=n_components)
-    adata.obsm[f'{layer}|Harmony|X_corrected|{k}_NN_{n_components}_comp_idx'] = idx
-    adata.obsp[f'{layer}|Harmony|X_corrected|{k}_NN_{n_components}_comp_dist'] = dist
-    adata.obsp[f'{layer}|Harmony|X_corrected|{k}_NN_{n_components}_comp_conn'] = conn
+    adata = compute_kNN(adata, layer=layer, int_method='Harmony', k=k, n_components=n_components)
 
     return adata
 
@@ -103,10 +97,7 @@ def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_per
     adata.obsm['raw|scVI|X_corrected'] = vae.get_latent_representation()
 
     # Add latent space
-    idx, dist, conn = kNN_graph(adata.obsm["raw|scVI|X_corrected"], k=k, n_components=n_latent)
-    adata.obsm[f'raw|scVI|X_corrected|{k}_NN_{n_components}_comp_idx'] = idx
-    adata.obsp[f'raw|scVI|X_corrected|{k}_NN_{n_components}_comp_dist'] = dist
-    adata.obsp[f'raw|scVI|X_corrected|{k}_NN_{n_components}_comp_conn'] = conn
+    adata = compute_kNN(adata, layer='raw', int_method='scVI', k=k, n_components=n_components)
 
     return adata
 
@@ -114,7 +105,7 @@ def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_per
 ##
 
 
-def compute_BBKNN(adata, layer='scaled', covariate='seq_run', k=30, n_components=30, trim=None):
+def compute_BBKNN(adata, layer='scaled', covariate='seq_run', k=15, n_components=30, trim=None):
     """
     Compute the BBKNN batch-(covariate) corrected kNN graph on the original PCA space.
     """
@@ -134,7 +125,7 @@ def compute_BBKNN(adata, layer='scaled', covariate='seq_run', k=30, n_components
     # X_corrected in this case is equal to X_pca original
     adata.obsp[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_dist'] = X_corrected[0]
     adata.obsp[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_conn'] = X_corrected[1]
-    adata.obsm[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_idx'] = get_indices_from_connectivities(X_corrected[1], k)
+    adata.obsm[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_idx']  = get_indices_from_connectivities(X_corrected[0], k=k)
    
     return adata
 

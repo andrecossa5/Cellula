@@ -114,6 +114,7 @@ from Cellula.plotting._colors import create_colors
 from Cellula.preprocessing._Int_evaluator import *
 from Cellula.preprocessing._pp import *
 from Cellula.preprocessing._integration import *
+from Cellula.preprocessing._neighbors import *
 
 #-----------------------------------------------------------------#
 
@@ -236,9 +237,9 @@ def choose_preprocessing_option():
     # k calculation
     for k in [5, 10, 15, 30, 50, 100]:
         if(chosen_int != 'BBKNN'):
-            new_adata = compute_kNNs(new_adata, pp=pp, int_method=chosen_int, k=k, n_components=n_comps) # 6 kNN graphs
+            new_adata = compute_kNN(new_adata, layer=pp, int_method=chosen_int, k=k, n_components=n_comps) # 6 kNN graphs
         else:
-            new_adata = compute_BBKNN(new_adata, pp, covariate=covariate, k=k, n_components=n_comps, trim=None)
+            new_adata = compute_BBKNN(new_adata, layer=pp, covariate=covariate, k=k, n_components=n_comps, trim=None)
 
     # Save
     new_adata.write(path_data + 'preprocessed.h5ad')

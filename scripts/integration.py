@@ -110,7 +110,8 @@ continuous = args.continuous
 from Cellula._utils import *
 from Cellula.preprocessing._pp import *
 from Cellula.preprocessing._integration import *
-
+path_main = '/Users/IEO6214/Desktop/Refractoring_test'
+version='default'
 #-----------------------------------------------------------------#
 
 # Set other paths
@@ -144,8 +145,6 @@ def Integration():
     #-----------------------------------------------------------------#
 
     # Perform Integration on the 4 log-normalized input adata, for scVI on the raw adata
-
-
 
     # options = get_options(reps, metric, layer='scaled', covariate='seq_run', k=15, n_components=30,
     # labels=None, resolution=0.5)   

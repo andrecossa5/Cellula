@@ -71,36 +71,31 @@ covariate = args.covariate
 ########################################################################
 
 # Preparing run: import code, prepare directories, set logger
-if not args.skip:
 
-    # Code
-    from Cellula._utils import *
-    from Cellula.preprocessing._Int_evaluator import *
-    from Cellula.preprocessing._metrics import choose_K_for_kBET
 
-    #-----------------------------------------------------------------#
+# Code
+from Cellula._utils import *
+from Cellula.preprocessing._Int_evaluator import *
+from Cellula.preprocessing._metrics import choose_K_for_kBET
+#-----------------------------------------------------------------#
+# Set other paths 
+path_data = path_main + f'/data/{version}/' # Set here, do not overwrite
+path_results = path_main + '/results_and_plots/pp/'
+path_runs = path_main + '/runs/'
+path_viz = path_main + '/results_and_plots/vizualization/pp/'
+# Update paths
+path_results += f'/{version}/'
+path_runs += f'/{version}/' 
+path_viz += f'/{version}/' 
+# Check if the ./runs/step_{i}/logs_1_pp.txt are present, 
+# along with the GE_space dictionary in path_data
+if not os.path.exists(path_data + 'reduced.h5ad'):
+    print('Run pp or integration algorithm(s) beforehand!')
+    sys.exit()
+#-----------------------------------------------------------------#
 
-    # Set other paths 
-    path_data = path_main + f'/data/{version}/' # Set here, do not overwrite
-    path_results = path_main + '/results_and_plots/pp/'
-    path_runs = path_main + '/runs/'
-    path_viz = path_main + '/results_and_plots/vizualization/pp/'
-
-    # Update paths
-    path_results += f'/{version}/'
-    path_runs += f'/{version}/' 
-    path_viz += f'/{version}/' 
-
-    # Check if the ./runs/step_{i}/logs_1_pp.txt are present, 
-    # along with the GE_space dictionary in path_data
-    if not os.path.exists(path_data + 'reduced.h5ad'):
-        print('Run pp or integration algorithm(s) beforehand!')
-        sys.exit()
-
-    #-----------------------------------------------------------------#
-    
-    # Set logger 
-    logger = set_logger(path_runs, 'logs_kBET.txt')
+# Set logger 
+logger = set_logger(path_runs, 'logs_kBET.txt')
 
 ########################################################################
 
@@ -133,17 +128,15 @@ def kBET():
     k_range = [ 15, 30, 50, 100, 250, 500, choose_K_for_kBET(adata, covariate) ]
 
     # Compute kNN indices and kBET
-    int_method = 'original' 
     all_removal_batch = {}
     for k in k_range:
         t.start()
+        logger.info(f'Begin operations on all representations, for k {k}...')
         for layer in adata.layers:
-            logger.info(f'Begin operations on all representations, for k {k}...')
-            X_pca = get_representation(adata, layer=layer, int_method=int_method)
-            adata = compute_kNNs(adata, X_pca, pp=layer, int_method=int_method, k=k, n_components=n_pcs)
-        I.compute_metric(metric='kBET', covariate=covariate, k=k)
+            adata = compute_kNNs(adata, pp=layer, int_method='original', k=k, n_components=n_pcs)
+            I.compute_metric(metric='kBET', layer=layer, covariate=covariate, k=k, n_components=n_pcs)
+            all_removal_batch.update(I.batch_removal_scores['kBET'])
         logger.info(f'kBET calculations finished for k {k}: {t.stop()} s.')
-        all_removal_batch.update(I.batch_removal_scores['kBET'])
 
     # Extract results and take the integration decision
     t.start()
@@ -153,7 +146,6 @@ def kBET():
     df = pd.DataFrame().from_dict(all_removal_batch, 
             orient='index'
         ).reset_index().rename(columns={'index':'rep', 0:'acceptance_rate'})
-    print(df)
     df['pp_option'] = df['rep'].map(lambda x: x.split('|')[0])
     df['kNN'] = df['rep'].map(lambda x: x.split('|')[2])
     df['k'] = df['kNN'].map(lambda x: x.split('_')[:1][0]).astype(int)

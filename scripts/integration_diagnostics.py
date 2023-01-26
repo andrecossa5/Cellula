@@ -115,10 +115,6 @@ from Cellula.preprocessing._Int_evaluator import *
 from Cellula.preprocessing._pp import *
 from Cellula.preprocessing._integration import *
 
-path_main = '/Users/IEO5505/Desktop/cellula_ex/'
-version = 'default'
-chosen = None
-
 #-----------------------------------------------------------------#
 
 # Set other paths
@@ -168,44 +164,35 @@ def integration_diagnostics():
 
     # Compute and compare embeddings
     colors = create_colors(adata.obs)
+    methods = pd.Series([ x.split('|')[1] for x in adata.obsp.keys()]).unique()
+    methods = [ x for x in methods if x != 'original']
+    t.start()
+    for layer in adata.layers:
+         with PdfPages(path_viz + f'orig_int_embeddings_{layer}.pdf') as pdf:
+             for int_rep in methods:
+                try:
+                     fig = plot_orig_int_embeddings(adata, 
+                         layer=layer, rep_1='original', rep_2=int_rep, colors=colors
+                     )  
+                     pdf.savefig() 
+                     plt.close()
+                except:
+                    print(f'Embedding {int_rep} is not available for layer {layer}')
 
-   #t.start()
-    # for layer in adata.layers:
-    #     with PdfPages(path_viz + f'orig_int_embeddings_{layer}.pdf') as pdf:
-    #         for int_rep in methods:
-    #             if layer != 'raw' and int_rep != 'scVI' and int_rep != 'BBKNN':
-    #                 fig = plot_orig_int_embeddings(adata, 
-    #                     layer=layer, rep_1='original', rep_2=int_rep, colors=colors
-    #                 )
-    #             elif layer == 'raw' and int_rep == 'scVI':
-    #                 fig = plot_orig_int_embeddings(adata, 
-    #                     layer=layer, rep_1='original', rep_2=int_rep, colors=colors
-    #                 )
-    #             else:
-    #                 print("No embedding")
-# 
-    #             pdf.savefig()  
-    #             plt.close()
-# 
-    # logger.info(f'Embeddings visualization: {t.stop()} s.')
+    logger.info(f'Embeddings visualization: {t.stop()} s.')
 
     # Batch removal metrics
-
-
-    """
-    I.compute_metric(metric, layer='scaled', batch='seq_run', k=15, n_components=30,
-        labels=None, resolution=0.5)
-    """
-    
     t.start()
     for m in I.batch_metrics:
-        I.compute_metric(m, covariate=covariate, methods=methods, k=k, n_components = n_comps)
+        for layer in adata.layers:
+            I.compute_metric(m, layer=layer, covariate=covariate, k=15, n_components=30)
     logger.info(f'Batch removal metrics calculations: {t.stop()} s.')
 
     # Bio conservation metrics
     t.start()
     for m in I.bio_metrics:
-        I.compute_metric(m, covariate=covariate, resolution=resolution, methods=methods)
+        for layer in adata.layers:
+            I.compute_metric(m, layer=layer, k=15, n_components=30, labels=None, resolution=resolution)
     logger.info(f'Biological conservation metrics calculations: {t.stop()} s.')
 
     # Integration runs evaluation
@@ -225,7 +212,6 @@ def integration_diagnostics():
     # Write final exec time
     logger.info(f'Execution was completed successfully in total {T.stop()} s.')
 
-
 ########################################################################
 
 # choosing a prep option
@@ -237,38 +223,25 @@ def choose_preprocessing_option():
     # Data loading and preparation
     pp, chosen_int = chosen.split(':') 
     logger.info('Choose preprocessing option: ' + '|'.join([pp, chosen_int]))
-
-    adata = sc.read(path_data + 'Integration.h5ad')
+    logger.info(f'Execute for: --covariate {covariate} --n_comps {n_comps}')
+    adata = sc.read(path_data + 'integration.h5ad')
 
     # Pick the chosen pp and integration method
-    if(chosen_int != 'BBKNN'):
-        if(chosen_int != 'original'):
-            pca = adata.obsm[f'{pp}|{chosen_int}|X_corrected']
-            del adata.obsm
-            del adata.obsp
-        else:
-            pca = adata.obsm[f'{pp}|{chosen_int}|X_pca']
-            del adata.obsm
-            del adata.obsp
+    new_adata = sc.AnnData(X=adata.X, obs=adata.obs, var=adata.var)
+    if(chosen_int != 'original' and chosen_int != 'BBKNN'):
+        new_adata.obsm[f'{pp}|{chosen_int}|X_corrected'] = get_representation(adata, layer=pp, method=chosen_int)
     else:
-        pca = adata.obsm[f"{pp}|original|X_pca"]
-        del adata.obsm
-        del adata.obsp
-        adata.obsm[f"{pp}|original|X_pca"] = pca
+        new_adata.obsm[f'{pp}|original|X_pca'] = get_representation(adata, layer=pp)
 
-
-    # Assemble adata
+    # k calculation
     for k in [5, 10, 15, 30, 50, 100]:
         if(chosen_int != 'BBKNN'):
-            adata = compute_kNNs(adata, pca, pp, chosen_int, k, n_components=n_comps) # 6 kNN graphs
+            new_adata = compute_kNNs(new_adata, pp=pp, int_method=chosen_int, k=k, n_components=n_comps) # 6 kNN graphs
         else:
-            covariate='seq_run'
-            adata = compute_BBKNN(adata, pp , covariate, k , n_components=n_comps, trim=None)
-        if(chosen_int == 'BBKNN' and k == 100):
-            del adata.obsm[f"{pp}|original|X_pca"]
+            new_adata = compute_BBKNN(new_adata, pp, covariate=covariate, k=k, n_components=n_comps, trim=None)
 
     # Save
-    adata.write(path_data + 'preprocessed.h5ad')
+    new_adata.write(path_data + 'preprocessed.h5ad')
 
     # Free disk memory and clean integration folders (if requested)
     if delete:

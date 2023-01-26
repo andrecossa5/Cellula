@@ -222,3 +222,9 @@ def summary_metrics(df, df_rankings, evaluation=None):
     ).assign(cumulative_ranking=[ df_rankings.query('run == @run')['ranking'].mean() for run in runs ])
 
     return df_summary
+
+
+# 
+#integration_function = {
+#    ...
+#}

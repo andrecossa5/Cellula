@@ -187,3 +187,29 @@ I.compute_metric(metric, covariate=covariate, methods=methods, k=k, n_components
 # 
 # ref_path = 'ref_model/'
 # scanvae.save(ref_path, overwrite=True)
+
+
+
+
+# 
+
+# 
+
+
+# APP STREAMLIT, VIZ_EMBEDDINGS:
+
+
+# Input: embedding.df, signatures.pickle, clustered.h5ad 
+
+
+# covariate --> str ex: 'leiden' (in .obs) or 'SOX2' (o il valore di espressione di uno o piu' geni (.X))
+# oppure il valore di una signatures
+
+# subset --> '<.obs column>, <category>' ex. 'leiden, 3' 
+
+# facet --> '<obs.column>, 'samples'
+
+
+# plot_emb(adata, signatures, type=embedding, covariate='mito_perc', subset='leiden,0' facet='sample')
+
+

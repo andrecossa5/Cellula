@@ -144,12 +144,27 @@ def Integration():
     #-----------------------------------------------------------------#
 
     # Perform Integration on the 4 log-normalized input adata, for scVI on the raw adata
+
+
+
+    # options = get_options(reps, metric, layer='scaled', covariate='seq_run', k=15, n_components=30,
+    # labels=None, resolution=0.5)   
+    # options = {
+    #   'analysis_name' : [ metric_function[metric], args --> list, kwargs --> dict ] 
+    # }
+    # 1 analysis --> 1 metric, one layer, one int_method, + other args/kwargs
+    # ... righe per storare l'output del for
+    #for opt in options: 
+    #    score = run_command(opt[0], *opt[1], **opt[2])
+    # Togliere i print
+
+
     if 'all' in method or 'Scanorama' in method:
         for layer in adata.layers:
             t.start()
             logger.info(f'Begin Scanorama for {layer} reduced.h5ad...')
             if layer != 'raw':
-                adata = compute_Scanorama(adata, covariate, layer = layer)
+                adata = compute_Scanorama(adata, covariate, layer=layer)
             logger.info(f'Scanorama completed for {layer} reduced.h5ad: {t.stop()} s.')
     else:
         print("Scanorama not computed")
@@ -158,7 +173,7 @@ def Integration():
             t.start()
             logger.info(f'Begin Harmony for {layer} reduced.h5ad...')
             if layer != 'raw':
-                adata = compute_Harmony(adata, covariates = covariates, n_components=n_pcs,layer = layer)
+                adata = compute_Harmony(adata, covariates=covariates, n_components=n_pcs, layer=layer)
             logger.info(f'Harmony completed for {layer} reduced.h5ad: {t.stop()} s.')
     else:
         print("Harmony not computed")
@@ -167,7 +182,7 @@ def Integration():
             t.start()
             logger.info(f'Begin BBKNN for {layer} reduced.h5ad...')
             if layer != 'raw':
-                adata = compute_BBKNN(adata, layer = layer, covariate=covariate, k=k)
+                adata = compute_BBKNN(adata, layer=layer, covariate=covariate, k=k)
             logger.info(f'BBKNN completed for {layer} reduced.h5ad: {t.stop()} s.')
     else:
         print("BBKNN not computed")

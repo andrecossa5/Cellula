@@ -77,21 +77,26 @@ covariate = args.covariate
 from Cellula._utils import *
 from Cellula.preprocessing._Int_evaluator import *
 from Cellula.preprocessing._metrics import choose_K_for_kBET
+
 #-----------------------------------------------------------------#
+
 # Set other paths 
 path_data = path_main + f'/data/{version}/' # Set here, do not overwrite
 path_results = path_main + '/results_and_plots/pp/'
 path_runs = path_main + '/runs/'
 path_viz = path_main + '/results_and_plots/vizualization/pp/'
+
 # Update paths
 path_results += f'/{version}/'
 path_runs += f'/{version}/' 
 path_viz += f'/{version}/' 
+
 # Check if the ./runs/step_{i}/logs_1_pp.txt are present, 
 # along with the GE_space dictionary in path_data
 if not os.path.exists(path_data + 'reduced.h5ad'):
     print('Run pp or integration algorithm(s) beforehand!')
     sys.exit()
+
 #-----------------------------------------------------------------#
 
 # Set logger 
@@ -151,7 +156,7 @@ def kBET():
     df['k'] = df['kNN'].map(lambda x: x.split('_')[:1][0]).astype(int)
     df.pop('rep')
     df.sort_values(by='acceptance_rate', ascending=False).to_excel(path_results + 'kBET_df.xlsx')
-
+    
     #-----------------------------------------------------------------#
 
     # Calculate results summary, and make a (temporary) integration 

@@ -102,7 +102,7 @@ def chunker(n):
 ##
 
 
-def callfun(func, *args, verbose=False, **kwargs):
+def run_command(func, *args, verbose=False, **kwargs):
     """
     Helper function caller.
     """
@@ -115,6 +115,16 @@ def callfun(func, *args, verbose=False, **kwargs):
     print(f'Elapsed time: {t.stop()}')
     
     return out
+
+
+
+# def mock(a, b=None):
+#     print(a)
+#     print(b)
+#     return a, b
+# 
+# 
+# out = run_command(mock, *['1'], **{'b':2})
 
 
 ##

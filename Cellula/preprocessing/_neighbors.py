@@ -81,12 +81,12 @@ def get_idx_from_simmetric_matrix(X, k=15):
 ##
 
 
-def kNN_graph(X, k=15, from_affinity=False, nn_kwargs={}):
+def kNN_graph(X, k=15, from_distances=False, nn_kwargs={}):
     """
     Compute kNN graph from some stored data X representation. Use umap functions for 
     both knn search and connectivities calculations. Code taken from scanpy.
     """
-    if from_affinity:
+    if from_distances:
         knn_indices, knn_dists = get_idx_from_simmetric_matrix(X, k=k)
     else:
         knn_indices, knn_dists = _NN(X, k, **nn_kwargs)
@@ -116,15 +116,20 @@ def kNN_graph(X, k=15, from_affinity=False, nn_kwargs={}):
 ##
 
 
-def compute_kNN(adata, layer=None, int_method=None, k=15, n_comps=30, 
-    obsm_key=None, obsp_key=None, key_to_add=None, 
-    nn_kwargs={}, in_place=True):
+def compute_kNN(
+    adata, 
+    layer=None, int_method=None, k=15, n_comps=30, # 1. layer=None, int_method=None
+    obsm_key=None, # 2. obsm_key
+    obsp_key=None, # 3. obsp_key
+    key_to_add=None, 
+    nn_kwargs={}, 
+    in_place=True): # se True no return, se e' False, ritorna la tupla
     """
-    Compute kNN_graph on some adata layer
+    Compute kNN_graph on some adata layer.
     """
     if layer is not None and int_method
 
-    g = kNN_graph(X, k=15, from_affinity=from_affinity, **nn_kwargs)
+    #g = kNN_graph(X, k=15, ..., nn_kwargs=nn_kwargs)
 
 
     return adata    

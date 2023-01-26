@@ -174,3 +174,49 @@ def kNN_retention_perc(original_idx, int_idx):
 
 
 ##
+
+
+# metrics_functions = {
+#     'kBET' : kbet,
+#    'graph_conn' : graph_conn,
+#    ...
+#
+# }
+
+#if metric in self.batch_metrics:
+#    batch = self.adata.obs[covariate]
+#    for int_method in reps:
+#        kNN = reps[int_method]
+#        if metric == 'kBET':
+#            score = kbet(kNN, batch)[2]
+#        elif metric == 'graph_conn':
+#            score = graph_conn(kNN[1], labels=labels)
+#        elif metric == 'entropy_bb':
+#            score = entropy_bb(kNN, batch)
+#        key = f'{k}_NN_{n_components}_comp'
+#        metrics_key = '|'.join([layer, int_method, key])
+#        d_metric[metrics_key] = score
+#
+        #    self.batch_removal_scores.setdefault(metric, {}).update(d_metric)
+#
+#elif metric in self.bio_metrics:
+#    for int_method in reps:
+#        original_kNN = reps['original']
+#        integrated_kNN = reps[int_method]  
+#        if metric == 'kNN_retention_perc':
+#            score = kNN_retention_perc(original_kNN, integrated_kNN)
+#        else:
+#            # Check if ground truth is provided and compute original and integrated labels 
+#            if labels is None:
+#                g1 = leiden_clustering(original_kNN[1], res=resolution)
+#            else:
+#                g1 = labels
+#            g2 = leiden_clustering(integrated_kNN[1], res=resolution)
+#
+#            if metric == 'ARI':
+#                score = custom_ARI(g1, g2)
+#            elif metric == 'NMI':
+#                score = normalized_mutual_info_score(g1, g2, average_method='arithmetic')
+#        key = f'{k}_NN_{n_components}_comp'
+#        metrics_key = '|'.join([layer, int_method, key])
+# #        d_metric[metrics_key] = score

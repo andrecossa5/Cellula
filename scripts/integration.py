@@ -109,6 +109,7 @@ continuous = args.continuous
 from Cellula._utils import *
 from Cellula.preprocessing._pp import *
 from Cellula.preprocessing._integration import *
+
 #-----------------------------------------------------------------#
 
 # Set other paths
@@ -140,17 +141,20 @@ def Integration():
     logger.info(f'Data loading and preparation: {t.stop()} s.')
     
     #-----------------------------------------------------------------#
+
     #Selected integration methods
     if args.method == 'all':
         methods = ['Scanorama', 'Harmony', 'BBKNN', 'scVI']
     else:
         methods = args.method.split(':')  
-    #Create a dictionary with all integration options
-    d = integration(adata, methods=methods)
 
-    # Perform Integration on the 4 log-normalized input adata, for scVI on the raw adata
+    # Parse integration options, and run each integration task
+    d = parse_integration_options(adata, methods=methods)
     for opt in d: 
-        adata = run_command(d[opt][0], *d[opt][1], **d[opt][2])
+        func = d[opt][0]
+        adata = d[opt][1]
+        kwargs = d[opt][2]
+        adata = run_command(func, adata, **kwargs)
 
     # Save results
     adata.write(path_data + 'integration.h5ad')

@@ -13,7 +13,6 @@ from scvi.model import SCVI
 from bbknn.matrix import bbknn
 from scanorama import correct_scanpy
 
-from ..dist_features._signatures import scanpy_score, wot_zscore, wot_rank
 from .._utils import get_representation
 from .._utils import rescale
 from Cellula.preprocessing._neighbors import *
@@ -217,26 +216,40 @@ def summary_metrics(df, df_rankings, evaluation=None):
 
 ##
 
-def pars_integration_options(adata, methods, covariate='seq_run', k=15, n_components=30, 
+
+def parse_integration_options(adata, methods, covariate='seq_run', k=15, n_components=30, 
     categorical_covs=['seq_run'], continuous_covs=['mito_perc', 'nUMIs']
     ):
     """
     Function to parse integration options.
     """
     all_functions = {
-        'Scanorama':compute_Scanorama, 
-        'BBKNN':compute_BBKNN, 
-        'scVI':compute_scVI, 
-        'Harmony':compute_Harmony
+        'Scanorama' : compute_Scanorama, 
+        'BBKNN' : compute_BBKNN, 
+        'scVI' : compute_scVI, 
+        'Harmony' : compute_Harmony
     }
-    functions_int = {k: v for k, v in all_functions.items() if k in methods}
-    integration_d={}
+    functions_int = { all_functions[k] for k in all_functions if k in methods }
+
+    integration_d = {}
+
     for m in methods:
+
         for layer in adata.layers:
+            kwargs = { 'k' : k, 'n_components' : n_components }
+
             if m != 'scVI' and layer != 'raw':
-                integration_d.update({m + '_' + layer: [functions_int[m],[adata],{'covariate':covariate, 
-                'layer':layer, 'k':k, 'n_components':n_components}]})
+                kwargs = { 
+                    **kwargs, 
+                    **{ 'covariate' : covariate, 'layer' : layer } 
+                }
             elif m == 'scVI' and layer == 'raw':
-                integration_d.update({m + '_' + layer: [functions_int[m],[adata],{ 'categorical_covs':categorical_covs, 
-                'continuous_covs':continuous_covs, 'k':k, 'n_components':n_components}]})
+                kwargs = { 
+                    **kwargs, 
+                    **{ 'categorical_covs' : categorical_covs, 'continuous_covs' : continuous_covs } 
+                } 
+
+            analysis = '_'.join([m, layer])
+            integration_d[analysis] = [ functions_int[m], adata, kwargs ]
+
     return integration_d

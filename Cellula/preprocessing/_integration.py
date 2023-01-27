@@ -217,16 +217,26 @@ def summary_metrics(df, df_rankings, evaluation=None):
 
 ##
 
-def integration(adata, methods, covariate='seq_run', k=15, n_components=30, categorical_covs=['seq_run'], continuous_covs=['mito_perc', 'nUMIs']):
-    all_functions = {'Scanorama': compute_Scanorama, 'BBKNN': compute_BBKNN, 'scVI': compute_scVI, 'Harmony':compute_Harmony}
+def pars_integration_options(adata, methods, covariate='seq_run', k=15, n_components=30, 
+    categorical_covs=['seq_run'], continuous_covs=['mito_perc', 'nUMIs']
+    ):
+    """
+    Function to parse integration options.
+    """
+    all_functions = {
+        'Scanorama':compute_Scanorama, 
+        'BBKNN':compute_BBKNN, 
+        'scVI':compute_scVI, 
+        'Harmony':compute_Harmony
+    }
     functions_int = {k: v for k, v in all_functions.items() if k in methods}
-    integration_list={}
+    integration_d={}
     for m in methods:
         for layer in adata.layers:
             if m != 'scVI' and layer != 'raw':
-                integration_list.update({m + '_' + layer: [functions_int[m],[adata],{'covariate':covariate, 
+                integration_d.update({m + '_' + layer: [functions_int[m],[adata],{'covariate':covariate, 
                 'layer':layer, 'k':k, 'n_components':n_components}]})
             elif m == 'scVI' and layer == 'raw':
-                integration_list.update({m + '_' + layer: [functions_int[m],[adata],{ 'categorical_covs':categorical_covs, 
+                integration_d.update({m + '_' + layer: [functions_int[m],[adata],{ 'categorical_covs':categorical_covs, 
                 'continuous_covs':continuous_covs, 'k':k, 'n_components':n_components}]})
-    return integration_list
+    return integration_d

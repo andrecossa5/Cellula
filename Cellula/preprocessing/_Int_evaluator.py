@@ -91,8 +91,6 @@ class Int_evaluator:
         #for opt in options: 
         #    score = run_command(opt[0], *opt[1], **opt[2])
 
-
-
         if metric in self.batch_metrics:
             batch = self.adata.obs[covariate]
             for int_method in reps:
@@ -132,6 +130,8 @@ class Int_evaluator:
                 d_metric[metrics_key] = score
 
             self.bio_conservation_scores.setdefault(metric, {}).update(d_metric)
+
+    ##
 
     
     def evaluate_runs(self, path, by='cumulative_score'):

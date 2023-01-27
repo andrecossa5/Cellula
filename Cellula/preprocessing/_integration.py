@@ -223,16 +223,16 @@ def parse_integration_options(adata, methods, covariate='seq_run', k=15, n_compo
     """
     Function to parse integration options.
     """
+    methods = [ m for m in methods if m != 'original' ]
     all_functions = {
         'Scanorama' : compute_Scanorama, 
         'BBKNN' : compute_BBKNN, 
         'scVI' : compute_scVI, 
         'Harmony' : compute_Harmony
     }
-    functions_int = { all_functions[k] for k in all_functions if k in methods }
+    functions_int = { k : all_functions[k] for k in all_functions if k in methods }
 
     integration_d = {}
-
     for m in methods:
 
         for layer in adata.layers:
@@ -249,7 +249,10 @@ def parse_integration_options(adata, methods, covariate='seq_run', k=15, n_compo
                     **{ 'categorical_covs' : categorical_covs, 'continuous_covs' : continuous_covs } 
                 } 
 
-            analysis = '_'.join([m, layer])
+            analysis = '|'.join([m, layer])
             integration_d[analysis] = [ functions_int[m], adata, kwargs ]
 
     return integration_d
+
+
+

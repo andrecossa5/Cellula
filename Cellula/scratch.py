@@ -29,27 +29,141 @@ adata = sc.read(path_data + 'integration.h5ad')
 I = Int_evaluator(adata)
 
 
-dir(I)
-
-I.adata
-I.batch_metrics
-I.bio_metrics
-I.bio_conservation_scores
-I.batch_removal_scores
-
-m = metric = 'NMI'
-covariate = 'seq_run'
-methods = ['Harmony', 'Scanorama'] # I.methods
-k = 15
-n_comps = n_components = 30
-labels = None
-resolution = 0.5
-
-
+# dir(I)
+# 
+# I.adata
+# I.batch_metrics
+# I.bio_metrics
+# I.bio_conservation_scores
+# I.batch_removal_scores
+# 
+# m = metric = 'NMI'
+# covariate = 'seq_run'
+# methods = ['Harmony', 'Scanorama'] # I.methods
+# k = 15
+# n_comps = n_components = 30
+# labels = None
+# resolution = 0.5
 
 
+methods = I.methods
 
-I.compute_metric(metric, covariate=covariate, methods=methods, k=k, n_components=n_comps)
+all_functions = {
+    'kBET' : kbet,
+    'entropy_bb' : entropy_bb,
+    'graph_conn' : graph_conn,
+    'kNN_retention_perc' : kNN_retention_perc,
+    'NMI': normalized_mutual_info_score, 
+    'ARI': custom_ARI
+}
+
+
+
+def metrics(adata, methods, k=15, n_components=30, covariate='seq_run', labels=None, resolution=0.2):
+
+    metrics_d = {}
+    
+    for f in all_functions:
+        for m in methods:
+            for layer in adata.layers:
+                if f in I.batch_metrics:    
+                    if f != 'graph_conn':
+                        reps = I.get_kNNs(layer=layer, metric=f, k=k, n_components=n_components)
+                        if m != 'scVI' and layer != 'raw' and m != 'original':
+                            metrics_d.update({f+'|'+m+'|'+layer: [all_functions[f],[reps[m]],{'batch':adata.obs[covariate]}]})
+                        elif m == 'scVI' and layer == 'raw':
+                            metrics_d.update({f+'|'+m+'|'+layer: [all_functions[f],[reps[m]],{'batch':adata.obs[covariate]}]})
+                        elif m == 'original':
+                            metrics_d.update({f+'|'+m+'|'+layer: [all_functions[f],[reps[m]],{'batch':adata.obs[covariate]}]})
+                #    else:
+                #        reps = I.get_kNNs(layer=layer, metric=f, k=k, n_components=n_components)
+                #        if m != 'scVI' and layer != 'raw' and m != 'original':
+                #            metrics_list.update({f+'|'+m+'|'+layer: [all_functions[f],[reps[m][1]],{'labels':labels}]})
+                #        elif m == 'scVI' and layer == 'raw':
+                #            metrics_list.update({f+'|'+m+'|'+layer: [all_functions[f],[reps[m][1]],{'labels':labels}]})
+                #        elif m == 'original':
+                #            metrics_list.update({f+'|'+m+'|'+layer: [all_functions[f],[reps[m][1]],{'labels':labels}]})
+                #else:
+                #    if f == 'kNN_retention_perc':
+                #        reps = I.get_kNNs(layer=layer, metric=f, k=k, n_components=n_components)
+                #        if m != 'scVI' and layer != 'raw' and m != 'original':
+                #            metrics_list.update({f+'|'+m+'|'+layer: [all_functions[f],[reps['original'],reps[m]],{}]})
+                #        elif m == 'scVI' and layer == 'raw':
+                #            metrics_list.update({f+'|'+m+'|'+layer: [all_functions[f],[reps['original'],reps[m] ],{}]})
+                #        elif m == 'original':
+                #            metrics_list.update({f+'|'+m+'|'+layer: [all_functions[f],[reps['original'],reps[m] ],{}]})
+                #    else:
+                #        reps = I.get_kNNs(layer=layer, metric=f, k=k, n_components=n_components)
+                #        if m != 'scVI' and layer != 'raw' and m != 'original':
+                #            metrics_list.update({f+'|'+m+'|'+layer: [all_functions[f],[leiden_clustering(reps['original'][1], res=resolution), leiden_clustering(reps[m][1], res=resolution)],{}]})
+                #        elif m == 'scVI' and layer == 'raw':
+                #            metrics_list.update({f+'|'+m+'|'+layer: [all_functions[f],[leiden_clustering(reps['original'][1], res=resolution), leiden_clustering(reps[m][1], res=resolution)],{}]})
+                #        elif m == 'original':
+                #            metrics_list.update({f+'|'+m+'|'+layer: [all_functions[f],[leiden_clustering(reps['original'][1], res=resolution), leiden_clustering(reps[m][1], res=resolution)],{}]})
+    #return metri#cs_list
+#
+#
+#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+d = metrics(adata, methods, k=15, n_components=30, covariate='seq_run', labels=None, resolution=0.2)
+d.keys()
+
+for i in d.keys():
+    print(i)
+k=15
+n_components=30
+d_metric={}
+for opt in d: 
+    result = opt.split('|')
+    score = run_command(d[opt][0], *d[opt][1], **d[opt][2])
+    key = f'{k}_NN_{n_components}_comp'
+    metrics_key = '|'.join([result[2], result[1], key])
+    if result[0] == 'kBET':
+        d_metric[metrics_key] = score[2]
+    else:
+        d_metric[metrics_key] = score
+    if result[0] in I.batch_metrics:
+        I.batch_removal_scores.setdefault(result[0], {}).update(d_metric)
+    else:
+        I.bio_conservation_scores.setdefault(result[0], {}).update(d_metric)
+
+for i in I.batch_removal_scores.keys():
+    print(i)
+
+for i in I.bio_conservation_scores.keys():
+    print(i)
+
+batch_metrics = ['kBET', 'entropy_bb', 'graph_conn']
+bio_metrics = ['kNN_retention_perc', 'NMI', 'ARI']
 
 
 

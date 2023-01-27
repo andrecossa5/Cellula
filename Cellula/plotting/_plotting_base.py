@@ -46,41 +46,38 @@ def create_handles(categories, marker='o', colors=None, size=10, width=0.5):
 ##
 
 
-def add_cbar(cov, color='viridis', ax=None, fig=None, loc='upper right', label_size=7, 
-    ticks_size=5, label=None, width="20%", height="1%"):
+def add_cbar(x, color='viridis', ax=None, fig=None, loc='upper right', label_size=7, 
+    ticks_size=5, label=None, width="20%", height="1%", orientation="horizontal", kwargs={}):
     """
     Draw cbar on an axes object inset.
     """
     cmap = matplotlib.colormaps[color]
-    norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
-    axins = inset_axes(ax, width="20%", height="1%", loc=loc) 
-    axins.xaxis.set_ticks_position("bottom")
+    norm = matplotlib.colors.Normalize(vmin=np.percentile(x, q=5), vmax=np.percentile(x, q=95))
+    axins = inset_axes(ax, width=width, height=height, loc=loc) 
+    axins.xaxis.set_ticks_position('bottom')
     cb = fig.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap), 
-        cax=axins, orientation="horizontal"
+        cax=axins, orientation=orientation, ticklocation='bottom'
     )
-    cb.set_label(label=label, size=label_size)
+    cb.set_label(label=label, size=label_size, loc='center')
     cb.ax.tick_params(axis="x", labelsize=ticks_size)
+
+    return cb
     
 
 ##
 
 
 
-def add_legend(df, cov, colors=None, ax=None, loc='center', artists_size=7, label_size=7, 
-    ticks_size=5, bbox_to_anchor=(0.5, 1.1), ncols=None, title=None):
+def add_legend(label=None, colors=None, ax=None, loc='center', artists_size=7, label_size=7, 
+    ticks_size=5, bbox_to_anchor=(0.5, 1.1), ncols=None):
     """
     Draw a legend on axes object.
     """
     if ncols is None:
         ncols = len(colors) // 2 + 1
-    try:
-        cats = df[cov].cat.categories
-    except:
-        cats = df[cov].unique()
-    if title is None:
-        title = cov.capitalize()
-    handles = create_handles(cats, colors=colors.values(), size=artists_size)
-    ax.legend(handles, cats, frameon=False, loc=loc, fontsize=ticks_size, title_fontsize=label_size,
+    title = label.capitalize() if label is not None else None
+    handles = create_handles(colors.keys(), colors=colors.values(), size=artists_size)
+    ax.legend(handles, colors.keys(), frameon=False, loc=loc, fontsize=ticks_size, title_fontsize=label_size,
         ncol=ncols, title=title, bbox_to_anchor=bbox_to_anchor
     )
 
@@ -101,7 +98,7 @@ def add_wilcox(df, x, y, pairs, ax, order=None):
 ##
 
 
-def format_ax(df, ax, title='', xlabel='', ylabel='', xticks=None, yticks=None, rotx=0, roty=0, 
+def format_ax(ax, title='', xlabel='', ylabel='', xticks=None, yticks=None, rotx=0, roty=0, 
             xsize=None, ysize=None, title_size=None, log=False):
     """
     Format labels, ticks and stuff.

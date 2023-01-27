@@ -44,7 +44,7 @@ def compute_Scanorama(adata, covariate='seq_run', layer='scaled', k=15, n_compon
 ##
 
 
-def compute_Harmony(adata, covariates='seq_run', n_components=30, layer='scaled', k=15):
+def compute_Harmony(adata, covariate='seq_run',  layer='scaled', k=15, n_components=30):
     """
      Compute the Harmony batch- (covariate) corrected representation of the original PCA space.
     """
@@ -54,7 +54,7 @@ def compute_Harmony(adata, covariates='seq_run', n_components=30, layer='scaled'
     X_corrected = harmonize(
         X_original[:, :n_components],
         adata.obs,
-        covariates,
+        covariate,
         n_clusters=None,
         n_jobs=-1,
         random_state=1234,
@@ -105,7 +105,7 @@ def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_per
 ##
 
 
-def compute_BBKNN(adata, layer='scaled', covariate='seq_run', k=15, n_components=30, trim=None):
+def compute_BBKNN(adata, covariate='seq_run', layer='scaled', k=15, n_components=30, trim=None):
     """
     Compute the BBKNN batch-(covariate) corrected kNN graph on the original PCA space.
     """
@@ -215,7 +215,18 @@ def summary_metrics(df, df_rankings, evaluation=None):
     return df_summary
 
 
-# 
-#integration_function = {
-#    ...
-#}
+##
+
+def integration(adata, methods, covariate='seq_run', k=15, n_components=30, categorical_covs=['seq_run'], continuous_covs=['mito_perc', 'nUMIs']):
+    all_functions = {'Scanorama': compute_Scanorama, 'BBKNN': compute_BBKNN, 'scVI': compute_scVI, 'Harmony':compute_Harmony}
+    functions_int = {k: v for k, v in all_functions.items() if k in methods}
+    integration_list={}
+    for m in methods:
+        for layer in adata.layers:
+            if m != 'scVI' and layer != 'raw':
+                integration_list.update({m + '_' + layer: [functions_int[m],[adata],{'covariate':covariate, 
+                'layer':layer, 'k':k, 'n_components':n_components}]})
+            elif m == 'scVI' and layer == 'raw':
+                integration_list.update({m + '_' + layer: [functions_int[m],[adata],{ 'categorical_covs':categorical_covs, 
+                'continuous_covs':continuous_covs, 'k':k, 'n_components':n_components}]})
+    return integration_list

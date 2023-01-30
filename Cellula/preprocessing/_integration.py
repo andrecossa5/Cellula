@@ -75,7 +75,7 @@ def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_per
     Compute the scVI (Lopez et al., 2018) batch-corrected latent space.
     """
     # Check adata
-    adata_mock = anndata.AnnData(X=adata.X, obs=adata.obs, var=adata.var)
+    adata_mock = anndata.AnnData(X=adata.layers['raw'], obs=adata.obs, var=adata.var)
     adata_mock.layers['counts'] = adata.layers['raw']
     assert adata_mock.layers['counts'] is not None
 
@@ -242,14 +242,15 @@ def parse_integration_options(adata, methods, covariate='seq_run', k=15, n_compo
                     **kwargs, 
                     **{ 'covariate' : covariate, 'layer' : layer } 
                 }
+                analysis = '|'.join([m, layer])
+                integration_d[analysis] = [ functions_int[m], adata, kwargs ]
             elif m == 'scVI' and layer == 'raw':
                 kwargs = { 
                     **kwargs, 
                     **{ 'categorical_covs' : categorical_covs, 'continuous_covs' : continuous_covs } 
                 } 
-
-            analysis = '|'.join([m, layer])
-            integration_d[analysis] = [ functions_int[m], adata, kwargs ]
+                analysis = '|'.join([m, layer])
+                integration_d[analysis] = [ functions_int[m], adata, kwargs ]
 
     return integration_d
 

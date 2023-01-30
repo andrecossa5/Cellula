@@ -426,11 +426,12 @@ def draw_embeddings(
         if categories.size <=20 and legend_params['colors'] is None:
             palette_cat = sc.pl.palettes.vega_20_scanpy
             legend_params['colors'] = create_palette(df, cat, palette_cat)
-        elif categories.size <= 20 and legend_params['colors'] is None:
+        elif categories.size > 20 and legend_params['colors'] is None:
             palette_cat = sc.pl.palettes.godsnot_102
             legend_params['colors'] = create_palette(df, cat, palette_cat)
         elif isinstance(legend_params['colors'], dict):
             pass
+            #assert all([ k in ]) assert all categories are in legend_params['colors']
         else:
             raise ValueError('Provide a correctly formatted palette for your categorical labels!')
 

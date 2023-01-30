@@ -458,7 +458,7 @@ def draw_embeddings(
             if subset.size > 0:
                 scatter(df.loc[~df.index.isin(subset), :], x=x, y=y, c='darkgrey', ax=ax, s=1)
                 scatter(df.loc[subset, :], x=x, y=y, by=cont, c=cbar_params['color'], ax=ax, s=s)
-                format_draw_embeddings(ax, df, x, y, cont=cont, **axes_params)
+                format_draw_embeddings(ax, df.loc[subset, :], x, y, cont=cont, **axes_params)
             else:
                 raise ValueError('The queried subset has no obs available...')
 

@@ -51,7 +51,7 @@ plt.show()
 
 
 fig = faceted_draw_embedding(
-    df, x='PC2', y='PC3', cont='cycling', facet='sample', query='mito_perc > 0.1',
+    df, x='UMAP1', y='UMAP2', cont='cycling', facet='sample', query='cycling > 3',
     n_cols=2, figsize=(9,5)
 )
 

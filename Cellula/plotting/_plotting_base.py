@@ -46,20 +46,23 @@ def create_handles(categories, marker='o', colors=None, size=10, width=0.5):
 ##
 
 
-def add_cbar(x, color='viridis', ax=None, fig=None, loc='upper right', label_size=7, 
-    ticks_size=5, label=None, width="20%", height="1%", orientation="horizontal", kwargs={}):
+def add_cbar(x, color='viridis', ax=None, loc='upper right', label_size=7, 
+    ticks_size=5, label=None, width="20%", height="1%", orientation="horizontal", 
+    xticks_position='bottom'):
     """
     Draw cbar on an axes object inset.
     """
     cmap = matplotlib.colormaps[color]
     norm = matplotlib.colors.Normalize(vmin=np.percentile(x, q=5), vmax=np.percentile(x, q=95))
     axins = inset_axes(ax, width=width, height=height, loc=loc) 
-    axins.xaxis.set_ticks_position('bottom')
-    cb = fig.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap), 
-        cax=axins, orientation=orientation, ticklocation='bottom'
+    cb = plt.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap), 
+        cax=axins, orientation=orientation, ticklocation=xticks_position
     )
     cb.set_label(label=label, size=label_size, loc='center')
-    cb.ax.tick_params(axis="x", labelsize=ticks_size)
+    if orientation == 'vertical':
+        cb.ax.tick_params(axis="y", labelsize=ticks_size)
+    else:
+        cb.ax.tick_params(axis="x", labelsize=ticks_size)
 
     return cb
     
@@ -93,6 +96,58 @@ def add_wilcox(df, x, y, pairs, ax, order=None):
     annotator.configure(test='Mann-Whitney', text_format='star', show_test_name=False,
         line_height=0.01, text_offset=3)
     annotator.apply_and_annotate()
+
+
+##
+
+
+def find_n_axes(df, facet, query=None):
+    """
+    Get the numbers: n_axes.
+    """
+    idxs = []
+    names = []
+    n_axes = 0
+    cats = df[facet].unique()
+    for x in cats:
+        idx = df.loc[df[facet] == x, :].index
+        if query is not None:
+            df_ = df.loc[idx, :].query(query)
+        else:
+            df_ = df.loc[idx, :]
+        if df_.shape[0] > 0:
+            n_axes += 1
+            idxs.append(idx)
+            names.append(f'{facet}: {x}')
+        else:
+            pass
+    return n_axes, idxs, names
+
+
+##
+
+
+def remove_ticks(ax):
+    plt.setp(ax.get_xticklabels(), visible=False)
+    plt.setp(ax.get_yticklabels(), visible=False)
+    ax.tick_params(axis='both', which='both', length=0)
+
+
+##
+
+
+def find_n_rows_n_cols(n_axes, n_cols=None):
+    """
+    Get the numbers: n_rows, n_cols.
+    """
+    n_cols = n_cols if n_cols is not None else 5
+    if n_axes <= 5:
+        n_rows = 1; n_cols = n_cols
+    else:
+        n_rows = 1; n_cols = n_cols
+        while n_cols * n_rows < n_axes:
+            n_rows += 1
+    return n_rows, n_cols
 
 
 ##

@@ -223,7 +223,6 @@ def parse_integration_options(adata, methods, covariate='seq_run', k=15, n_compo
     """
     Function to parse integration options.
     """
-    methods = [ m for m in methods if m != 'original' ]
     all_functions = {
         'Scanorama' : compute_Scanorama, 
         'BBKNN' : compute_BBKNN, 

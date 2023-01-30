@@ -58,23 +58,36 @@ all_functions = {
 }
 
 
+help(kbet) # index, batch, # defaul alpha
+help(entropy_bb) # index, batch
+help(graph_conn) # A, # default labels=None, resolution=0.2
 
-def metrics(adata, methods, k=15, n_components=30, covariate='seq_run', labels=None, resolution=0.2):
+
+compute_metric(metric, layer='scaled', covariate='seq_run', k=15, n_components=30, labels=None, resolution=0.5)
+
+
+
+def parse_metric_options(adata, methods, k=15, n_components=30, covariate='seq_run', labels=None, resolution=0.2):
 
     metrics_d = {}
-    
-    for f in all_functions:
-        for m in methods:
-            for layer in adata.layers:
-                if f in I.batch_metrics:    
-                    if f != 'graph_conn':
-                        reps = I.get_kNNs(layer=layer, metric=f, k=k, n_components=n_components)
-                        if m != 'scVI' and layer != 'raw' and m != 'original':
-                            metrics_d.update({f+'|'+m+'|'+layer: [all_functions[f],[reps[m]],{'batch':adata.obs[covariate]}]})
-                        elif m == 'scVI' and layer == 'raw':
-                            metrics_d.update({f+'|'+m+'|'+layer: [all_functions[f],[reps[m]],{'batch':adata.obs[covariate]}]})
-                        elif m == 'original':
-                            metrics_d.update({f+'|'+m+'|'+layer: [all_functions[f],[reps[m]],{'batch':adata.obs[covariate]}]})
+
+    for metric in all_functions:
+        for layer in adata.layers:
+            analysis = '|'.join([metric, layer])
+            kwargs = { 'layer' : layer, 'covariate' : covariate}
+            metrics_d[analysis] = [ all_functions[metric], metric, kwargs ]
+            
+
+
+
+
+
+                        # if m != 'scVI' and layer != 'raw' and m != 'original':
+                        #     metrics_d.update({f+'|'+m+'|'+layer: [all_functions[f],[reps[m]],{'batch':adata.obs[covariate]}]})
+                        # elif m == 'scVI' and layer == 'raw':
+                        #     metrics_d.update({f+'|'+m+'|'+layer: [all_functions[f],[reps[m]],{'batch':adata.obs[covariate]}]})
+                        # elif m == 'original':
+                        #     metrics_d.update({f+'|'+m+'|'+layer: [all_functions[f],[reps[m]],{'batch':adata.obs[covariate]}]})
                 #    else:
                 #        reps = I.get_kNNs(layer=layer, metric=f, k=k, n_components=n_components)
                 #        if m != 'scVI' and layer != 'raw' and m != 'original':

@@ -130,6 +130,16 @@ def run_command(func, *args, verbose=False, **kwargs):
 ##
 
 
+def update_params(d_original, d_passed):
+    for k in d_original:
+        if k in d_passed:
+            d_original[k] = d_passed[k]
+    return d_original
+
+
+##
+
+
 def fix_sorting(L):
     """
     Sort a list with strings beginning with numbers.

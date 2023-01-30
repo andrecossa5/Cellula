@@ -9,8 +9,8 @@ import pandas as pd
 import scanpy as sc
 from sklearn.metrics import normalized_mutual_info_score
 from ._integration import format_metric_dict, summary_metrics, rank_runs
-from ._metrics import kbet, graph_conn, entropy_bb, kNN_retention_perc
-from .._utils import custom_ARI, get_representation
+from ._metrics import *
+from .._utils import *
 from ._neighbors import _NN, kNN_graph, get_idx_from_simmetric_matrix
 from ..clustering._clustering import leiden_clustering
 from ..plotting._plotting import plot_rankings
@@ -28,11 +28,12 @@ class Int_evaluator:
         Instantiate the main class attributes, loading integrated GE_spaces.
         '''
         self.adata = adata
-        self.batch_removal_scores = {}
-        self.bio_conservation_scores = {}
         self.methods = pd.Series([ x.split('|')[1] for x in self.adata.obsp.keys()]).unique()
         self.batch_metrics = ['kBET', 'entropy_bb', 'graph_conn']
         self.bio_metrics = ['kNN_retention_perc', 'NMI', 'ARI']
+        self.d_options = None
+        self.batch_removal_scores = { k : {} for k in self.batch_metrics }
+        self.bio_conservation_scores = { k : {} for k in self.bio_metrics }
 
     ##
 
@@ -63,82 +64,81 @@ class Int_evaluator:
 
     ##
 
-    def compute_metric(self, metric, layer='scaled', covariate='seq_run', k=15, n_components=30,
-        labels=None, resolution=0.5):
+    def parse_options(self, covariate='seq_run'):
         """
-        Compute one  of the available batch correction metrics.
+        Parse a dictionary of configuration options for the self.compute_metrics method.
         """
-        # Get kNN representations for the chosen layer
-        reps = self.get_kNNs(layer=layer, metric=metric, k=k, n_components=n_components)
+        # Dictionary of all functions for integration evaluation
+        all_functions = {
+            'kBET' : kbet,
+            'entropy_bb' : entropy_bb,
+            'graph_conn' : graph_conn,
+            'kNN_retention_perc' : kNN_retention_perc,
+            'NMI': compute_NMI, 
+            'ARI': compute_ARI
+        }
 
-        # Compute metric
-        d_metric = {}
+        # Loop over metrics, layers and integration_methods
+        d_options = {}
+        for metric in all_functions:
+            for layer in self.adata.layers:
+        
+                reps = self.get_kNNs(layer=layer, metric=metric)
+                for int_method in reps:
+                    l_options = []
+                    l_options.append(all_functions[metric])
 
+                    # Batch metrics
+                    if metric in ['kBET', 'entropy_bb']:
+                        args = [ reps[int_method], self.adata.obs[covariate] ]
+                    elif metric == 'graph_conn':
+                        args = [ reps[int_method][2] ]
 
+                    # Bio metrics
+                    elif metric in ['NMI', 'ARI']:
+                        if int_method != 'original':
+                            args = [ reps['original'][2], reps[int_method][2] ] 
+                    elif metric == 'kNN_retention_perc':
+                        if int_method != 'original':
+                            args = [ reps['original'], reps[int_method] ] 
 
+                    l_options.append(args)
+                    key = '|'.join([metric, layer, int_method])
+                    d_options[key] = l_options
 
-        # options = get_options(reps, metric, layer='scaled', covariate='seq_run', k=15, n_components=30,
-        # labels=None, resolution=0.5)   
-
-        # options = {
-        #   'analysis_name' : [ metric_function[metric], args --> list, kwargs --> dict ] 
-        # }
-
-        # 1 analysis --> 1 metric, one layer, one int_method, + other args/kwargs
-
-        # ... righe per storare l'output del for
-
-        #for opt in options: 
-        #    score = run_command(opt[0], *opt[1], **opt[2])
-
-        if metric in self.batch_metrics:
-            batch = self.adata.obs[covariate]
-            for int_method in reps:
-                kNN = reps[int_method]
-                if metric == 'kBET':
-                    score = kbet(kNN, batch)[2]
-                elif metric == 'graph_conn':
-                    score = graph_conn(kNN[1], labels=labels)
-                elif metric == 'entropy_bb':
-                    score = entropy_bb(kNN, batch)
-                key = f'{k}_NN_{n_components}_comp'
-                metrics_key = '|'.join([layer, int_method, key])
-                d_metric[metrics_key] = score
-
-            self.batch_removal_scores.setdefault(metric, {}).update(d_metric)
-
-        elif metric in self.bio_metrics:
-            for int_method in reps:
-                original_kNN = reps['original']
-                integrated_kNN = reps[int_method]  
-                if metric == 'kNN_retention_perc':
-                    score = kNN_retention_perc(original_kNN, integrated_kNN)
-                else:
-                    # Check if ground truth is provided and compute original and integrated labels 
-                    if labels is None:
-                        g1 = leiden_clustering(original_kNN[1], res=resolution)
-                    else:
-                        g1 = labels
-                    g2 = leiden_clustering(integrated_kNN[1], res=resolution)
-
-                    if metric == 'ARI':
-                        score = custom_ARI(g1, g2)
-                    elif metric == 'NMI':
-                        score = normalized_mutual_info_score(g1, g2, average_method='arithmetic')
-                key = f'{k}_NN_{n_components}_comp'
-                metrics_key = '|'.join([layer, int_method, key])
-                d_metric[metrics_key] = score
-
-            self.bio_conservation_scores.setdefault(metric, {}).update(d_metric)
+        # Add as attribute
+        self.d_options = d_options
 
     ##
 
-    
+    def compute_metrics(self, k=15, n_components=30):
+        """
+        Compute all batch removal and bio correction score metrics.
+        """
+        # Parse options, and compute each metric/layer/int_method job.
+        if self.d_options is None:
+            raise ValueError('Parse options first!')
+
+        for opt in self.d_options: 
+
+            func = self.d_options[opt][0]
+            args = self.d_options[opt][1]
+            score = run_command(func, *args)
+        
+            metric, layer, int_method = opt.split('|')
+            key = '|'.join([layer, int_method, f'{k}_NN_{n_components}_comp'])
+
+            if metric in self.batch_metrics:
+                self.batch_removal_scores[metric][key] = score
+            elif metric in self.bio_metrics:
+                self.bio_conservation_scores[metric][key] = score
+
+    ##
+
     def evaluate_runs(self, path, by='cumulative_score'):
         """
         Rank methods, as in scib paper (Luecknen et al. 2022).
         """
-
         # Create results df 
         df = pd.concat(
             [ 

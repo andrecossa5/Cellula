@@ -51,14 +51,6 @@ my_parser.add_argument(
     help='k used for kNN computations. Default: 15.'
 )
 
-# Resolution
-my_parser.add_argument( 
-    '--resolution', 
-    type=int,
-    default=0.2,
-    help='Resolution used for coarse grained Leiden clustering. Default: 0.2.'
-)
-
 # Step
 my_parser.add_argument( 
     '-v',
@@ -98,10 +90,18 @@ path_main = args.path_main
 version = args.version
 k = args.k
 covariate = args.covariate
-resolution = args.resolution
 delete = args.delete
 chosen = args.chosen
 n_comps = args.n_comps
+
+
+# path_main = '/Users/IEO5505/Desktop/cellula_ex/'
+# version = 'default'
+# k = 15
+# n_comps = 30
+# covariate = 'seq_run'
+# chosen = None
+
 
 ########################################################################
 
@@ -150,14 +150,13 @@ def integration_diagnostics():
     t = Timer()
     t.start()
     
-    logger.info(f'Execute 3_integration_diagnostics: --k {k} --covariate {covariate} --resolution {resolution} --n_comps {n_comps}')
+    logger.info(f'Execute 3_integration_diagnostics: --k {k} --covariate {covariate} --n_comps {n_comps}')
 
-    # Load Integration.h5ad
+    # Load Integration.h5ad and instantiate an Int_evaluator class
     adata = sc.read(path_data + 'integration.h5ad')
+    I = Int_evaluator(adata)
 
     logger.info(f'Loading data: {t.stop()} s.')
-
-    I = Int_evaluator(adata)
         
     #-----------------------------------------------------------------#
 
@@ -170,8 +169,8 @@ def integration_diagnostics():
 
     t.start()
     for layer in adata.layers:
-         with PdfPages(path_viz + f'orig_int_embeddings_{layer}.pdf') as pdf:
-             for int_rep in methods:
+        with PdfPages(path_viz + f'orig_int_embeddings_{layer}.pdf') as pdf:
+            for int_rep in methods:
                 try:
                     fig = plot_orig_int_embeddings(adata, 
                         layer=layer, rep_1='original', rep_2=int_rep, colors=colors
@@ -180,22 +179,13 @@ def integration_diagnostics():
                     plt.close()
                 except:
                     print(f'Embedding {int_rep} is not available for layer {layer}')
-
     logger.info(f'Embeddings visualization: {t.stop()} s.')
 
-    # Batch removal metrics
+    # Compute diagnostics metrics
     t.start()
-    for m in I.batch_metrics:
-        for layer in adata.layers:
-            I.compute_metric(m, layer=layer, covariate=covariate, k=15, n_components=30)
-    logger.info(f'Batch removal metrics calculations: {t.stop()} s.')
-
-    # Bio conservation metrics
-    t.start()
-    for m in I.bio_metrics:
-        for layer in adata.layers:
-            I.compute_metric(m, layer=layer, k=15, n_components=30, labels=None, resolution=resolution)
-    logger.info(f'Biological conservation metrics calculations: {t.stop()} s.')
+    I.parse_options(covariate=covariate)
+    I.compute_metrics(k=k, n_components=n_comps)
+    logger.info(f'Metrics calculations: {t.stop()} s.')
 
     # Integration runs evaluation
     t.start()

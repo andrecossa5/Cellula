@@ -39,22 +39,21 @@ df = adata.obs.join(df)
 # Examples
 df['nUMIs_cat'] = pd.cut(df['nUMIs'], 10)
 df['mito_perc_cat'] = pd.cut(df['mito_perc'], 4)
-df['hicat'] = np.random.choice(12, df.shape[0])
+df['hicat'] = np.random.choice(35, df.shape[0])
 
 
 
 
 
 fig, ax = plt.subplots(figsize=(7,7))
-draw_embeddings(df, cont='cycling', ax=ax, query='mito_perc > 0.1')
+draw_embeddings(df, cat='sample', ax=ax, query='mito_perc < 0.05')
 plt.show()
 
 
 fig = faceted_draw_embedding(
-    df, x='UMAP1', y='UMAP2', cont='cycling', facet='sample', query='cycling > 3',
-    n_cols=2, figsize=(9,5)
+    df, x='UMAP1', y='UMAP2', cat='sample', facet='hicat', query='cycling > 2',
+    n_cols=5, figsize=(9,9)
 )
-
 plt.show()
 
 

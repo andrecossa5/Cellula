@@ -14,8 +14,9 @@ from scipy.sparse import csr_matrix
 import leidenalg
 import igraph as ig
 import anndata
+from sklearn.metrics import normalized_mutual_info_score
 
-from .._utils import chunker
+from .._utils import *
 from ..clustering._clustering import leiden_clustering
 
 
@@ -74,7 +75,7 @@ def choose_K_for_kBET(adata, covariate):
 ##
 
 
-def kbet(index, batch, alpha=0.05):
+def kbet(index, batch, alpha=0.05, only_score=True):
     """
     Re-implementation of pegasus kBET, to start from a pre-computed kNN index.
     """
@@ -106,7 +107,10 @@ def kbet(index, batch, alpha=0.05):
     stat_mean, pvalue_mean = kBET_arr.mean(axis=0)
     accept_rate = (kBET_arr[:, 1] >= alpha).sum() / len(batch)
 
-    return (stat_mean, pvalue_mean, accept_rate)
+    if only_score:
+        return stat_mean
+    else:
+        return (stat_mean, pvalue_mean, accept_rate)
 
 
 ##
@@ -176,47 +180,43 @@ def kNN_retention_perc(original_idx, int_idx):
 ##
 
 
-# metrics_functions = {
-#     'kBET' : kbet,
-#    'graph_conn' : graph_conn,
-#    ...
-#
-# }
+def compute_NMI(original_conn, integrated_conn, labels=None, resolution=0.2):
+    """
+    Compute the normalized mutual information score among labels 
+    obtained by clustering original and integrated kNN graphs.
+    """
+    # Check if ground truth is provided and compute original and integrated labels 
+    if labels is None:
+        g1 = leiden_clustering(original_conn, res=resolution)
+    else:
+        g1 = labels
+    g2 = leiden_clustering(integrated_conn, res=resolution)
 
-#if metric in self.batch_metrics:
-#    batch = self.adata.obs[covariate]
-#    for int_method in reps:
-#        kNN = reps[int_method]
-#        if metric == 'kBET':
-#            score = kbet(kNN, batch)[2]
-#        elif metric == 'graph_conn':
-#            score = graph_conn(kNN[1], labels=labels)
-#        elif metric == 'entropy_bb':
-#            score = entropy_bb(kNN, batch)
-#        key = f'{k}_NN_{n_components}_comp'
-#        metrics_key = '|'.join([layer, int_method, key])
-#        d_metric[metrics_key] = score
-#
-        #    self.batch_removal_scores.setdefault(metric, {}).update(d_metric)
-#
-#elif metric in self.bio_metrics:
-#    for int_method in reps:
-#        original_kNN = reps['original']
-#        integrated_kNN = reps[int_method]  
-#        if metric == 'kNN_retention_perc':
-#            score = kNN_retention_perc(original_kNN, integrated_kNN)
-#        else:
-#            # Check if ground truth is provided and compute original and integrated labels 
-#            if labels is None:
-#                g1 = leiden_clustering(original_kNN[1], res=resolution)
-#            else:
-#                g1 = labels
-#            g2 = leiden_clustering(integrated_kNN[1], res=resolution)
-#
-#            if metric == 'ARI':
-#                score = custom_ARI(g1, g2)
-#            elif metric == 'NMI':
-#                score = normalized_mutual_info_score(g1, g2, average_method='arithmetic')
-#        key = f'{k}_NN_{n_components}_comp'
-#        metrics_key = '|'.join([layer, int_method, key])
-# #        d_metric[metrics_key] = score
+    # Compute NMI score
+    score = normalized_mutual_info_score(g1, g2, average_method='arithmetic')
+
+    return score
+    
+
+##
+
+
+def compute_ARI(original_conn, integrated_conn, labels=None, resolution=0.2):
+    """
+    Compute the Adjusted Rand Index score among labels 
+    obtained by clustering original and integrated kNN graphs.
+    """
+    # Check if ground truth is provided and compute original and integrated labels 
+    if labels is None:
+        g1 = leiden_clustering(original_conn, res=resolution)
+    else:
+        g1 = labels
+    g2 = leiden_clustering(integrated_conn, res=resolution)
+
+    # Compute ARI score
+    score = custom_ARI(g1, g2)
+
+    return score
+
+
+##

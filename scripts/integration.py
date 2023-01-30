@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Scanorama script
+# Integration script
 
 ########################################################################
 
@@ -123,7 +123,7 @@ logger = set_logger(path_runs, 'logs_integration.txt')
 
 ########################################################################
 
-# Scanorama
+# Integration
 def Integration():
 
     T = Timer()

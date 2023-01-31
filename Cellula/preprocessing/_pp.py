@@ -2,13 +2,11 @@
 _pp.py: preprocessing utils. 
 """
 
-import gc
-import sys
+
 import pandas as pd 
 import numpy as np 
 import scanpy as sc 
 import pegasus as pg
-import anndata
 from sklearn.decomposition import PCA 
 from pegasus.tools import predefined_signatures, load_signatures_from_file 
 from sklearn.cluster import KMeans  
@@ -205,7 +203,4 @@ def pca(adata, n_pcs=50, layer='scaled'):
     adata.uns[key + '|cum_sum_eigenvalues'] = np.cumsum(model.var_ratios)
 
     return adata  
-
-
-##
 

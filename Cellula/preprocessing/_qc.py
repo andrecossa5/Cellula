@@ -106,7 +106,7 @@ def QC_plot(adata, ax, title=None):
     biplot, at different stages of cell QC.
     """
     scatter(adata.obs, 'nUMIs', 'detected_genes', by='mito_perc', c='viridis', ax=ax)
-    format_ax(adata.obs, ax, title=title, xlabel='nUMIs', ylabel='detected_genes')
+    format_ax(ax, title=title, xlabel='nUMIs', ylabel='detected_genes')
 
 
 ##  

@@ -74,9 +74,9 @@ covariate = args.covariate
 
 
 # Code
+import scanpy as sc
 from Cellula._utils import *
-from Cellula.preprocessing._Int_evaluator import *
-from Cellula.preprocessing._metrics import choose_K_for_kBET
+from Cellula.preprocessing._metrics import choose_K_for_kBET, kBET_score
 from Cellula.preprocessing._neighbors import *
 
 #-----------------------------------------------------------------#
@@ -92,8 +92,7 @@ path_results += f'/{version}/'
 path_runs += f'/{version}/' 
 path_viz += f'/{version}/' 
 
-# Check if the ./runs/step_{i}/logs_1_pp.txt are present, 
-# along with the GE_space dictionary in path_data
+# Check if reduced.h5ad is present in folder 
 if not os.path.exists(path_data + 'reduced.h5ad'):
     print('Run pp or integration algorithm(s) beforehand!')
     sys.exit()
@@ -119,9 +118,6 @@ def kBET():
 
     # Load reduced adata
     adata = sc.read(path_data + 'reduced.h5ad')
-
-    # Instantiate int_evaluator class
-    I = Int_evaluator(adata)
     
     logger.info(f'Data loading and preparation: {t.stop()} s.')
 
@@ -134,15 +130,15 @@ def kBET():
     k_range = [ 15, 30, 50, 100, 250, 500, choose_K_for_kBET(adata, covariate) ]
 
     # Compute kNN indices and kBET
-    all_removal_batch = {}
+    kbet_computation = {}
     for k in k_range:
         t.start()
         logger.info(f'Begin operations on all representations, for k {k}...')
         for layer in adata.layers:
             adata = compute_kNN(adata, layer=layer, int_method='original', k=k, n_components=n_pcs)
-            # I.compute_metric(metric='kBET', layer=layer, covariate=covariate, k=k, n_components=n_pcs)
-            # all_removal_batch.update(I.batch_removal_scores['kBET']) # Fare con funzione singola... non int evaluator
-            # only_score=False
+            score = kBET_score(adata, covariate=covariate, method='original', layer=layer, k=k, n_components=n_pcs)
+            kbet_computation.update(score)
+        
         logger.info(f'kBET calculations finished for k {k}: {t.stop()} s.')
 
     # Extract results and take the integration decision
@@ -150,7 +146,7 @@ def kBET():
     logger.info(f'Extract results and take the integration decision...')
 
     # Create df
-    df = pd.DataFrame().from_dict(all_removal_batch, 
+    df = pd.DataFrame().from_dict(kbet_computation, 
             orient='index'
         ).reset_index().rename(columns={'index':'rep', 0:'acceptance_rate'})
     df['pp_option'] = df['rep'].map(lambda x: x.split('|')[0])

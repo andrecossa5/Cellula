@@ -16,11 +16,11 @@ matplotlib.use('macOSX')
 
 
 # Read reduced data
-path_main = '/Users/IEO5505/Desktop/cellula_ex/'
+path_main = '/Users/IEO6214/Desktop/Refractoring_test/'
 path_data = path_main + 'data/default/'
 
 # Compute embs
-adata = sc.read(path_data + 'reduced.h5ad')
+adata = sc.read(path_data + 'integration.h5ad')
 df = embeddings(
     adata, 
     paga_groups='sample', 
@@ -39,21 +39,22 @@ df = adata.obs.join(df)
 # Examples
 df['nUMIs_cat'] = pd.cut(df['nUMIs'], 10)
 df['mito_perc_cat'] = pd.cut(df['mito_perc'], 4)
-df['hicat'] = np.random.choice(35, df.shape[0])
+df['hicat'] = np.random.choice(12, df.shape[0])
 
 
 
 
 
 fig, ax = plt.subplots(figsize=(7,7))
-draw_embeddings(df, cat='sample', ax=ax, query='mito_perc < 0.05')
+draw_embeddings(df, cont='cycling', ax=ax, query='mito_perc > 0.1')
 plt.show()
 
 
 fig = faceted_draw_embedding(
-    df, x='UMAP1', y='UMAP2', cat='sample', facet='hicat', query='cycling > 2',
-    n_cols=5, figsize=(9,9)
+    df, x='UMAP1', y='UMAP2', cont='cycling', facet='sample', query='cycling > 3',
+    n_cols=2, figsize=(9,5)
 )
+
 plt.show()
 
 
@@ -94,7 +95,53 @@ else:
 
 """
 
+#Funzione per plottare
 
+def plot_embeddings(adata, layer=None, rep='original', k=15, n_components=30):
+    """
+    Plot QC covariates in the UMAP embeddings obtained from original and integrated data.
+    """
+
+    # Prep data
+    umap = embeddings(adata, paga_groups='sample', rep=rep, layer=layer, 
+    umap_only=True, k=k, n_components=n_components)
+    umap = umap.join(adata.obs)
+
+    covariates = ['seq_run', 'sample', 'nUMIs', 'cycle_diff']
+    fig, axs = plt.subplots(1, len(covariates), figsize=(7 * len(covariates), 7))
+    for i, c in enumerate(covariates):
+        if c == 'nUMIs' or c == 'cycle_diff':
+            draw_embeddings(umap, cont=c, ax=axs[i])
+        else:
+            draw_embeddings(umap, cat=c, ax=axs[i])
+    # Fig
+    fig.tight_layout()
+
+    return fig
+
+
+#Plotting embeddings
+
+with PdfPages('/Users/IEO6214/Desktop/original_embeddings.pdf') as pdf:
+       for layer in adata.layers:
+           fig = plot_embeddings(adata, layer=layer)
+           fig.suptitle(layer)
+           pdf.savefig()  
+           plt.close()
+
+
+methods = pd.Series([ x.split('|')[1] for x in adata.obsp.keys()]).unique()
+for layer in adata.layers:
+        with PdfPages(f'/Users/IEO6214/Desktop/orig_int_embeddings_{layer}.pdf') as pdf:
+            for int_rep in methods:
+                try:
+                    fig = plot_embeddings(adata, 
+                        layer=layer, rep=int_rep
+                    )  
+                    tot = layer +'_'+int_rep
+                    fig.suptitle(tot)
+                    pdf.savefig() 
+                    plt.close()
+                except:
+                    print(f'Embedding {int_rep} is not available for layer {layer}')
  
-
-

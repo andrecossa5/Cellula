@@ -2,11 +2,9 @@
 _integration.py: integration utils. 
 """
 
-import gc
-import sys
 import pandas as pd 
 import numpy as np 
-import scanpy as sc 
+import scanpy 
 import anndata
 from harmony import harmonize
 from scvi.model import SCVI
@@ -91,7 +89,7 @@ def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_per
         n_hidden=n_hidden
     )
     
-    # Train and add trained model to GE_space
+    # Train and add trained model to adata
     vae.train(train_size=1.0, max_epochs=max_epochs)
     adata.obsm['raw|scVI|X_corrected'] = vae.get_latent_representation()
 

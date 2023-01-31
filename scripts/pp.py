@@ -127,7 +127,6 @@ organism = args.organism
 # Preparing run: import code, prepare directories, set logger
 
 # Code
-import Cellula.plotting._plotting_base
 from Cellula._utils import *
 from Cellula.preprocessing._pp import *
 from Cellula.preprocessing._embeddings import *
@@ -135,7 +134,6 @@ from Cellula.preprocessing._neighbors import *
 from Cellula.plotting._plotting import *
 from Cellula.plotting._colors import create_colors
 
-#path_main = '/Users/IEO6214/Desktop/Refractoring_test'
 #-----------------------------------------------------------------#
 
 # Set other paths 
@@ -190,15 +188,15 @@ def preprocessing():
     # Format adata.obs
     if args.custom_meta:
         try:
+        # Format cols as pd.Categoricals
             meta = pd.read_csv(path_data + 'cells_meta.csv', index_col=0)
-            # Format cols as pd.Categoricals
             for x in meta.columns:
                 test = meta[x].dtype in ['int64', 'int32', 'int8'] and meta[x].unique().size < 50
                 if meta[x].dtype == 'object' or test:
                     meta[x] = pd.Categorical(meta[x])
-            adata.obs = meta
+            adata.obs = meta        
         except:
-            logger.info('Cannot read cells_meta.csv. Format .csv file correctly!')
+            logger.info('Cannot read cells_meta file. Format .csv or .tsv file correctly!')
             sys.exit()
     else:
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.startswith('passing')]
@@ -304,8 +302,8 @@ def preprocessing():
 
         with PdfPages(path_viz + f'original_embeddings.pdf') as pdf:
             for layer in adata_red.layers:
-                adata_red = compute_kNN(adata_red, layer=layer, int_method='original') # Default here
-                fig = plot_embeddings(adata_red, layer=layer, colors=colors)
+                adata_red = compute_kNN(adata_red, layer=layer, int_method='original')
+                fig = plot_embeddings(adata_red, layer=layer)
                 fig.suptitle(layer)
                 pdf.savefig()  
                 plt.close()
@@ -327,4 +325,3 @@ if __name__ == "__main__":
     preprocessing()
 
 #######################################################################
-

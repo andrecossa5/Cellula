@@ -94,15 +94,6 @@ delete = args.delete
 chosen = args.chosen
 n_comps = args.n_comps
 
-
-# path_main = '/Users/IEO5505/Desktop/cellula_ex/'
-# version = 'default'
-# k = 15
-# n_comps = 30
-# covariate = 'seq_run'
-# chosen = None
-
-
 ########################################################################
 
 # Preparing run: import code, prepare directories, set logger
@@ -110,7 +101,6 @@ n_comps = args.n_comps
 # Code
 from Cellula._utils import *
 from Cellula.plotting._plotting import *
-from Cellula.plotting._colors import create_colors
 from Cellula.preprocessing._Int_evaluator import *
 from Cellula.preprocessing._pp import *
 from Cellula.preprocessing._integration import *
@@ -163,18 +153,15 @@ def integration_diagnostics():
     # Here we go
 
     # Compute and compare embeddings
-    colors = create_colors(adata.obs)
     methods = pd.Series([ x.split('|')[1] for x in adata.obsp.keys()]).unique()
-    methods = [ x for x in methods if x != 'original']
-
     t.start()
     for layer in adata.layers:
         with PdfPages(path_viz + f'orig_int_embeddings_{layer}.pdf') as pdf:
             for int_rep in methods:
                 try:
-                    fig = plot_orig_int_embeddings(adata, 
-                        layer=layer, rep_1='original', rep_2=int_rep, colors=colors
-                    )  
+                    fig = plot_embeddings(adata, layer=layer, rep=int_rep)  
+                    tot = layer +'_'+int_rep
+                    fig.suptitle(tot)
                     pdf.savefig() 
                     plt.close()
                 except:

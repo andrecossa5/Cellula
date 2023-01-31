@@ -163,18 +163,15 @@ def integration_diagnostics():
     # Here we go
 
     # Compute and compare embeddings
-    colors = create_colors(adata.obs)
     methods = pd.Series([ x.split('|')[1] for x in adata.obsp.keys()]).unique()
-    methods = [ x for x in methods if x != 'original']
-
     t.start()
     for layer in adata.layers:
         with PdfPages(path_viz + f'orig_int_embeddings_{layer}.pdf') as pdf:
             for int_rep in methods:
                 try:
-                    fig = plot_orig_int_embeddings(adata, 
-                        layer=layer, rep_1='original', rep_2=int_rep, colors=colors
-                    )  
+                    fig = plot_embeddings(adata, layer=layer, rep=int_rep)  
+                    tot = layer +'_'+int_rep
+                    fig.suptitle(tot)
                     pdf.savefig() 
                     plt.close()
                 except:

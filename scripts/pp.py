@@ -304,8 +304,8 @@ def preprocessing():
 
         with PdfPages(path_viz + f'original_embeddings.pdf') as pdf:
             for layer in adata_red.layers:
-                adata_red = compute_kNN(adata_red, layer=layer, int_method='original') # Default here
-                fig = plot_embeddings(adata_red, layer=layer, colors=colors)
+                adata_red = compute_kNN(adata_red, layer=layer, int_method='original')
+                fig = plot_embeddings(adata_red, layer=layer)
                 fig.suptitle(layer)
                 pdf.savefig()  
                 plt.close()

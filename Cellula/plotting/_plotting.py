@@ -257,92 +257,27 @@ def plot_biplot_PCs(adata, layer=None, covariate='sample', colors=None):
 ##
 
 
-def plot_embeddings(adata, layer=None, rep='original', 
-    colors=None, a=1, s=0.1, umap_only=True, k=15, n_components=30):
+def plot_embeddings(adata, layer=None, rep='original', k=15, n_components=30):
     """
-    Plot QC covariates in the UMAP embeddings obtained from original data.
-    """
-
-    # Prep data
-    df = embeddings(
-        adata, 
-        paga_groups='sample', 
-        rep = rep,
-        layer=layer,
-        umap_only=umap_only,
-        k=k,
-        n_components=n_components
-    ).loc[:, ['UMAP1', 'UMAP2']]
-
-    df = df.join(adata.obs)
-    covariates = ['seq_run', 'sample', 'nUMIs', 'cycle_diff']
-
-    # Fig
-    fig, axs = plt.subplots(1,4, figsize=(12,4), constrained_layout=True)
-
-    for i, cov in enumerate(covariates):
-        
-        # Set covariate color(s)
-        c = colors[cov] if colors is not None and cov in colors else 'viridis'
-
-        # Orig, first row
-        scatter(df, 'UMAP1', 'UMAP2', by=cov, c=c, a=a, s=s, ax=axs[i])
-        format_ax(df, ax=axs[i], xlabel='UMAP1', ylabel='UMAP2')
-        axs[i].axis('off')
-
-        if c == 'viridis':
-            add_cbar(cov, ax=axs[i], fig=fig, color='viridis')
-        else:
-            add_legend(df, cov, ax=axs[i], colors=c)
-
-    return fig
-
-
-##
-
-
-def plot_orig_int_embeddings(adata, layer=None, rep_1='original', rep_2='BBKNN', 
-    colors=None, a=1, s=0.1, k=15, n_components=30):
-    """
-    Plot QC covariates in the UMAP embeddings obtained from original and integrated data.
+    Plot QC covariates in the UMAP embeddings obtained from original or original and integrated data.
     """
 
     # Prep data
-    umap_orig = embeddings(adata, paga_groups='sample', rep=rep_1, layer=layer, 
-        umap_only=True, k=k, n_components=n_components).loc[:, ['UMAP1', 'UMAP2']]
-    umap_int = embeddings(adata, paga_groups='sample', rep=rep_2, layer=layer, 
-        umap_only=True, k=k, n_components=n_components).loc[:, ['UMAP1', 'UMAP2']]
-    umap_orig = umap_orig.join(adata.obs)
-    umap_int = umap_int.join(adata.obs)
+    umap = embeddings(adata, paga_groups='sample', rep=rep, layer=layer, 
+    umap_only=True, k=k, n_components=n_components)
+    umap = umap.join(adata.obs)
+
     covariates = ['seq_run', 'sample', 'nUMIs', 'cycle_diff']
-
-    # Fig
-    fig, axs = plt.subplots(2,4,figsize=(12,6))
-
-    for i, cov in enumerate(covariates):
-        
-        # Set covariate color(s)
-        c = colors[cov] if colors is not None and cov in colors else 'viridis'
-
-        # Orig, first row
-        scatter(umap_orig, 'UMAP1', 'UMAP2', by=cov, c=c, a=a, s=s, ax=axs[0, i])
-        format_ax(umap_orig, ax=axs[0, i], xlabel='UMAP1', ylabel='UMAP2')
-        axs[0, i].axis('off')
-
-        if c == 'viridis':
-            add_cbar(cov, ax=axs[0, i], fig=fig, color='viridis')
+    fig, axs = plt.subplots(1, len(covariates), figsize=(7 * len(covariates), 7))
+    for i, c in enumerate(covariates):
+        if c == 'nUMIs' or c == 'cycle_diff':
+            draw_embeddings(umap, cont=c, ax=axs[i])
         else:
-            add_legend(umap_orig, cov, ax=axs[0, i], colors=c)
-
-        # Integrated, second row
-        scatter(umap_int, 'UMAP1', 'UMAP2', by=cov, c=c, a=a, s=s, ax=axs[1, i])
-        format_ax(umap_int, ax=axs[1, i], xlabel='UMAP1', ylabel='UMAP2')
-        axs[1, i].axis('off')
-
+            draw_embeddings(umap, cat=c, ax=axs[i])
+    # Fig
     fig.tight_layout()
 
     return fig
-
 
 ##
 

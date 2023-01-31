@@ -127,7 +127,6 @@ organism = args.organism
 # Preparing run: import code, prepare directories, set logger
 
 # Code
-import Cellula.plotting._plotting_base
 from Cellula._utils import *
 from Cellula.preprocessing._pp import *
 from Cellula.preprocessing._embeddings import *
@@ -195,18 +194,10 @@ def preprocessing():
                 test = meta[x].dtype in ['int64', 'int32', 'int8'] and meta[x].unique().size < 50
                 if meta[x].dtype == 'object' or test:
                     meta[x] = pd.Categorical(meta[x])
-            adata.obs = meta
+            adata.obs = meta        
         except:
-                try:
-                    meta = pd.read_csv(path_data + 'cells_meta.tsv', index_col=0, sep='\t')
-                    for x in meta.columns:
-                        test = meta[x].dtype in ['int64', 'int32', 'int8'] and meta[x].unique().size < 50
-                        if meta[x].dtype == 'object' or test:
-                            meta[x] = pd.Categorical(meta[x])
-                    adata.obs = meta
-                except:
-                    logger.info('Cannot read cells_meta file. Format .csv or .tsv file correctly!')
-                    sys.exit()
+            logger.info('Cannot read cells_meta file. Format .csv or .tsv file correctly!')
+            sys.exit()
     else:
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.startswith('passing')]
         adata.obs['seq_run'] = 'run_1' # Assumed only one run of sequencing

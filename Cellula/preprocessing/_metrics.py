@@ -108,7 +108,7 @@ def kbet(index, batch, alpha=0.05, only_score=True):
     accept_rate = (kBET_arr[:, 1] >= alpha).sum() / len(batch)
 
     if only_score:
-        return stat_mean
+        return accept_rate
     else:
         return (stat_mean, pvalue_mean, accept_rate)
 

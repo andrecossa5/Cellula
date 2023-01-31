@@ -6,8 +6,6 @@ from Cellula._utils import *
 from joblib import cpu_count
 import sys
 import numpy as np
-import pandas as pd
-import scanpy as sc
 from umap.umap_ import nearest_neighbors 
 from hnswlib import Index 
 from umap.umap_ import fuzzy_simplicial_set 

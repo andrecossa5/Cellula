@@ -228,7 +228,7 @@ def plot_biplot_PCs(adata, layer=None, covariate='sample', colors=None):
                     scatter(df_, x, y, by=covariate, c=colors[covariate], a=1, s=0.1, ax=axs[i,j])
                 else:
                     scatter(df_, x, y, by=covariate, c='viridis', a=1, s=0.1, ax=axs[i,j])
-                format_ax(df_, axs[i, j], xlabel=x, ylabel=y)
+                format_ax(axs[i, j], xlabel=x, ylabel=y)
 
     # Legend/colorbar
     if colors is not None and covariate in colors:
@@ -268,7 +268,7 @@ def plot_embeddings(adata, layer=None, rep='original', k=15, n_components=30):
     umap = umap.join(adata.obs)
 
     covariates = ['seq_run', 'sample', 'nUMIs', 'cycle_diff']
-    fig, axs = plt.subplots(1, len(covariates), figsize=(7 * len(covariates), 7))
+    fig, axs = plt.subplots(1, len(covariates), figsize=(6 * len(covariates), 6))
     for i, c in enumerate(covariates):
         if c == 'nUMIs' or c == 'cycle_diff':
             draw_embeddings(umap, cont=c, ax=axs[i])
@@ -480,7 +480,7 @@ def cluster_separation_plot(clustering_solutions, df_kNN):
     # n clusters by resolution
     df_ = pd.DataFrame({'n':n_clusters, 'sol':solutions})
     bar(df_, 'n', x='sol', c='#C0C0C0', s=0.7, ax=axs[1])
-    format_ax(df_, title='n clusters by resolution', xticks=solutions, rotx=90, ylabel='n', ax=axs[1])
+    format_ax(ax=axs[1], title='n clusters by resolution', xticks=solutions, rotx=90, ylabel='n')
 
     # Layout
     fig.tight_layout()

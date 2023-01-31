@@ -138,9 +138,7 @@ def kBET():
             adata = compute_kNN(adata, layer=layer, int_method='original', k=k, n_components=n_pcs)
             score = kBET_score(adata, covariate=covariate, method='original', layer=layer, k=k, n_components=n_pcs)
             kbet_computation.update(score)
-            # I.compute_metric(metric='kBET', layer=layer, covariate=covariate, k=k, n_components=n_pcs)
-            # all_removal_batch.update(I.batch_removal_scores['kBET']) # Fare con funzione singola... non int evaluator
-            # only_score=False
+        
         logger.info(f'kBET calculations finished for k {k}: {t.stop()} s.')
 
     # Extract results and take the integration decision

@@ -220,3 +220,19 @@ def compute_ARI(original_conn, integrated_conn, labels=None, resolution=0.2):
 
 
 ##
+
+
+def kBET_score(adata, covariate='seq_run', method='original', layer='lognorm', k=15, n_components=30):
+    """
+    Function to calculate the kBET score for a given layer, method, k and n_components 
+    and store it in a dictionary for use in the kBET script prior to integration.
+    """
+
+    score={}
+    KNN_index = get_representation(adata, layer=layer, method=method, k=k, n_components=n_components, only_index=True)
+    batch = adata.obs[covariate]
+    score_kbet = kbet(KNN_index, batch)
+    key = f'{layer}|{method}|{k}_NN_{n_components}_comp'
+    score = {key:score_kbet}
+
+    return score

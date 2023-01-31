@@ -190,16 +190,24 @@ def preprocessing():
     # Format adata.obs
     if args.custom_meta:
         try:
+        # Format cols as pd.Categoricals
             meta = pd.read_csv(path_data + 'cells_meta.csv', index_col=0)
-            # Format cols as pd.Categoricals
             for x in meta.columns:
                 test = meta[x].dtype in ['int64', 'int32', 'int8'] and meta[x].unique().size < 50
                 if meta[x].dtype == 'object' or test:
                     meta[x] = pd.Categorical(meta[x])
             adata.obs = meta
         except:
-            logger.info('Cannot read cells_meta.csv. Format .csv file correctly!')
-            sys.exit()
+                try:
+                    meta = pd.read_csv(path_data + 'cells_meta.tsv', index_col=0, sep='\t')
+                    for x in meta.columns:
+                        test = meta[x].dtype in ['int64', 'int32', 'int8'] and meta[x].unique().size < 50
+                        if meta[x].dtype == 'object' or test:
+                            meta[x] = pd.Categorical(meta[x])
+                    adata.obs = meta
+                except:
+                    logger.info('Cannot read cells_meta file. Format .csv or .tsv file correctly!')
+                    sys.exit()
     else:
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.startswith('passing')]
         adata.obs['seq_run'] = 'run_1' # Assumed only one run of sequencing

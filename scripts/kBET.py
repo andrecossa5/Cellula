@@ -75,8 +75,7 @@ covariate = args.covariate
 
 # Code
 from Cellula._utils import *
-from Cellula.preprocessing._Int_evaluator import *
-from Cellula.preprocessing._metrics import choose_K_for_kBET
+from Cellula.preprocessing._metrics import choose_K_for_kBET, kBET_score
 from Cellula.preprocessing._neighbors import *
 
 #-----------------------------------------------------------------#
@@ -119,9 +118,6 @@ def kBET():
 
     # Load reduced adata
     adata = sc.read(path_data + 'reduced.h5ad')
-
-    # Instantiate int_evaluator class
-    I = Int_evaluator(adata)
     
     logger.info(f'Data loading and preparation: {t.stop()} s.')
 
@@ -131,15 +127,18 @@ def kBET():
     # and 1 found using the heuristic specified in Buttner et al. 2018.
 
     # Define k_range
-    k_range = [ 15, 30, 50, 100, 250, 500, choose_K_for_kBET(adata, covariate) ]
+    #k_range = [ 15, 30, 50, 100, 250, 500, choose_K_for_kBET(adata, covariate) ]
+    k_range = [ 15, 30, 50, 100, 250]
 
     # Compute kNN indices and kBET
-    all_removal_batch = {}
+    kbet_computation = {}
     for k in k_range:
         t.start()
         logger.info(f'Begin operations on all representations, for k {k}...')
         for layer in adata.layers:
             adata = compute_kNN(adata, layer=layer, int_method='original', k=k, n_components=n_pcs)
+            score = kBET_score(adata, covariate=covariate, method='original', layer=layer, k=k, n_components=n_pcs)
+            kbet_computation.update(score)
             # I.compute_metric(metric='kBET', layer=layer, covariate=covariate, k=k, n_components=n_pcs)
             # all_removal_batch.update(I.batch_removal_scores['kBET']) # Fare con funzione singola... non int evaluator
             # only_score=False
@@ -150,7 +149,7 @@ def kBET():
     logger.info(f'Extract results and take the integration decision...')
 
     # Create df
-    df = pd.DataFrame().from_dict(all_removal_batch, 
+    df = pd.DataFrame().from_dict(kbet_computation, 
             orient='index'
         ).reset_index().rename(columns={'index':'rep', 0:'acceptance_rate'})
     df['pp_option'] = df['rep'].map(lambda x: x.split('|')[0])

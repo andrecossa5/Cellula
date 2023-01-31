@@ -10,6 +10,7 @@ from scipy.sparse import csr_matrix, csc_matrix, issparse
 from collections import Counter 
 from itertools import combinations 
 from itertools import starmap
+import sys
 
 import scanpy as sc 
 from sklearn.cluster import AgglomerativeClustering 
@@ -282,9 +283,18 @@ def format_curated(path_main):
     for x in os.listdir(path_main + 'data/curated_signatures/'):
         name = x.split('.')[0]
         if x != '.DS_Store':
-            genes = pd.read_csv(
-                path_main + f'data/curated_signatures/{x}', sep='\t', index_col=0
-            ).iloc[:, 0].to_list()
-            curated[name] = genes
+            try:
+               genes = pd.read_csv(path_main + f'data/curated_signatures/{x}', sep='\t', index_col=0).iloc[:, 0].to_list()
+               curated[name] = genes
+            except:
+               try:
+                   genes = pd.read_csv(path_main + f'data/curated_signatures/{x}', sep=',', index_col=0).iloc[:, 0].to_list()
+                   curated[name] = genes
+               except:
+                 sys.exit("Error: the following .txt file is not correctly formatted with 'tab' or ',' separators " + path_main + f'data/curated_signatures/{x}')
+            
+            for i in genes:
+                if type(i) is float:
+                    sys.exit("Error: the following .txt file has mixed separators "+ path_main + f'data/curated_signatures/{x}')
 
     return curated

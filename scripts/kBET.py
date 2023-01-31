@@ -127,8 +127,7 @@ def kBET():
     # and 1 found using the heuristic specified in Buttner et al. 2018.
 
     # Define k_range
-    #k_range = [ 15, 30, 50, 100, 250, 500, choose_K_for_kBET(adata, covariate) ]
-    k_range = [ 15, 30, 50, 100, 250]
+    k_range = [ 15, 30, 50, 100, 250, 500, choose_K_for_kBET(adata, covariate) ]
 
     # Compute kNN indices and kBET
     kbet_computation = {}

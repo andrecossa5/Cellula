@@ -24,7 +24,7 @@ def _NN(X, k=15, metric='euclidean', implementation='pyNNDescent', random_state=
     kNN search over an X obs x features matrix. pyNNDescent and hsnwlib implementation available.
     """
     # kNN search: UMAP
-    if k < 500 and implementation == 'pyNNDescent':
+    if k <= 500 and implementation == 'pyNNDescent':
         knn_indices, knn_dists, forest = nearest_neighbors(
             X,
             k,
@@ -119,7 +119,7 @@ def compute_kNN(
     adata, 
     layer=None, int_method=None, k=15, n_components=30,
     nn_kwargs={}, 
-    ): # se True no return, se e' False, ritorna la tupla
+    ):
     """
     Compute kNN_graph on some adata layer.
     """

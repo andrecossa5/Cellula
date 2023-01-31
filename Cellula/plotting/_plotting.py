@@ -757,3 +757,8 @@ def top_3_dot_plots(adata, markers, top_3, figsize=(11, 8)):
     dot_plot(adata, markers, top_3[2], n=3, ax=axs[2], size=8, legend=True)
 
     return fig
+
+
+import numpy as np
+
+help(np.where)

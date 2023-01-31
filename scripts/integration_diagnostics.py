@@ -94,15 +94,6 @@ delete = args.delete
 chosen = args.chosen
 n_comps = args.n_comps
 
-
-# path_main = '/Users/IEO5505/Desktop/cellula_ex/'
-# version = 'default'
-# k = 15
-# n_comps = 30
-# covariate = 'seq_run'
-# chosen = None
-
-
 ########################################################################
 
 # Preparing run: import code, prepare directories, set logger
@@ -110,7 +101,6 @@ n_comps = args.n_comps
 # Code
 from Cellula._utils import *
 from Cellula.plotting._plotting import *
-from Cellula.plotting._colors import create_colors
 from Cellula.preprocessing._Int_evaluator import *
 from Cellula.preprocessing._pp import *
 from Cellula.preprocessing._integration import *

@@ -8,12 +8,7 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 from scipy.stats import chi2
-from scipy.special import binom
 from scipy.sparse.csgraph import connected_components
-from scipy.sparse import csr_matrix
-import leidenalg
-import igraph as ig
-import anndata
 from sklearn.metrics import normalized_mutual_info_score
 
 from .._utils import *

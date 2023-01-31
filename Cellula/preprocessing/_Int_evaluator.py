@@ -2,30 +2,24 @@
 _Int_evaluator.py: The Int_evaluator class
 """
 
-import sys
-import gc
 import numpy as np
 import pandas as pd
 import scanpy as sc
-from sklearn.metrics import normalized_mutual_info_score
 from ._integration import format_metric_dict, summary_metrics, rank_runs
 from ._metrics import *
 from .._utils import *
-from ._neighbors import _NN, kNN_graph, get_idx_from_simmetric_matrix
-from ..clustering._clustering import leiden_clustering
 from ..plotting._plotting import plot_rankings
-
 
 ##
 
 
 class Int_evaluator:
     """
-    A class to hold, evaluate and select the appropriate GE_space after pp and integration.
+    A class to hold, evaluate and select the appropriate preprocessed and integrated adata after pp and integration.
     """
     def __init__(self, adata):
         '''
-        Instantiate the main class attributes, loading integrated GE_spaces.
+        Instantiate the main class attributes.
         '''
         self.adata = adata
         self.methods = pd.Series([ x.split('|')[1] for x in self.adata.obsp.keys()]).unique()
@@ -186,6 +180,3 @@ class Int_evaluator:
             loc='lower left', bbox_to_anchor=(0.08, 0.35))
 
         return fig
-
-
-##

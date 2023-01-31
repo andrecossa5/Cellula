@@ -74,6 +74,7 @@ covariate = args.covariate
 
 
 # Code
+import scanpy as sc
 from Cellula._utils import *
 from Cellula.preprocessing._metrics import choose_K_for_kBET, kBET_score
 from Cellula.preprocessing._neighbors import *
@@ -91,8 +92,7 @@ path_results += f'/{version}/'
 path_runs += f'/{version}/' 
 path_viz += f'/{version}/' 
 
-# Check if the ./runs/step_{i}/logs_1_pp.txt are present, 
-# along with the GE_space dictionary in path_data
+# Check if reduced.h5ad is present in folder 
 if not os.path.exists(path_data + 'reduced.h5ad'):
     print('Run pp or integration algorithm(s) beforehand!')
     sys.exit()

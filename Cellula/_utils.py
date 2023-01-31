@@ -11,7 +11,6 @@ from joblib import cpu_count
 from shutil import rmtree 
 import pandas as pd 
 import numpy as np 
-from scipy.stats import chi2
 from scipy.special import binom
 
 
@@ -115,17 +114,6 @@ def run_command(func, *args, verbose=False, **kwargs):
     print(f'Elapsed time: {t.stop()}')
     
     return out
-
-
-
-# def mock(a, b=None):
-#     print(a)
-#     print(b)
-#     return a, b
-# 
-# 
-# out = run_command(mock, *['1'], **{'b':2})
-
 
 ##
 

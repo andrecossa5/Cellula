@@ -135,7 +135,6 @@ from Cellula.preprocessing._neighbors import *
 from Cellula.plotting._plotting import *
 from Cellula.plotting._colors import create_colors
 
-#path_main = '/Users/IEO6214/Desktop/Refractoring_test'
 #-----------------------------------------------------------------#
 
 # Set other paths 

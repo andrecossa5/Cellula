@@ -279,38 +279,74 @@ def plot_embeddings(adata, layer=None, rep='original', k=15, n_components=30):
 
     return fig
 
+
 ##
 
 
 def format_draw_embeddings(
-    ax, df, x, y, title=None, cat=None, cont=None, 
-    only_labels=True, no_axis=False, legend=True, cbar=True, 
-    axes_params={}, legend_params={}, cbar_params={}
-    ):
+    ax, df, x, y, title=None, cat=None, cont=None, axes_params={}):
     """
     Utils to format a draw embeddings plots.
     """
-    try:
+    legend_params = axes_params['legend_params']
+    cbar_params = axes_params['cbar_params']
+
+    not_format_keys = ['only_labels', 'no_axis', 'legend', 'cbar', 'legend_params', 'cbar_params']
+    format_kwargs = { k : axes_params[k] for k in axes_params if k not in not_format_keys }
+
+    if title is None:
         cov = cat if cat is not None else cont 
-        title = cov.capitalize() if title is None else title
+        title = cov.capitalize()
+    else:
         assert isinstance(title, str)
-    except:
-        raise ValueError('Unproper covariate or title...')
 
-    format_ax(ax=ax, xlabel=x, ylabel=y, title=title, **axes_params)
+    format_ax(ax=ax, xlabel=x, ylabel=y, title=title, **format_kwargs)
 
-    if only_labels:
+    if axes_params['only_labels']:
         remove_ticks(ax)
-    elif no_axis:
+    elif axes_params['no_axis']:
         ax.axis('off')
     
-    if legend and cat is not None:
-        add_legend(label=cat, ax=ax, **legend_params)
+    if axes_params['legend'] and cat is not None:
+        if 'label' not in legend_params or legend_params['label'] is None:
+            legend_params['label'] = cat.capitalize()
+        print(legend_params)
+        add_legend(ax=ax, **legend_params)
     
-    elif cbar and cont is not None:
+    elif axes_params['cbar'] and cont is not None:
         add_cbar(df[cont], label=cont, ax=ax, **cbar_params)
 
     return ax
+
+
+##
+
+
+def handle_colors(df, cat, legend_params, query=None):
+    """
+    Util to handle colors in draw_embeddings.
+    """
+    if query is not None:
+        df_ = df.query(query)
+    else:
+        df_ = df
+
+    categories = df_[cat].unique()
+    if categories.size <=20 and legend_params['colors'] is None:
+        palette_cat = sc.pl.palettes.vega_20_scanpy
+        legend_params['colors'] = create_palette(df_, cat, palette_cat)
+    elif categories.size > 20 and legend_params['colors'] is None:
+        palette_cat = sc.pl.palettes.godsnot_102
+        legend_params['colors'] = create_palette(df_, cat, palette_cat)
+    elif isinstance(legend_params['colors'], dict):
+        legend_params['colors'] = { 
+            k: legend_params['colors'][k] for k in legend_params['colors'] \
+            if k in categories
+        }
+    else:
+        raise ValueError('Provide a correctly formatted palette for your categorical labels!')
+
+    return legend_params
 
 
 ##
@@ -325,13 +361,10 @@ def draw_embeddings(
 
     cbar_params={
         'color' : 'viridis',
-        'loc': 'upper right', 
         'label_size' : 8, 
         'ticks_size' : 6,  
-        'width' : "1%", 
-        'height' : '30%',
-        'orientation' : 'vertical',
-        'xticks_position' : 'left'
+        'pos' : 2,
+        'orientation' : 'v'
     }
 
     legend_params={
@@ -348,7 +381,7 @@ def draw_embeddings(
         'no_axis' : False, 
         'legend' : True,
         'cbar' : True,
-        'title' : title
+        'title_size' : 10
     }
 
     cbar_params = update_params(cbar_params, cbar_kwargs)
@@ -359,29 +392,23 @@ def draw_embeddings(
 
     if cat is not None and cont is None:
 
-        categories = df[cat].unique()
-        if categories.size <=20 and legend_params['colors'] is None:
-            palette_cat = sc.pl.palettes.vega_20_scanpy
-            legend_params['colors'] = create_palette(df, cat, palette_cat)
-        elif categories.size > 20 and legend_params['colors'] is None:
-            palette_cat = sc.pl.palettes.godsnot_102
-            legend_params['colors'] = create_palette(df, cat, palette_cat)
-        elif isinstance(legend_params['colors'], dict):
-            pass
-            #assert all([ k in ]) assert all categories are in legend_params['colors']
-        else:
-            raise ValueError('Provide a correctly formatted palette for your categorical labels!')
+        legend_params = handle_colors(df, cat, legend_params, query=query)
+        print(legend_params.keys())
 
         if query is None:
             scatter(df, x=x, y=y, by=cat, c=legend_params['colors'], ax=ax, s=s)
-            format_draw_embeddings(ax, df, x, y, cat=cat, cont=None, **axes_params)
+            format_draw_embeddings(ax, df, x, y, title=title,
+                cat=cat, cont=None, axes_params=axes_params
+            )
         else:
             subset = df.query(query).index
             if subset.size > 0:
                 legend_params['colors'] = {**legend_params['colors'], **{'others':'darkgrey'}}
-                scatter(df.loc[~df.index.isin(subset), :], x=x, y=y, c='darkgrey', ax=ax, s=1)
+                scatter(df.loc[~df.index.isin(subset), :], x=x, y=y, c='darkgrey', ax=ax, s=s/3)
                 scatter(df.loc[subset, :], x=x, y=y, by=cat, c=legend_params['colors'], ax=ax, s=s)
-                format_draw_embeddings(ax, df, x, y, cat=cat, cont=None, **axes_params)
+                format_draw_embeddings(ax, df.loc[subset, :], x, y, title=title,
+                    cat=cat, cont=None, axes_params=axes_params
+                )
             else:
                 raise ValueError('The queried subset has no obs...')
     
@@ -389,13 +416,15 @@ def draw_embeddings(
         
         if query is None:
             scatter(df, x=x, y=y, by=cont, c=cbar_params['color'], ax=ax, s=s)
-            format_draw_embeddings(ax, df, x, y, cont=cont, **axes_params)
+            format_draw_embeddings(ax, df, x, y, title=title, cont=cont, axes_params=axes_params)
         else:
             subset = df.query(query).index
             if subset.size > 0:
-                scatter(df.loc[~df.index.isin(subset), :], x=x, y=y, c='darkgrey', ax=ax, s=1)
+                scatter(df.loc[~df.index.isin(subset), :], x=x, y=y, c='darkgrey', ax=ax, s=s/3)
                 scatter(df.loc[subset, :], x=x, y=y, by=cont, c=cbar_params['color'], ax=ax, s=s)
-                format_draw_embeddings(ax, df.loc[subset, :], x, y, cont=cont, **axes_params)
+                format_draw_embeddings(
+                    ax, df.loc[subset, :], x, y, title=title, cont=cont, axes_params=axes_params
+                )
             else:
                 raise ValueError('The queried subset has no obs available...')
 

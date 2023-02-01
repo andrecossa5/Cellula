@@ -115,7 +115,7 @@ def kNN_graph(X, k=15, from_distances=False, nn_kwargs={}):
 
 def compute_kNN(
     adata, 
-    layer=None, int_method='original', k=15, n_components=30,
+    layer='scaled', int_method='original', k=15, n_components=30,
     nn_kwargs={}, 
     ):
     """

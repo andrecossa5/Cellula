@@ -21,6 +21,25 @@ plt.style.use('default')
 ##
 
 
+# Params
+axins_pos = {
+
+    'v2' : ( (.95,.75,.01,.22), 'left' ),
+    'v3' : ( (.95,.05,.01,.22), 'left' ),
+    'v1' : ( (.05,.75,.01,.22), 'right' ),
+    'v4' : ( (.05,.05,.01,.22), 'right' ),
+
+    'h2' : ( (1-.27,.95,.22,.01), 'bottom' ),
+    'h3' : ( (1-.27,.05,.22,.01), 'top' ),
+    'h1' : ( (0.05,.95,.22,.01), 'bottom' ),
+    'h4' : ( (0.05,.05,.22,.01), 'top' ),
+
+    'outside' : ( (1.05,.25,.01,.5), 'right' )
+}
+
+
+##
+
 def create_handles(categories, marker='o', colors=None, size=10, width=0.5):
     """
     Create quick and dirty circular and labels for legends.
@@ -46,15 +65,20 @@ def create_handles(categories, marker='o', colors=None, size=10, width=0.5):
 ##
 
 
-def add_cbar(x, color='viridis', ax=None, loc='upper right', label_size=7, 
-    ticks_size=5, label=None, width="20%", height="1%", orientation="horizontal", 
-    xticks_position='bottom'):
+def add_cbar(x, color='viridis', ax=None, label_size=7, ticks_size=5, 
+    label=None, orientation='v', pos=2):
     """
     Draw cbar on an axes object inset.
     """
+    if pos == 'outside':
+        pos, xticks_position = axins_pos[pos]
+        orientation = 'vertical'
+    else:
+        pos, xticks_position = axins_pos[orientation+str(pos)]
+        orientation = 'vertical' if orientation == 'v' else 'horizontal'
     cmap = matplotlib.colormaps[color]
     norm = matplotlib.colors.Normalize(vmin=np.percentile(x, q=5), vmax=np.percentile(x, q=95))
-    axins = inset_axes(ax, width=width, height=height, loc=loc) 
+    axins = ax.inset_axes(pos) 
     cb = plt.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap), 
         cax=axins, orientation=orientation, ticklocation=xticks_position
     )
@@ -70,15 +94,18 @@ def add_cbar(x, color='viridis', ax=None, loc='upper right', label_size=7,
 ##
 
 
-
 def add_legend(label=None, colors=None, ax=None, loc='center', artists_size=7, label_size=7, 
-    ticks_size=5, bbox_to_anchor=(0.5, 1.1), ncols=None):
+    ticks_size=5, bbox_to_anchor=(0.5, 1.1), ncols=None, only_top='all'):
     """
     Draw a legend on axes object.
     """
+    if only_top != 'all':
+        colors = { k : colors[k] for i, k in enumerate(colors) if i < int(only_top) }
+        
     if ncols is None:
         ncols = len(colors) // 2 + 1
     title = label.capitalize() if label is not None else None
+
     handles = create_handles(colors.keys(), colors=colors.values(), size=artists_size)
     ax.legend(handles, colors.keys(), frameon=False, loc=loc, fontsize=ticks_size, title_fontsize=label_size,
         ncol=ncols, title=title, bbox_to_anchor=bbox_to_anchor
@@ -153,8 +180,11 @@ def find_n_rows_n_cols(n_axes, n_cols=None):
 ##
 
 
-def format_ax(ax, title='', xlabel='', ylabel='', xticks=None, yticks=None, rotx=0, roty=0, 
-            xsize=None, ysize=None, title_size=None, log=False):
+def format_ax(ax, title='', xlabel='', ylabel='', 
+    xticks=None, yticks=None, rotx=0, roty=0, 
+    xlabel_size=None, ylabel_size=None, xticks_size=None, 
+    yticks_size=None, title_size=None, log=False
+    ):
     """
     Format labels, ticks and stuff.
     """
@@ -162,18 +192,27 @@ def format_ax(ax, title='', xlabel='', ylabel='', xticks=None, yticks=None, rotx
     if log:
         ax.set_yscale('log')
     ax.set(title=title, xlabel=xlabel, ylabel=ylabel)
+
     if xticks is not None:
         ax.set_xticks([ i for i in range(len(xticks)) ])
         ax.set_xticklabels(xticks)
-    if xsize is not None:
-        ax.xaxis.set_tick_params(labelsize=xsize)
-    if ysize is not None:
-        ax.yaxis.set_tick_params(labelsize=ysize)
     if yticks is not None:
         ax.set_yticks([ i for i in range(len(yticks)) ])
         ax.set_yticklabels(yticks)
+
+    if xticks_size is not None:
+        ax.xaxis.set_tick_params(labelsize=xticks_size)
+    if yticks_size is not None:
+        ax.yaxis.set_tick_params(labelsize=yticks_size)
+
+    if xlabel_size is not None:
+        ax.xaxis.label.set_size(xlabel_size)
+    if ylabel_size is not None:
+        ax.yaxis.label.set_size(ylabel_size)
+
     ax.tick_params(axis='x', labelrotation = rotx)
     ax.tick_params(axis='y', labelrotation = roty)
+
     if title_size is not None:
         ax.set_title(title, fontdict={'fontsize': title_size})
 

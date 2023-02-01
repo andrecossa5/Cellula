@@ -310,7 +310,6 @@ def format_draw_embeddings(
     if axes_params['legend'] and cat is not None:
         if 'label' not in legend_params or legend_params['label'] is None:
             legend_params['label'] = cat.capitalize()
-        print(legend_params)
         add_legend(ax=ax, **legend_params)
     
     elif axes_params['cbar'] and cont is not None:

@@ -393,7 +393,6 @@ def draw_embeddings(
     if cat is not None and cont is None:
 
         legend_params = handle_colors(df, cat, legend_params, query=query)
-        print(legend_params.keys())
 
         if query is None:
             scatter(df, x=x, y=y, by=cat, c=legend_params['colors'], ax=ax, s=s)

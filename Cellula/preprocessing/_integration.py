@@ -122,7 +122,7 @@ def compute_BBKNN(adata, covariate='seq_run', layer='scaled', k=15, n_components
     # X_corrected in this case is equal to X_pca original
     adata.obsp[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_dist'] = X_corrected[0]
     adata.obsp[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_conn'] = X_corrected[1]
-    adata.obsm[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_idx']  = get_indices_from_connectivities(X_corrected[0], k=k)
+    adata.obsm[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_idx']  = get_idx_from_simmetric_matrix(X_corrected[0], k=k)
    
     return adata
 

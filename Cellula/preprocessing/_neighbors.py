@@ -115,14 +115,14 @@ def kNN_graph(X, k=15, from_distances=False, nn_kwargs={}):
 
 def compute_kNN(
     adata, 
-    layer=None, int_method=None, k=15, n_components=30,
+    layer=None, int_method='original', k=15, n_components=30,
     nn_kwargs={}, 
     ):
     """
     Compute kNN_graph on some adata layer.
     """
     if layer is not None and int_method is not None:
-         X = get_representation(adata, layer=layer, method=int_method)
+        X = get_representation(adata, layer=layer, method=int_method)
     else:
         print('Provided key or layer is not valid.')
         sys.exit()

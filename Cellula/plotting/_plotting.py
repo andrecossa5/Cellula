@@ -282,8 +282,10 @@ def plot_embeddings(adata, layer=None, rep='original', k=15, n_components=30):
 ##
 
 
-def format_draw_embeddings(ax, df, x, y, title=None, cat=None, cont=None, only_labels=True, 
-    no_axis=False, legend=True, cbar=True, legend_params={}, cbar_params={}
+def format_draw_embeddings(
+    ax, df, x, y, title=None, cat=None, cont=None, 
+    only_labels=True, no_axis=False, legend=True, cbar=True, 
+    axes_params={}, legend_params={}, cbar_params={}
     ):
     """
     Utils to format a draw embeddings plots.
@@ -295,7 +297,7 @@ def format_draw_embeddings(ax, df, x, y, title=None, cat=None, cont=None, only_l
     except:
         raise ValueError('Unproper covariate or title...')
 
-    format_ax(ax=ax, xlabel=x, ylabel=y, title=title)
+    format_ax(ax=ax, xlabel=x, ylabel=y, title=title, **axes_params)
 
     if only_labels:
         remove_ticks(ax)

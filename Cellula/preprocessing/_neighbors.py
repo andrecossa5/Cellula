@@ -68,6 +68,9 @@ def get_idx_from_simmetric_matrix(X, k=15):
     """
     Given a simmetric affinity matrix, get its k NN indeces and their values.
     """
+    if issparse(X):
+        X = X.toarray()
+
     assert X.shape[0] == X.shape[1]
     idx = np.argsort(X, axis=1)
     X = X[np.arange(X.shape[0])[:,None], idx]

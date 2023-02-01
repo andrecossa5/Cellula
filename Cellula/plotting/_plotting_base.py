@@ -15,6 +15,8 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 import seaborn as sns 
 from statannotations.Annotator import Annotator 
+
+from .._utils import *
 plt.style.use('default')
 
 
@@ -339,7 +341,8 @@ def bar(df, y, x=None, by=None, c='grey', s=0.35, a=1, l=None, ax=None, annot_si
 ##
 
 
-def box(df, x, y, by=None, c=None, a=1, l=None, ax=None, with_stats=False, pairs=None):
+def box(df, x, y, by=None, c=None, a=1, l=None, ax=None, with_stats=False, 
+    pairs=None, kwargs={}):
     """
     Base box plot.
     """
@@ -351,6 +354,8 @@ def box(df, x, y, by=None, c=None, a=1, l=None, ax=None, with_stats=False, pairs
         'medianprops': {"color": "white", "linewidth": 1.2},
         'whiskerprops':{"color": "black", "linewidth": 1}
     }
+
+    params = update_params(params, kwargs)
     
     if isinstance(c, str):
         ax = sns.boxplot(data=df, x=x, y=y, color=c, ax=ax, saturation=0.7, **params) 
@@ -378,31 +383,6 @@ def box(df, x, y, by=None, c=None, a=1, l=None, ax=None, with_stats=False, pairs
 
 
 ##
-
-
-# Box
-    sns.boxplot(
-        data=df_viz, 
-        x='run', 
-        y=feature, 
-        order=order,
-        saturation=0.9, 
-        fliersize=1,
-        **{
-            'boxprops':{'facecolor':'#C0C0C0', 'edgecolor':'black'}, 
-            'medianprops':{'color':'black'}, 'whiskerprops':{'color':'black'}, 'capprops':{'color':'black'}
-        }
-    )
-    # Swarm on top
-    sns.swarmplot(
-        data=df_viz, 
-        x='run', 
-        y=feature, 
-        hue='type',
-        order=order, 
-        palette=colors
-    )
-
 
 
 def strip(df, x, y, by=None, c=None, a=1, l=None, s=5, ax=None, with_stats=False, pairs=None):

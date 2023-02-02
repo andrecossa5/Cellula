@@ -94,10 +94,11 @@ if not args.skip:
     # Code
     import pickle
     import scanpy as sc
-    import re
     from Cellula._utils import *
-    from Cellula.dist_features._Dist import Dist_features
-    from Cellula.dist_features._Contrast import Contrast
+    from Cellula.preprocessing._pp import *
+    from Cellula.clustering._clustering import *
+    from Cellula.dist_features._Dist import *
+    from Cellula.dist_features._Contrast import *
 
     #-----------------------------------------------------------------#
 
@@ -137,44 +138,52 @@ def clustering():
 
     logger.info(f'Begin clustering: --range {args.range} --n {n}')
 
-    # Load preprocessed 
+    # Load preprocessed and lognorm
     adata = sc.read(path_data + 'preprocessed.h5ad')
-    
+
     # Define resolution range
     resolution_range = np.linspace(range_[0], range_[1], n)
 
-    # Here we go
-    kNNs = [ 
-        '_'.join(x.split('_')[:-1]) for x in adata.obsp.keys() \
-        if bool(re.search('_connectivities', x)) 
-    ]
+    # Get preprocessing options
+    int_method, layer = np.unique([ (x.split('|')[0], x.split('|')[1]) for x in adata.obsp ])
+    Ks = np.unique([ x.split('|')[3].split('_')[0] for x in adata.obsp ])
+    n_components =  np.unique([ x.split('|')[3].split('_')[2] for x in adata.obsp ])[0]
+    rep = 'X_corrected' if int_method != 'original' else 'X_pca'
 
-    for kNN in kNNs:
+    logger.info(f'Found kNN graphs from layer {layer} and int_method {int_method}...')
+
+    # Here we go
+    clustering_solutions = {}
+
+    for i, k in enumerate(Ks):
 
         t = Timer()
         t.start()
-        logger.info(f'Begin partitioning {kNN} graph...')
+
+        coonnectivities = get_representation(
+            adata, 
+            layer=layer, 
+            method=int_method, 
+            k=k, 
+            n_components=n_components
+        )[1]
+
+        logger.info(f'Begin partitioning graph {i+1}/{len(Ks)}...')
 
         for r in resolution_range:
+
             r = round(r, 2)
-            key_to_add = '_'.join(kNN.split('_')[1:-1] + [str(r)])
+            labels = leiden_clustering(coonnectivities, res=r)
+            key = f'{k}_NN_{n_components}_{r}'
+            clustering_solutions[key] = labels
+        
+        logger.info(f'Finished partitioning {i+1}/{len(Ks)} graph in total {t.stop()} s.')
 
-            sc.tl.leiden(
-                adata, 
-                neighbors_key=kNN,
-                key_added=key_to_add,
-                resolution=r, 
-                random_state=1234
-            )
-
-        logger.info(f'Finished partitioning {kNN} graph in total {t.stop()} s.')
-
-    # Save clustered data
-    clustering_solutions = adata.obs.loc[
-        :, 
-        [ x for x in adata.obs.columns if re.search('_NN_', x)] 
-    ]
-    clustering_solutions.to_csv(path_results + 'clustering_solutions.csv')
+    # Save
+    pd.DataFrame(
+        clustering_solutions, 
+        index=adata.obs_names
+    ).to_csv(path_results + 'clustering_solutions.csv')
 
     #-----------------------------------------------------------------#
 
@@ -210,9 +219,9 @@ def markers_all():
         for k in clustering_solutions.columns
     }
 
-    # Here we go
-    adata = sc.read(path_data + 'lognorm.h5ad')   # Full log-normalized matrix required
-    D = Dist_features(adata, contrasts, jobs=jobs)   # Job mode here
+    # Here we go 
+    lognorm = sc.read(path_data + 'lognorm.h5ad') 
+    D = Dist_features(lognorm, contrasts, jobs=jobs)   # Job mode here
     D.run_all_jobs()
 
     # Save markers, as Gene_sets dictionary only
@@ -220,7 +229,7 @@ def markers_all():
     make_folder(path_markers, version, overwrite=False)
     path_markers += f'/{version}/' 
 
-    with open(path_markers + 'clusters_markers.txt', 'wb') as f:
+    with open(path_markers + 'clusters_markers.pickle', 'wb') as f:
         pickle.dump(D.Results.results, f)
 
     logger.info(f'Finished markers: {t.stop()} s.')

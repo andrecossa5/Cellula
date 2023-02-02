@@ -207,6 +207,7 @@ def choose_preprocessing_option():
 
     # Pick the chosen pp and integration method
     new_adata = sc.AnnData(X=adata.X, obs=adata.obs, var=adata.var)
+
     if(chosen_int != 'original' and chosen_int != 'BBKNN'):
         new_adata.obsm[f'{pp}|{chosen_int}|X_corrected'] = get_representation(adata, layer=pp, method=chosen_int)
     else:

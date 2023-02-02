@@ -70,7 +70,7 @@ def get_idx_from_simmetric_matrix(X, k=15):
     """
     if issparse(X):
         X = X.toarray()
-
+        
     assert X.shape[0] == X.shape[1]
     idx = np.argsort(X, axis=1)
     X = X[np.arange(X.shape[0])[:,None], idx]
@@ -140,33 +140,3 @@ def compute_kNN(
     adata.obsp[k_conn] = conn
     
     return adata    
-##
-
-def get_indices_from_connectivities(connectivities, k=15):
-    """
-    Create a np.array of (sorted) k nearest neighbors, starting from a connectivities matrix.
-    """
-    # Define the number of neighbors to retain
-    k_ = min([ connectivities[i, :].count_nonzero() for i in range(connectivities.shape[0]) ])
-    if k_ < k:
-        k = k_
-    
-    # Create the numpy array of indeces
-    NN = []
-    for i in range(connectivities.shape[0]):
-        nonzero_idx = np.nonzero(connectivities[i, :])[1]
-        d = { 
-            k : v for k, v in \
-            zip(nonzero_idx, connectivities[i, nonzero_idx].toarray().flatten()) 
-        } 
-        d_ordered = {
-            k: v for k, v in sorted(d.items(), key=lambda item: item[1], reverse=True)
-        }
-        NN.append([i] + list(d_ordered.keys())[:k])
-
-    return np.array(NN)
-
-
-
-
-

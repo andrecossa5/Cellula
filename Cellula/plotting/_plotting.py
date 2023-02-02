@@ -310,7 +310,6 @@ def format_draw_embeddings(
     if axes_params['legend'] and cat is not None:
         if 'label' not in legend_params or legend_params['label'] is None:
             legend_params['label'] = cat.capitalize()
-        print(legend_params)
         add_legend(ax=ax, **legend_params)
     
     elif axes_params['cbar'] and cont is not None:
@@ -393,7 +392,6 @@ def draw_embeddings(
     if cat is not None and cont is None:
 
         legend_params = handle_colors(df, cat, legend_params, query=query)
-        print(legend_params.keys())
 
         if query is None:
             scatter(df, x=x, y=y, by=cat, c=legend_params['colors'], ax=ax, s=s)
@@ -723,8 +721,3 @@ def top_3_dot_plots(adata, markers, top_3, figsize=(11, 8)):
     dot_plot(adata, markers, top_3[2], n=3, ax=axs[2], size=8, legend=True)
 
     return fig
-
-
-import numpy as np
-
-help(np.where)

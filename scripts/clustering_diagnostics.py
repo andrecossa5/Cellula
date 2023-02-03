@@ -112,6 +112,9 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set other paths 
+    path_main = '/Users/IEO5505/Desktop/cellula_ex/'
+    version = 'default'
+
     path_data = path_main + f'/data/{version}/'
     path_results = path_main + '/results_and_plots/clustering/'
     path_runs = path_main + '/runs/'
@@ -246,14 +249,13 @@ def clustering_diagnostics():
 
         logger.info(f'ARI among solutions: total {t.stop()} s.')
 
-        # Initialize Clust_evaluator
+        # Calculate metrics (NB. all intrinsic metrics. No ground truth needed.)
         t.start()
         logger.info('Begin calculation of clusters separation and purity metrics...')
-        C = Clust_evaluator(adata, clustering_solutions)
 
-        # Calculate metrics (NB. all intrinsic metrics. No ground truth needed.)
-        for metric in C.up_metrics + C.down_metrics:
-            C.compute_metric(metric=metric)
+        C = Clust_evaluator(adata, clustering_solutions, metrics=['silhouette', 'DB'])
+        C.parse_options()
+        C.compute_metrics()
 
         logger.info(f'Metrics calculation: total {t.stop()} s.')
 

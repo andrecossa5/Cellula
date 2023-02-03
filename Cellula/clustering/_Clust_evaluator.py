@@ -6,12 +6,11 @@ import gc
 import numpy as np
 import pandas as pd
 import scanpy as sc
-from sklearn.metrics import davies_bouldin_score, silhouette_score
 
-from .._utils import rescale
+from .._utils import *
 from ..preprocessing._neighbors import get_idx_from_simmetric_matrix
 from ..preprocessing._integration import format_metric_dict, rank_runs, summary_metrics
-from ._clustering_metrics import compute_inertia, kNN_purity
+from ._clustering import *
 from ..plotting._plotting import plot_rankings
 
 
@@ -23,81 +22,86 @@ class Clust_evaluator:
     A class to hold, evaluate and select the appropriate clustering solution.
     """
     
-    def __init__(self, adata, clustering_solutions):
+    def __init__(self, adata, clustering_solutions, metrics='all'):
         """
-        Instantiate the main class attributes, loading integrated GE_spaces.
+        Instantiate the main class attributes, loading preprocessed adata.
         """
         self.adata = adata
-        keys = list(adata.obsm.keys())
-        int_key = [ x for x in keys if x != 'X_pca' ]
-
-        if len(int_key)>0:
-            self.space = self.adata.obsm[int_key[0]]
+        self.int_method, self.layer = np.unique([ (x.split('|')[0], x.split('|')[1]) for x in adata.obsp ])
+        
+        if self.int_method != 'original':
+            self.space =  adata.obsm[f'{self.layer}|{self.int_method}|X_corrected']
+            print(f'Integrated dataset. Found {self.layer}|{self.int_method}|X_corrected representation...')
         else:
-            print('This dataset were not integrated in the end. Found only X_pca representation...')
-            self.space = self.adata.obsm['X_pca']
+            self.space = adata.obsm[f'{self.layer}|{self.int_method}|X_pca']
+            print(f'This dataset was not integrated in the end. Found only {self.layer}|{self.int_method}|X_pca representation...')
 
         self.solutions = clustering_solutions
         self.scores = {}
-        self.up_metrics = ['kNN_purity', 'silhouette'] # The higher, the better
-        self.down_metrics = ['inertia', 'DB'] # The lower, the better
+        self.d_options = {}
+
+        # Handle metrics
+        if metrics == 'all':
+            self.metrics = all_functions
+        elif all([x in all_functions for x in metrics]):
+            self.metrics = { x: all_functions[x] for x in metrics }
+        else:
+            raise ValueError(f'Only {all_functions.keys()} metrics are available...')
 
     ## 
 
-    def compute_metric(self, metric=None):
+
+    def parse_options(self):
+        """
+        Parse a dictionary of configuration options for the self.compute_metrics method.
+        """
+        d_options = {}
+
+        for metric in self.metrics:
+            for solution in self.solutions:
+                l = []
+                l.append(self.metrics[metric])
+
+                if metric in ['inertia', 'DB', 'silhouette']:
+                    args = [ self.solutions[solution] ]
+                    l.append(args)
+                elif metric == 'kNN_purity':
+                    # k = solution.split('_')[0]
+                    # n_components = solution.split('_')[2] 
+                    # indeces = get_representation(
+                    #     self.adata,
+                    #     layer=self.layer,
+                    #     method=self.int_method,
+                    #     k=k,
+                    #     n_components=n_components,
+                    #     only_index=True
+                    # )
+                    args = [ self.solutions[solution] ]
+                    l.append(args)
+                
+                d_options[f'{metric}|{solution}'] = l
+
+        self.d_options = d_options
+
+    ##
+
+    def compute_metrics(self):
         """
         Compute one of the available metrics.
         """
-        # Check metric_type
-        if metric in self.up_metrics:
-            metric_type = 'up'
-        elif metric in self.down_metrics:
-            metric_type = 'down'
-        else:
-            raise Exception('Unknown metric. Specify one among available cluster separation metrics')
+ 
+        if self.d_options is None:
+            raise ValueError('Parse options first!')
 
-        # Compute metric scores
+        for opt in self.d_options: 
 
-        # DOWN
-        if metric in self.down_metrics:
-            # Inertia
-            if metric == 'inertia':
-                d = { 
-                    k : compute_inertia(self.space, self.solutions[k], metric='euclidean') 
-                    for k in self.solutions.columns 
-                }
-            elif metric == 'DB':
-                d = { 
-                    k : davies_bouldin_score(self.space, self.solutions[k]) 
-                    for k in self.solutions.columns 
-                }
-            self.scores[metric] = rescale(-pd.Series(d)).to_dict() # Rescale here
-            gc.collect()
-        
-        # UP
-        else:
-            # Silhouette
-            if metric == 'silhouette':
-                d = { 
-                    k : silhouette_score(self.space, self.solutions[k], random_state=1234) 
-                    for k in self.solutions.columns 
-                }
-            # kNN purity
-            elif metric == 'kNN_purity':
-                # Extract indices from adata
-                indices = {}
-                for kNN in self.adata.obsp:
-                    kNN_key = '_'.join(kNN.split('_')[1:-2])
-                    nn = int(kNN_key.split('_')[0])
-                    connectivities = self.adata.obsp[kNN]
-                    indices[kNN_key], _ = get_idx_from_simmetric_matrix(connectivities, k=nn)
-                # Compute kNN_purity
-                d = { 
-                    k : kNN_purity(indices['_'.join(k.split('_')[:-1])], self.solutions[k]) \
-                    for k in self.solutions.columns 
-                }
-            self.scores[metric] = rescale(pd.Series(d)).to_dict()
-            gc.collect()
+            func = self.d_options[opt][0]
+            args = self.d_options[opt][1]
+            #args[0] = args[0]()
+
+            score = run_command(func, *args)
+
+            self.scores[opt] = score
 
     ##
 
@@ -150,3 +154,5 @@ class Clust_evaluator:
         )
 
         return fig
+
+

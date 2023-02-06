@@ -142,7 +142,7 @@ def main():
     # Load adata, singatures and prep contrasts and jobs
     adata = sc.read(path_data + 'clustered.h5ad')
 
-    with open(path_signatures + 'signatures.txt', 'rb') as f:
+    with open(path_signatures + 'signatures.pickle', 'rb') as f:
         signatures = pickle.load(f)
     jobs, contrasts = prep_jobs_contrasts(adata, path_main + 'contrasts/', contrasts_name)
 

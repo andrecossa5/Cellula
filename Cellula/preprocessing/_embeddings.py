@@ -13,7 +13,8 @@ from .._utils import get_representation
 ##
 
 
-def embeddings(adata, paga_groups='sample', layer='lognorm', rep='original', k=15, n_components=30, umap_only=True):
+def embeddings(adata, paga_groups='sample', layer='lognorm', rep='original', k=15, n_components=30, 
+    umap_only=True, with_adata=False):
     '''
     Compute paga, paga initialized umap, fa and tSNE embeddings. Return them in a df of embeddings cooridinates,
     with the top 5 PCs coordinates.
@@ -61,4 +62,8 @@ def embeddings(adata, paga_groups='sample', layer='lognorm', rep='original', k=1
         umap = pd.DataFrame(data=a.obsm['X_umap'], columns=['UMAP1', 'UMAP2'], index=a.obs_names)
         df = df.join([umap])
 
-    return df
+    if not with_adata:
+        return df
+        
+    else:
+        return a, df

@@ -130,37 +130,13 @@ def compute_BBKNN(adata, covariate='seq_run', layer='scaled', k=15, n_components
 ##
 
 
-def format_metric_dict(d, t):
-    """
-    Helper function for formatting a dictionary of metrics scores into a df.
-    """
-    df = pd.concat(
-        [
-            pd.DataFrame(
-                data={ 
-                        'run' : d[k].keys(),
-                        'score' : rescale(list(d[k].values())), 
-                        'metric' : [k] * len(d[k].keys()),
-                        'type' : [t] * len(d[k].keys())
-                    },
-            )
-            for k in d.keys()   
-        ], axis=0
-    )
-    
-    return df
-
-
-##
-
-
 def rank_runs(df):
     """
-    Computes each metrics rankings. 
+    Computes each metrics rankings, based on the (rescaled) metric score.
     """
     DF = []
     for metric in df['metric'].unique():
-        s = df[df['metric'] == metric].sort_values(by='score', ascending=False)['run']
+        s = df.query('metric == @metric').sort_values(by='rescaled_score', ascending=False)['run']
         DF.append(
             pd.DataFrame({ 
                 'run' : s, 
@@ -175,19 +151,19 @@ def rank_runs(df):
 ##
 
 
-def summary_one_run(df, run, evaluation=None):
+def summary_one_run(df, run, evaluation='clustering'):
     """
     Computes a comulative score for each alternative run of the same anlysis step (e.e., integration, clustering...).
     """
     if evaluation == 'integration':
-        total_batch = df.query('run == @run and type == "batch"')['score'].mean()
-        total_bio = df.query('run == @run and type == "bio"')['score'].mean()
+        total_batch = df.query('run == @run and type == "batch"')['rescaled_score'].mean()
+        total_bio = df.query('run == @run and type == "bio"')['rescaled_score'].mean()
         total = 0.6 * total_bio + 0.4 * total_batch
 
         return run, total_batch, total_bio, total
 
     elif evaluation == 'clustering':
-        total = df.query('run == @run')['score'].mean()
+        total = df.query('run == @run')['rescaled_score'].mean()
         
         return run, total
 
@@ -195,12 +171,40 @@ def summary_one_run(df, run, evaluation=None):
 ##
 
 
-def summary_metrics(df, df_rankings, evaluation=None):
+def format_metric_dict(d, t):
+    """
+    Helper function for formatting a dictionary of metrics scores into a df.
+    """
+    df = pd.concat(
+        [
+            pd.DataFrame(
+                data={ 
+                        'run' : d[k].keys(),
+                        'score' : list(d[k].values()),
+                        'rescaled_score' : rescale(list(d[k].values())), 
+                        'metric' : [k] * len(d[k].keys()),
+                        'type' : [t] * len(d[k].keys())
+                    },
+            )
+            for k in d.keys()   
+        ], axis=0
+    )
+    
+    return df
+
+
+##
+
+
+def summary_metrics(df, df_rankings, evaluation='clustering'):
     """
     For all runs of a certain anlysis step (e.e., integration, clustering...) compute the cumulative (across all metrics used) 
     ranking and score.
     """
-    cols = ['run', 'total_batch', 'total_bio', 'cumulative_score'] if evaluation == 'integration' else ['run', 'cumulative_score']
+    if evaluation == 'integration':
+       cols = ['run', 'total_batch', 'total_bio', 'cumulative_score']
+    else: 
+        cols = ['run', 'cumulative_score']
     runs = df['run'].unique()
 
     # Summary df

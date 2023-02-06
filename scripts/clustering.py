@@ -216,12 +216,14 @@ def markers_all():
     }
 
     jobs = {
-        k: [{ 'features': 'genes', 'model' : 'wilcoxon', 'mode' : 'None' }] \
+        k: [{ 'features': 'genes', 'model' : 'wilcoxon', 'mode' : None }] \
         for k in clustering_solutions.columns
     }
 
-    # Here we go 
-    lognorm = sc.read(path_data + 'lognorm.h5ad') 
+    # Here we go  
+    adata = sc.read(path_data + 'lognorm.h5ad')   # Full log-normalized matrix required
+    D = Dist_features(adata, contrasts, jobs=jobs)   # Job mode here
+    D.run_all_jobs()
 
     # Save markers, as Gene_sets dictionary only
     path_markers = path_main + '/results_and_plots/dist_features/'

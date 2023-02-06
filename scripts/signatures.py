@@ -157,7 +157,7 @@ def Signatures():
     # Load adata, clusters, markers and curated
     adata = sc.read(path_data + 'clustered.h5ad')
     clusters = pd.read_csv(path_clusters + 'clustering_solutions.csv', index_col=0)
-    with open(path_markers + 'clusters_markers.txt', 'rb') as f:
+    with open(path_markers + 'clusters_markers.pickle', 'rb') as f:
         markers = pickle.load(f)
     # Handle curated
     if args.curated:
@@ -181,7 +181,7 @@ def Signatures():
     
     # Save scores
     signatures = S.format_results()
-    with open(path_results + 'signatures.txt', 'wb') as f:
+    with open(path_results + 'signatures.pickle', 'wb') as f:
         pickle.dump(signatures, f)
 
     # Write final exec time

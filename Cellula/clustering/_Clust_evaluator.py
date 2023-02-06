@@ -60,7 +60,7 @@ class Clust_evaluator:
             for solution in self.solutions:
 
                 if self.solutions[solution].unique().size == 1:
-                    print('Skipping evaluation for clustering solution {solution} with only 1 partiton...')
+                    print(f'Skipping evaluation for clustering solution {solution} with only 1 partiton...')
                     pass
                 else:
                     l = []
@@ -147,7 +147,7 @@ class Clust_evaluator:
         # Create results df 
         df = pd.Series(self.scores).to_frame('score')
         df['metric'] = df.index.map(lambda x: x.split('|')[0])
-        df['solution'] = df.index.map(lambda x: x.split('|')[1])
+        df['run'] = df.index.map(lambda x: x.split('|')[1])
 
         L = []
         for metric in self.metrics:
@@ -157,8 +157,7 @@ class Clust_evaluator:
                 rescaled_scores = rescale(df.query('metric == @metric')['score'])
             L.append(rescaled_scores)
 
-        df = pd.concat(L).to_frame('rescaled_score').join(df).reset_index(
-            ).rename(columns={'index':'run'})
+        df = pd.concat(L).to_frame('rescaled_score').join(df).reset_index(drop=True)
             
         df['type'] = 'up'
         df.loc[df['metric'].isin(['DB', 'inertia']), 'type'] = 'down'
@@ -190,7 +189,7 @@ class Clust_evaluator:
 
     ##
     
-    def viz_results(self, df, df_summary, df_rankings, feature='score', by='ranking', figsize=(8,5)):
+    def viz_results(self, df, df_summary, df_rankings, by='ranking', figsize=(13,5)):
         """
         Plot rankings. 
         """
@@ -199,13 +198,12 @@ class Clust_evaluator:
             df, 
             df_rankings, 
             df_summary,
-            feature=feature, 
             by=by, 
-            assessment='Clustering',
             figsize=figsize, 
-            legend=False
+            title='Clustering solution rankings',
+            legend=True
         )
-
+    
         return fig
 
 

@@ -141,6 +141,9 @@ class Int_evaluator:
             ], 
             axis=0
         )
+
+        # Fix names and save
+        df['run'] = df['run'].map(lambda x: '|'.join(x.split('|')[:-1]))
         df.to_excel(path + 'integration_diagnostics_results.xlsx', index=False)
 
         # Create summary and rankings dfs
@@ -165,18 +168,20 @@ class Int_evaluator:
 
     ##
     
-    def viz_results(self, df, df_summary, df_rankings, feature='score', by='score', figsize=(8,5)):
+    def viz_results(self, df, df_summary, df_rankings, by='ranking', figsize=(13,5)):
         """
         Plot rankings. 
         """
-        # Fix 'run' names and join
-        fix_names = lambda x: '|'.join(x.split('|')[:-1])
-        df_summary['run'] = df_summary['run'].map(fix_names)
-        df_rankings['run'] = df_rankings['run'].map(fix_names)
-        df['run'] = df['run'].map(fix_names)
 
         # Plot
-        fig = plot_rankings(df, df_rankings, df_summary, feature=feature, by=by, figsize=figsize, 
-            loc='lower left', bbox_to_anchor=(0.08, 0.35))
+        fig = plot_rankings(
+            df, 
+            df_rankings, 
+            df_summary,
+            by=by, 
+            figsize=figsize, 
+            title='Integration solutions rankings',
+            legend=True
+        )
 
         return fig

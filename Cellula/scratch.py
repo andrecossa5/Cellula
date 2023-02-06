@@ -1,86 +1,58 @@
+# Code
+import pickle
+import scanpy as sc
 from Cellula._utils import *
+from Cellula.clustering._clustering import *
+from Cellula.clustering._Clust_evaluator import *
 from Cellula.plotting._plotting import *
-from Cellula.plotting._colors import create_colors
-from Cellula.preprocessing._Int_evaluator import *
-from Cellula.preprocessing._pp import *
-from Cellula.preprocessing._integration import *
-from Cellula.preprocessing._metrics import *
+from Cellula.plotting._colors import *
+from Cellula.preprocessing._embeddings import embeddings
 
 
-# Set other paths and options
+
+# Set other paths 
 path_main = '/Users/IEO5505/Desktop/cellula_ex/'
 version = 'default'
-chosen = None
-
 path_data = path_main + f'/data/{version}/'
-path_results = path_main + '/results_and_plots/pp/'
+path_results = path_main + '/results_and_plots/clustering/'
 path_runs = path_main + '/runs/'
-path_viz = path_main + '/results_and_plots/vizualization/pp/'
+path_viz = path_main + '/results_and_plots/vizualization/clustering/'
 
+# Update paths
 path_runs += f'/{version}/'
 path_results += f'/{version}/' 
 path_viz += f'/{version}/' 
-
-mode = 'a' if chosen is not None else 'w'
-
-# Read adata
-adata = sc.read(path_data + 'integration.h5ad')
-
-# Refractoring _Int_evaluator
-I = Int_evaluator(adata)
+  
 
 
-# dir(I)
-# 
-# I.adata
-# I.batch_metrics
-# I.bio_metrics
-# I.bio_conservation_scores
-# I.batch_removal_scores
-# 
-# m = metric = 'NMI'
-# covariate = 'seq_run'
-# methods = ['Harmony', 'Scanorama'] # I.methods
-# k = 15
-# n_comps = n_components = 30
-# labels = None
-# resolution = 0.5
+adata = sc.read(path_data + 'preprocessed.h5ad')
+clustering_solutions = pd.read_csv(
+    path_results + 'clustering_solutions.csv', 
+    index_col=0, 
+    dtype='category'
+)
+
+C = Clust_evaluator(adata, clustering_solutions, metrics='all')
+C.parse_options()
+C.compute_metrics()
+
+df, df_summary, df_rankings, top_3 = C.evaluate_runs(path_results, by='cumulative_score')
+
+C.viz_results(df, df_summary, df_rankings)
+plt.show()
+matplotlib.use('macOSX')
 
 
-methods = I.methods
 
 
-# Get options for for a metric and layer
-
-d_options = {}
-
-for metric in all_functions:
-    for layer in adata.layers:
-
-        layer = 'scaled'; metric = 'NMI'
-        reps = self.get_kNNs(layer=layer, metric=metric)
-
-        for int_method in reps:
-            l_options = []
-            l_options.append(metric)
-            l_options.append(all_functions[metric])
-
-            if metric in ['kBET', 'entropy_bb']:
-                args = [ reps[int_method], self.adata.obs[covariate] ]
-            elif metric == 'graph_conn':
-                args = [ reps[int_method][2] ]
-            elif metric in ['kNN_retention_perc', 'NMI', 'ARI']:
-                if int_method != 'original':
-                    args = [ reps['original'][2], reps[int_method][2] ] 
-            l_options.append(args)
-
-            key = '|'.join([metric, layer, int_method])
-            d_options[key] = l_options
-
-    return d_options
 
 
-# return d_options
+
+
+
+
+
+
 
 
 

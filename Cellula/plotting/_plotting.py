@@ -77,16 +77,17 @@ def plot_heatmap(df, palette='mako', ax=None, title=None, x_names=True, y_names=
 ##
 
 
-def plot_rankings(df, df_rankings, df_summary, feature='score', by='score', assessment=None, loc='lower left', 
-    bbox_to_anchor=(0.1, 0.25), figsize=(8,5), legend=True):
+def plot_rankings(df, df_rankings, df_summary, feature='rescaled_score', by='score', loc='upper right', 
+    bbox_to_anchor=(1,1), figsize=(13,5), title='', legend=True):
     """
     Plot rankings. 
     """
+
     # Join
     df_viz = df.merge(df_rankings, on=['run', 'metric'])
+
     # Create categories and colors
-    categories = df_viz['type'].unique()
-    colors = sns.color_palette('dark', len(categories))
+    colors = create_palette(df, 'metric', 'dark')
 
     # Create runs order
     if by == 'score':
@@ -96,6 +97,7 @@ def plot_rankings(df, df_rankings, df_summary, feature='score', by='score', asse
 
     # Figure
     fig, ax = plt.subplots(figsize=figsize)
+
     sns.boxplot(
         data=df_viz, 
         x='run', 
@@ -108,24 +110,22 @@ def plot_rankings(df, df_rankings, df_summary, feature='score', by='score', asse
             'medianprops':{'color':'black'}, 'whiskerprops':{'color':'black'}, 'capprops':{'color':'black'}
         }
     )
-    sns.swarmplot(
+    sns.stripplot(
         data=df_viz, 
         x='run', 
         y=feature, 
-        hue='type',
+        hue='metric',
         order=order, 
-        palette=colors
+        palette=colors.values()
     )
     
     # Remove dafault legend, and add custom if requested 
-    ax.legend([],[], frameon=False)
     if legend:
-        handles = create_handles(categories, colors=colors)
-        fig.legend(handles=handles, loc=loc, bbox_to_anchor=bbox_to_anchor, frameon=True, shadow=False, title='Type')
+        ax.legend([], [], frameon=False)
+        add_legend(label='Metric', colors=colors, ax=ax, loc=loc, bbox_to_anchor=bbox_to_anchor, ncols=2)
+    
     # Ticks and axis
-    ax.set(title=f'{assessment} runs {feature}. Runs ordered by mean {by}', ylabel=feature.capitalize(), xlabel='') 
-    ax.tick_params(axis='x', labelrotation = 90)
-
+    format_ax(ax, xlabel='', title=title, ylabel='Rescaled score', rotx=90)
     fig.tight_layout()
      
     return fig
@@ -500,7 +500,7 @@ def cluster_separation_plot(clustering_solutions, df_kNN):
     for metric, c in zip(metrics, colors):
         d = df_kNN.query('metric == @metric')
         x = [ str(x) for x in d['resolution'] ]
-        y = d['score']
+        y = d['rescaled_score']
         axs[0].plot(x, y,  marker='o', label=metric, color=c)
         axs[0].plot(x, y,  linestyle='-', color=c)
     axs[0].set(title='Metrics trend', xlabel='Resolution', ylabel='Rescaled score')
@@ -527,14 +527,27 @@ def _prep_paga_umap(adata, clustering_solutions, sol=None, rep='original', color
     """
     a = adata.copy()
     a.obs[sol] = clustering_solutions[sol]
-    s_ = '_'.join(sol.split('_')[:-1])
-    key = f'{s_}_components'
-    df = embeddings(a, paga_groups=sol, rep=rep, key=key)
+
+    layer = list(a.obsm.keys())[0].split('|')[0] 
+    rep = list(a.obsm.keys())[0].split('|')[1] 
+    k = int(sol.split('_')[0])
+    n_components = int(sol.split('_')[2])
+    
+    a_new, df = embeddings(
+        a, 
+        paga_groups=sol,
+        layer=layer, 
+        rep=rep, 
+        k=k, 
+        n_components=n_components, 
+        with_adata=True
+    )
+
     df[sol] = clustering_solutions[sol]
     colors = color_fun(a.obs, chosen=sol)
-    a.uns[f'{sol}_colors'] = list(colors[sol].values())
+    a_new.uns[f'{sol}_colors'] = list(colors[sol].values())
 
-    return a, df, colors
+    return a_new, df, colors
 
 
 ##
@@ -544,18 +557,16 @@ def top_3_paga_umap(adata, clustering_solutions, top_sol, s=13, color_fun=None, 
     """
     Plot PAGA and umap embeddings of top3 ranked clustering solutions.
     """
-    # Data 
-    top_3 = clustering_solutions.loc[:, top_sol]
 
     # Fig
     fig, axs = plt.subplots(2,3,figsize=figsize)
     
     # Axes
-    for i in range(3):
-        a, df, colors = _prep_paga_umap(adata, clustering_solutions, sol=top_3.columns[i], color_fun=color_fun)
-        sc.pl.paga(a, frameon=False, show=False, ax=axs[0,i], title=top_3.columns[i])
-        scatter(df, 'UMAP1', 'UMAP2', by=top_3.columns[i], c=colors[top_3.columns[i]], ax=axs[1,i])
-        add_labels_on_loc(df, 'UMAP1', 'UMAP2', top_3.columns[i], ax=axs[1,i], s=s)
+    for i, sol in enumerate(top_sol):
+        a_new, df, colors = _prep_paga_umap(adata, clustering_solutions, sol=sol, color_fun=color_fun)
+        sc.pl.paga(a_new, frameon=False, show=False, ax=axs[0,i], title=sol)
+        scatter(df, 'UMAP1', 'UMAP2', by=sol, c=colors[sol], ax=axs[1,i])
+        add_labels_on_loc(df, 'UMAP1', 'UMAP2', sol, ax=axs[1,i], s=s)
         axs[1,i].axis('off')
     
     return fig

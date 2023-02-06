@@ -109,10 +109,6 @@ from Cellula.preprocessing._neighbors import *
 #-----------------------------------------------------------------#
 
 # Set other paths
-# path_main = '/Users/IEO5505/Desktop/cellula_ex/'
-# version = 'default'
-# chosen = 'lognorm:Harmony'
-
 path_data = path_main + f'/data/{version}/'
 path_results = path_main + '/results_and_plots/pp/'
 path_runs = path_main + '/runs/'
@@ -174,7 +170,7 @@ def integration_diagnostics():
 
     # Compute diagnostics metrics
     t.start()
-    I.parse_options(covariate=covariate)
+    I.parse_options(covariate=covariate) 
     I.compute_metrics(k=k, n_components=n_comps)
     logger.info(f'Metrics calculations: {t.stop()} s.')
 
@@ -186,7 +182,7 @@ def integration_diagnostics():
 
     # Plotting and saving outputs
     t.start()
-    fig = I.viz_results(df, df_summary, df_rankings, feature='score', by='ranking', figsize=(8,5))
+    fig = I.viz_results(df, df_summary, df_rankings)
     fig.savefig(path_viz + 'integration_diagnostics.pdf')
     logger.info(f'Plotting and saving: {t.stop()} s.')
     
@@ -217,6 +213,7 @@ def choose_preprocessing_option():
 
     # Pick the chosen pp and integration method
     new_adata = sc.AnnData(X=adata.X, obs=adata.obs, var=adata.var)
+    new_adata.layers[pp] = adata.layers[pp]
 
     if chosen_int != 'original' and chosen_int != 'BBKNN':
         new_adata.obsm[f'{pp}|{chosen_int}|X_corrected'] = get_representation(adata, layer=pp, method=chosen_int)
@@ -233,11 +230,6 @@ def choose_preprocessing_option():
     # Save
     new_adata.write(path_data + 'preprocessed.h5ad')
 
-    # Free disk memory and clean integration folders (if requested)
-    if delete:
-        os.chdir(path_results)
-        rmtree()
-       
     # Write final exec time
     logger.info(f'Assemble the definitive preprocessed adata took total {T.stop()} s.')
 

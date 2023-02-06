@@ -145,7 +145,8 @@ def clustering():
     resolution_range = np.linspace(range_[0], range_[1], n)
 
     # Get preprocessing options
-    int_method, layer = np.unique([ (x.split('|')[0], x.split('|')[1]) for x in adata.obsp ])
+    layer = np.unique([ x.split('|')[0] for x in adata.obsp ])[0]
+    int_method = np.unique([ x.split('|')[1] for x in adata.obsp ])[0]
     Ks = np.unique([ x.split('|')[3].split('_')[0] for x in adata.obsp ])
     n_components =  np.unique([ x.split('|')[3].split('_')[2] for x in adata.obsp ])[0]
     rep = 'X_corrected' if int_method != 'original' else 'X_pca'
@@ -221,8 +222,6 @@ def markers_all():
 
     # Here we go 
     lognorm = sc.read(path_data + 'lognorm.h5ad') 
-    D = Dist_features(lognorm, contrasts, jobs=jobs)   # Job mode here
-    D.run_all_jobs()
 
     # Save markers, as Gene_sets dictionary only
     path_markers = path_main + '/results_and_plots/dist_features/'

@@ -130,25 +130,6 @@ def compute_BBKNN(adata, covariate='seq_run', layer='scaled', k=15, n_components
 ##
 
 
-scores = C.scores
-
-
-
-pd.Series(scores).to_frame('score')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 def format_metric_dict(d, t):
     """
     Helper function for formatting a dictionary of metrics scores into a df.

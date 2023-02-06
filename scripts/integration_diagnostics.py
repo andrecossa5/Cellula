@@ -109,6 +109,10 @@ from Cellula.preprocessing._neighbors import *
 #-----------------------------------------------------------------#
 
 # Set other paths
+# path_main = '/Users/IEO5505/Desktop/cellula_ex/'
+# version = 'default'
+# chosen = 'lognorm:Harmony'
+
 path_data = path_main + f'/data/{version}/'
 path_results = path_main + '/results_and_plots/pp/'
 path_runs = path_main + '/runs/'
@@ -118,7 +122,7 @@ path_viz = path_main + '/results_and_plots/vizualization/pp/'
 path_runs += f'/{version}/'
 path_results += f'/{version}/' 
 path_viz += f'/{version}/' 
-if not os.path.exists(path_data + 'integration.h5ad'):
+if not os.path.exists(path_data + 'integration.h5ad') and chosen is None:
     print('Run pp or integration algorithm(s) beforehand!')
     sys.exit()
 
@@ -203,19 +207,25 @@ def choose_preprocessing_option():
     pp, chosen_int = chosen.split(':') 
     logger.info('Choose preprocessing option: ' + '|'.join([pp, chosen_int]))
     logger.info(f'Execute for: --covariate {covariate} --n_comps {n_comps}')
-    adata = sc.read(path_data + 'integration.h5ad')
+
+    if not os.path.exists(path_data + 'integration.h5ad') and chosen is not None:
+        adata = sc.read(path_data + 'reduced.h5ad')
+    elif os.path.exists(path_data + 'integration.h5ad') and chosen is not None:
+        adata = sc.read(path_data + 'integration.h5ad')
+    else:
+        raise ValueError('No reduced or integration available.')
 
     # Pick the chosen pp and integration method
     new_adata = sc.AnnData(X=adata.X, obs=adata.obs, var=adata.var)
 
-    if(chosen_int != 'original' and chosen_int != 'BBKNN'):
+    if chosen_int != 'original' and chosen_int != 'BBKNN':
         new_adata.obsm[f'{pp}|{chosen_int}|X_corrected'] = get_representation(adata, layer=pp, method=chosen_int)
     else:
         new_adata.obsm[f'{pp}|original|X_pca'] = get_representation(adata, layer=pp)
 
     # k calculation
     for k in [5, 10, 15, 30, 50, 100]:
-        if(chosen_int != 'BBKNN'):
+        if chosen_int != 'BBKNN':
             new_adata = compute_kNN(new_adata, layer=pp, int_method=chosen_int, k=k, n_components=n_comps) # 6 kNN graphs
         else:
             new_adata = compute_BBKNN(new_adata, layer=pp, covariate=covariate, k=k, n_components=n_comps, trim=None)

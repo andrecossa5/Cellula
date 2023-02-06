@@ -50,7 +50,6 @@ class Clust_evaluator:
 
     ## 
 
-
     def parse_options(self):
         """
         Parse a dictionary of configuration options for the self.compute_metrics method.
@@ -59,29 +58,66 @@ class Clust_evaluator:
 
         for metric in self.metrics:
             for solution in self.solutions:
-                l = []
-                l.append(self.metrics[metric])
 
-                if metric in ['inertia', 'DB', 'silhouette']:
-                    args = [ self.solutions[solution] ]
+                if self.solutions[solution].unique().size == 1:
+                    print('Skipping evaluation for clustering solution {solution} with only 1 partiton...')
+                    pass
+                else:
+                    l = []
+                    l.append(metric)
+
+                    if metric in ['inertia', 'DB', 'silhouette']:
+                        args = [ self.solutions[solution] ]
+                        kwargs = {}
+
+                    elif metric == 'kNN_purity':
+                        k = solution.split('_')[0]
+                        n_components = solution.split('_')[2] 
+                        args = [ self.solutions[solution] ]
+                        kwargs = { 'k' : k, 'n_components' : n_components }
+
                     l.append(args)
-                elif metric == 'kNN_purity':
-                    # k = solution.split('_')[0]
-                    # n_components = solution.split('_')[2] 
-                    # indeces = get_representation(
-                    #     self.adata,
-                    #     layer=self.layer,
-                    #     method=self.int_method,
-                    #     k=k,
-                    #     n_components=n_components,
-                    #     only_index=True
-                    # )
-                    args = [ self.solutions[solution] ]
-                    l.append(args)
-                
+                    l.append(kwargs)
+
                 d_options[f'{metric}|{solution}'] = l
 
         self.d_options = d_options
+
+    ##
+
+    def get_rep(self, metric, k=15, n_components=30):
+        """
+        Get a representation based on the metric to score.
+        """
+        if metric in ['inertia', 'DB', 'silhouette']:
+            rep = self.space
+
+        elif metric == 'kNN_purity':
+            rep = get_representation(
+                self.adata,
+                layer=self.layer,
+                method=self.int_method,
+                k=k,
+                n_components=n_components,
+                only_index=True
+            )
+        
+        return rep
+
+    ##
+
+    def run(self, metric, args=None, kwargs=None):
+        """
+        Run one of the methods,
+        """
+
+        
+        func = self.metrics[metric]
+        rep = self.get_rep(metric, **kwargs)
+        args = [rep] + args
+        score = run_command(func, *args, **kwargs)
+
+        return score
 
     ##
 
@@ -95,11 +131,10 @@ class Clust_evaluator:
 
         for opt in self.d_options: 
 
-            func = self.d_options[opt][0]
+            metric = self.d_options[opt][0]
             args = self.d_options[opt][1]
-            #args[0] = args[0]()
-
-            score = run_command(func, *args)
+            kwargs = self.d_options[opt][2]
+            score = self.run(metric, args=args, kwargs=kwargs)
 
             self.scores[opt] = score
 
@@ -110,7 +145,25 @@ class Clust_evaluator:
         Rank methods, as in scib paper (Luecknen et al. 2022).
         """
         # Create results df 
-        df = format_metric_dict(self.scores, 'cl_eval')
+        df = pd.Series(self.scores).to_frame('score')
+        df['metric'] = df.index.map(lambda x: x.split('|')[0])
+        df['solution'] = df.index.map(lambda x: x.split('|')[1])
+
+        L = []
+        for metric in self.metrics:
+            if metric in ['inertia', 'DB']:
+               rescaled_scores = rescale(-df.query('metric == @metric')['score'])
+            else:
+                rescaled_scores = rescale(df.query('metric == @metric')['score'])
+            L.append(rescaled_scores)
+
+        df = pd.concat(L).to_frame('rescaled_score').join(df).reset_index(
+            ).rename(columns={'index':'run'})
+            
+        df['type'] = 'up'
+        df.loc[df['metric'].isin(['DB', 'inertia']), 'type'] = 'down'
+
+        # Save
         df.to_excel(path + 'clustering_evaluation_results.xlsx', index=False)
 
         # Create summary and rankings dfs

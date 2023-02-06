@@ -125,6 +125,8 @@ if not args.skip:
     path_results += f'/{version}/' 
     path_viz += f'/{version}/' 
 
+    adata.
+
     # Check if clustering has already been performed 
     if not os.path.exists(path_results + 'clustering_solutions.csv'):
         print('Run clustering first!')
@@ -253,10 +255,9 @@ def clustering_diagnostics():
         t.start()
         logger.info('Begin calculation of clusters separation and purity metrics...')
 
-        C = Clust_evaluator(adata, clustering_solutions, metrics=['silhouette', 'DB'])
+        C = Clust_evaluator(adata, clustering_solutions, metrics='all')
         C.parse_options()
         C.compute_metrics()
-
         logger.info(f'Metrics calculation: total {t.stop()} s.')
 
         # Clustering runs evaluation
@@ -277,14 +278,15 @@ def clustering_diagnostics():
             by='ranking', 
             figsize=(15,5)
         )
+        plt.show()
         fig.savefig(path_viz + 'clustering_solutions_rankings.pdf')
 
         # Clusters separation metrics trends
 
         # Reformat
         df = df.assign(
-            NN = df['run'].map(lambda x: int(x.split('_')[0])),
-            PCs = df['run'].map(lambda x: int(x.split('_')[2])),
+            NN = df['solution'].map(lambda x: int(x.split('_')[0])),
+            PCs = df['solution'].map(lambda x: int(x.split('_')[2])),
             resolution = df['run'].map(lambda x: float(x.split('_')[3]))
         )
 

@@ -92,7 +92,7 @@ def compute_inertia(space, solution, metric='euclidean'):
 ##
 
 
-def kNN_purity(index, solution):
+def kNN_purity(index, solution, **kwargs):
     """
     Calculate kNN_purity for one partitioning.
     """
@@ -114,4 +114,3 @@ all_functions = {
     'silhouette' : silhouette_score,
     'kNN_purity' : kNN_purity
 }
-

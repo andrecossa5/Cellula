@@ -92,7 +92,10 @@ def prep_archive():
     for v in versions:
         make_folder(os.getcwd(), v)
         os.system(f'cp {path_data}/{v}/clustered.h5ad ./{v}/')
+        os.system(f'cp {path_data}/{v}/integration.h5ad ./{v}/')
+        os.system(f'cp {path_data}/{v}/lognorm.h5ad ./{v}/')
         os.system(f'cp {path_data}/{v}/embeddings.csv ./{v}/')
+        os.system(f'cp {path_results}/clustering/{v}/clustering_solutions.csv ./{v}/')
         os.system(f'cp {path_results}/signatures/{v}/signatures.txt ./{v}/')
 
     # Tar and gzip

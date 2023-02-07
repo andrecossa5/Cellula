@@ -21,11 +21,12 @@ def load_data(path_main, version):
     """
     adata = sc.read(path_main + f'/data/{version}/integration.h5ad')
     adata_log = sc.read(path_main + f'/data/{version}/lognorm.h5ad')
+    adata_clust = sc.read(path_main + f'/data/{version}/clustered.h5ad')
     cluster_sol = pd.read_csv(
         path_main + f'/results_and_plots/clustering/{version}/clustering_solutions.csv',
         sep=',', index_col=0, dtype='category'
     )
-    return adata, adata_log, cluster_sol
+    return adata, adata_log, adata_clust, cluster_sol
 
 
 ##
@@ -41,7 +42,8 @@ path_main = sys.argv[1]
 version = sys.argv[2]
 
 # Data
-adata, adata_log, cluster_sol = load_data(path_main, version)
+adata, adata_log, adata_clust, cluster_sol = load_data(path_main, version)
+adata.obs['leiden'] = adata_clust.obs['leiden']
 adata.obs = adata.obs.join(cluster_sol)
 
 # Layer selection

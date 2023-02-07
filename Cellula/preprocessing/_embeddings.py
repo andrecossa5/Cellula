@@ -21,7 +21,10 @@ def embeddings(adata, paga_groups='sample', layer='lognorm', rep='original', k=1
     '''
     # Build mock adata
     a = anndata.AnnData(X=adata.layers[layer], obs=adata.obs)
-    a.obsm['X_pca'] = get_representation(adata, layer=layer, method=rep)
+    if rep == 'BBKNN':
+        a.obsm['X_pca'] = get_representation(adata, layer=layer, method='original')
+    else:
+        a.obsm['X_pca'] = get_representation(adata, layer=layer, method=rep)
     graph = get_representation(adata, layer=layer, method=rep, k=k, n_components=n_components)
     a.obsp['nn_connectivities'] = graph[1]
     a.obsp['nn_distances'] = graph[2]

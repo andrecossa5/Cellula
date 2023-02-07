@@ -113,7 +113,7 @@ def plot_rankings(df, df_rankings, df_summary, feature='rescaled_score', by='sco
     sns.stripplot(
         data=df_viz, 
         x='run', 
-        y=feature, 
+        y=feature,
         hue='metric',
         order=order, 
         palette=colors.values()
@@ -124,7 +124,7 @@ def plot_rankings(df, df_rankings, df_summary, feature='rescaled_score', by='sco
         ax.legend([], [], frameon=False)
         add_legend(label='Metric', colors=colors, ax=ax, loc=loc, bbox_to_anchor=bbox_to_anchor, ncols=2)
     
-    # Ticks and axis
+    # Ticks and axis``
     format_ax(ax, xlabel='', title=title, ylabel='Rescaled score', rotx=90)
     fig.tight_layout()
      
@@ -668,10 +668,11 @@ def genes_log2FC_and_perc(adata, genes, sol, g):
     """
     test_cells = adata.obs[sol] == g
     log2FC = np.log2( 
-        adata[test_cells, genes].X.mean(axis=0) / \
-        adata[~test_cells, genes].X.mean(axis=0) + 0.0000001 
+        adata.loc[test_cells, genes].X.mean(axis=0) / \
+        adata.loc[~test_cells, genes].X.mean(axis=0) + 0.0000001 
     )
-    perc = np.sum(adata[test_cells, genes].X > 0, axis=0) / test_cells.sum()
+    perc = np.sum(adata.loc[test_cells, genes].X > 0, axis=0) / test_cells.sum()
+    
     return np.asarray(log2FC).flatten(), np.asarray(perc).flatten()
 
 

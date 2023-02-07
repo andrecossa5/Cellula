@@ -25,7 +25,7 @@ my_parser = argparse.ArgumentParser(
 # Add arguments
 
 # Path_main
-my_parser.add_argument(
+my_parser.add_argument( 
     '-p', 
     '--path_main', 
     type=str,

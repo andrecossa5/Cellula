@@ -100,9 +100,9 @@ query = query if query != 'None' else None
 # Size
 figsize = st.text_input('Enter two integers to define the size of the figure:', value='8,7')
 try:
-    figsize = [ int(x) for x in figsize.split(',') ]
+    figsize = [ float(x) for x in figsize.split(',') ]
 except ValueError:
-    st.write('Invalid input, please enter two integers separated by a comma.')
+    st.write('Invalid input, please enter two floating point numbers separated by a comma.')
 
 # Draw
 if facet is not None:

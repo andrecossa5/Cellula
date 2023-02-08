@@ -122,8 +122,8 @@ if not args.skip:
 
     # Set other paths 
     path_data = path_main + f'/data/{version}/'
-    path_clusters = path_main + f'results_and_plots/clustering/{version}/'
-    path_markers = path_main + f'results_and_plots/dist_features/{version}/'
+    path_clusters = path_main + f'/results_and_plots/clustering/{version}/'
+    path_markers = path_main + f'/results_and_plots/dist_features/{version}/'
     path_results = path_main + '/results_and_plots/signatures/'
     path_runs = path_main + '/runs/'
 
@@ -171,6 +171,7 @@ def Signatures():
     S = Scores(adata, clusters, markers, curated=curated, organism=organism)
 
     logger.info('Begin GMs retrieval...')
+    S.parse_options()
     S.compute_GMs(kind=which)#  
     logger.info(f'GMs retrieval: {t.stop()} s.')
 
@@ -195,4 +196,3 @@ if __name__ == "__main__":
         Signatures()
 
 #######################################################################
-

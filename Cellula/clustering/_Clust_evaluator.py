@@ -29,7 +29,7 @@ class Clust_evaluator:
         self.adata = adata
         self.int_method, self.layer = np.unique([ (x.split('|')[0], x.split('|')[1]) for x in adata.obsp ])
         
-        if self.int_method != 'original':
+        if self.int_method != 'original' and self.int_method != 'BBKNN':
             self.space =  adata.obsm[f'{self.layer}|{self.int_method}|X_corrected']
             print(f'Integrated dataset. Found {self.layer}|{self.int_method}|X_corrected representation...')
         else:
@@ -110,8 +110,6 @@ class Clust_evaluator:
         """
         Run one of the methods,
         """
-
-        
         func = self.metrics[metric]
         rep = self.get_rep(metric, **kwargs)
         args = [rep] + args
@@ -125,7 +123,6 @@ class Clust_evaluator:
         """
         Compute one of the available metrics.
         """
- 
         if self.d_options is None:
             raise ValueError('Parse options first!')
 

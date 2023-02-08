@@ -86,12 +86,12 @@ class Int_evaluator:
                     if metric in ['kBET', 'entropy_bb']:
                         args = [ reps[int_method], self.adata.obs[covariate] ]
                     elif metric == 'graph_conn':
-                        args = [ reps[int_method][2] ]
+                        args = [ reps[int_method][1] ]
 
                     # Bio metrics
                     elif metric in ['NMI', 'ARI']:
                         if int_method != 'original':
-                            args = [ reps['original'][2], reps[int_method][2] ] 
+                            args = [ reps['original'][1], reps[int_method][1] ] 
                     elif metric == 'kNN_retention_perc':
                         if int_method != 'original':
                             args = [ reps['original'], reps[int_method] ] 

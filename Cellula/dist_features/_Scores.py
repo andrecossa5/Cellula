@@ -10,6 +10,7 @@ from hotspot import Hotspot
 
 from ._Gene_set import Gene_set
 from ._signatures import create_filtered_list, cluster_gene_sets, create_GMs, scanpy_score, wot_rank, wot_zscore
+from .._utils import *
 
 
 ##
@@ -31,6 +32,7 @@ class Scores():
         self.barkley = {}
         self.gene_sets = {}
         self.scores = None
+        self.d_options = {}
 
     ##
 
@@ -47,7 +49,7 @@ class Scores():
             self.matrix,
             layer_key='raw',
             model='danb', 
-            latent_obsm_key='X_pca', 
+            latent_obsm_key='X_reduced', 
             umi_counts_obs_key='nUMIs'
         )
 
@@ -70,7 +72,7 @@ class Scores():
 
     ##
 
-    def compute_wu(self, n_cells=50, m_genes=50, ji_treshold=0.75, n=10, n_gene_per_gm=100):
+    def compute_wu(self, test=None, n_cells=50, m_genes=50, ji_treshold=0.75, n=10, n_gene_per_gm=100):
         """
         GMs like in Wu et al., 2021.
         """
@@ -95,21 +97,36 @@ class Scores():
         # self.barkley = {}
 
     ##
+    def parse_options(self):
+        all_functions = {'Hotspot': self.compute_Hotspot, 
+                         'wu' : self.compute_wu, 
+                         'barkley' : self.compute_barkley
+                        }
+        d_options = {}
+        for i in all_functions:
+            if i == 'Hotspot':
+                args = [self]
+                kwargs = {}
+                d_options[i] = [ all_functions[i], args, kwargs ]
+            elif i == 'barkley':
+                pass
+            else:
+                args = [self]
+                kwargs = {}
+                d_options[i] = [ all_functions[i], args, kwargs ]
+        self.d_options = d_options
+
+    ##
 
     def compute_GMs(self, kind=['Hotspot', 'wu', 'barkley']):
         """
         Compute GMs of some kind. Three kinds implemented.
         """
-        Hotspot = True if 'Hotspot' in kind else False
-        wu2021 = True if 'wu' in kind else False
-        barkley2022 = True if 'barkley' in kind else False
-
-        if wu2021:
-            self.compute_wu()
-        if barkley2022:
-            self.compute_barkley() 
-        if Hotspot:
-            self.compute_Hotspot()
+        for opt in self.d_options: 
+            func = self.d_options[opt][0]
+            args = self.d_options[opt][1]
+            kwargs = self.d_options[opt][2]
+            run_command(func, args, **kwargs)
 
         d = {**self.wu, **self.barkley, **self.Hotspot, **self.curated}
         d = { k : Gene_set(v, self.matrix.var, name=k, organism=self.organism) for k, v in d.items() }

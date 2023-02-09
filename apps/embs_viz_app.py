@@ -106,7 +106,8 @@ else:
             query=query,
             legend_kwargs={
                 'bbox_to_anchor' : (1.05,1),
-                'loc' : 'upper left'
+                'loc' : 'upper left',
+                'only_top' : 30
             }
         )
     else:

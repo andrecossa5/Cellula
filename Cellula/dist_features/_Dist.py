@@ -408,5 +408,5 @@ class Dist_features:
         """
         Dump self.Results to path_results.
         """
-        with open(path_results + f'{name}.txt', 'wb') as f:
+        with open(path_results + f'{name}.pickle', 'wb') as f:
             pickle.dump(self.Results, f)

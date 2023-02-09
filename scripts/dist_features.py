@@ -158,7 +158,7 @@ def main():
     else:
 
         #Read results 
-        with open(path_results + f'{contrasts_name}.txt', 'rb') as f:
+        with open(path_results + f'{contrasts_name}.pickle', 'rb') as f:
             results = pickle.load(f)
 
     # Write final exec time

@@ -346,7 +346,7 @@ def clustering_diagnostics():
             layer=layer,
             rep=int_method,
             k=k,
-            n_components=n_components
+            n_components=n_componentsm
         )
 
         # Fill info in a final, cleaned adata

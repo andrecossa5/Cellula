@@ -235,7 +235,7 @@ def parse_integration_options(adata, methods, covariate='seq_run', k=15, n_compo
 
     integration_d = {}
     for m in methods:
-
+        
         for layer in adata.layers:
             kwargs = { 'k' : k, 'n_components' : n_components }
 

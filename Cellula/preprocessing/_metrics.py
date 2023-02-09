@@ -48,23 +48,23 @@ def kbet_one_chunk(index, batch, null_dist):
 ##
 
 
-def choose_K_for_kBET(adata, covariate):
-    """
-    Use the heuristic set in Buttner et al. 2018 to choose the optimal number of NN (K)
-    to evaluate the kBET metric.
-    """
-
-    # Check 'seq_run' is in meta
-    try:
-        adata.obs[covariate]
-    except:
-        print(f'No {covariate} in cells meta! Reformat.')
-        sys.exit()
-
-    # Calculate K 
-    K = np.min(pd.Series(adata.obs['seq_run'].value_counts()).values) // 4
-
-    return K
+# def choose_K_for_kBET(adata, covariate):
+#     """
+#     Use the heuristic set in Buttner et al. 2018 to choose the optimal number of NN (K)
+#     to evaluate the kBET metric.
+#     """
+# 
+#     # Check 'seq_run' is in meta
+#     try:
+#         adata.obs[covariate]
+#     except:
+#         print(f'No {covariate} in cells meta! Reformat.')
+#         sys.exit()
+# 
+#     # Calculate K 
+#     K = np.min(pd.Series(adata.obs['seq_run'].value_counts()).values) // 4
+# 
+#     return K
     
 
 ##
@@ -222,12 +222,33 @@ def kBET_score(adata, covariate='seq_run', method='original', layer='lognorm', k
     Function to calculate the kBET score for a given layer, method, k and n_components 
     and store it in a dictionary for use in the kBET script prior to integration.
     """
+    score = {}
 
-    score={}
-    KNN_index = get_representation(adata, layer=layer, method=method, k=k, n_components=n_components, only_index=True)
+    KNN_index = get_representation(
+        adata, 
+        layer=layer, 
+        method=method, 
+        k=k, 
+        n_components=n_components, 
+        only_index=True
+    )
+
     batch = adata.obs[covariate]
     score_kbet = kbet(KNN_index, batch)
     key = f'{layer}|{method}|{k}_NN_{n_components}_comp'
     score = {key:score_kbet}
 
     return score
+
+
+##
+
+
+all_functions = {
+    'kBET' : kbet,
+    'entropy_bb' : entropy_bb,
+    'graph_conn' : graph_conn,
+    'kNN_retention_perc' : kNN_retention_perc,
+    'NMI': compute_NMI, 
+    'ARI': compute_ARI
+}

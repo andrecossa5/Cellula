@@ -25,36 +25,9 @@ class Int_evaluator:
         self.methods = pd.Series([ x.split('|')[1] for x in self.adata.obsp.keys()]).unique()
         self.batch_metrics = ['kBET', 'entropy_bb', 'graph_conn']
         self.bio_metrics = ['kNN_retention_perc', 'NMI', 'ARI']
+        self.all_functions = all_functions
         self.d_options = None
-        self.batch_removal_scores = { k : {} for k in self.batch_metrics }
-        self.bio_conservation_scores = { k : {} for k in self.bio_metrics }
-
-    ##
-
-    def get_kNNs(self, layer='scaled', metric=None, k=15, n_components=30):
-        """
-        Get needed kNNs for metrics computation.
-        """
-        # Batch metrics
-        if metric in self.batch_metrics:
-            only_index = False if metric == 'graph_conn' else True
-            methods = self.methods
-
-        # Bio metrics
-        elif metric in self.bio_metrics:
-            only_index = True if metric == 'kNN_retention_perc' else False
-            methods = self.methods
-
-        # Get representations
-        reps = {}
-        for m in methods:
-            try:
-                reps[m] = get_representation(self.adata, layer=layer, method=m, k=k, 
-                    n_components=n_components, only_index=only_index) 
-            except:
-                print(f'{m} is not available for layer {layer}')
-
-        return reps
+        self.scores = {}
 
     ##
 
@@ -62,70 +35,109 @@ class Int_evaluator:
         """
         Parse a dictionary of configuration options for the self.compute_metrics method.
         """
-        # Dictionary of all functions for integration evaluation
-        all_functions = {
-            'kBET' : kbet,
-            'entropy_bb' : entropy_bb,
-            'graph_conn' : graph_conn,
-            'kNN_retention_perc' : kNN_retention_perc,
-            'NMI': compute_NMI, 
-            'ARI': compute_ARI
-        }
+        # Extract k and n_components
+        conn_list_ = list(self.adata.obsp.keys())[0].split('|')[-1].split('_')
+        k = int(conn_list_[0])
+        n_comps = int(conn_list_[2])
 
         # Loop over metrics, layers and integration_methods
         d_options = {}
-        for metric in all_functions:
+
+        for metric in self.all_functions:
             for layer in self.adata.layers:
-        
-                reps = self.get_kNNs(layer=layer, metric=metric)
-                for int_method in reps:
-                    l_options = []
-                    l_options.append(all_functions[metric])
+                for method in self.methods:
 
-                    # Batch metrics
-                    if metric in ['kBET', 'entropy_bb']:
-                        args = [ reps[int_method], self.adata.obs[covariate] ]
-                    elif metric == 'graph_conn':
-                        args = [ reps[int_method][1] ]
+                    if method != 'original':
 
-                    # Bio metrics
-                    elif metric in ['NMI', 'ARI']:
-                        if int_method != 'original':
-                            args = [ reps['original'][1], reps[int_method][1] ] 
-                    elif metric == 'kNN_retention_perc':
-                        if int_method != 'original':
-                            args = [ reps['original'], reps[int_method] ] 
+                        l_options = []
+                        if metric in ['kBET', 'entropy_bb']:
+                            args = [ self.adata.obs[covariate] ]
+                        else:
+                            args = []
+                        
+                        only_index = True if metric in ['kBET', 'entropy_bb', 'kNN_retention_perc'] else False
+                        only_conn = True if metric in ['ARI', 'NMI', 'graph_conn'] else False
 
-                    l_options.append(args)
-                    key = '|'.join([metric, layer, int_method])
-                    d_options[key] = l_options
+                        kwargs = {
+                            'metric' : metric, 
+                            'layer' : layer, 
+                            'method' : method,
+                            'k' : k,
+                            'n_components' : n_comps,
+                            'only_index' : only_index,
+                            'only_conn' : only_conn
+                        }
+    
+                        l_options.append(args)
+                        l_options.append(kwargs)
+                        key = '|'.join([metric, layer, method])
+                        d_options[key] = l_options
 
         # Add as attribute
         self.d_options = d_options
 
     ##
 
-    def compute_metrics(self, k=15, n_components=30):
+    def get_kNNs(self, layer='scaled', method=None, metric=None, k=15, n_components=30,
+        only_index=False, only_conn=False):
         """
-        Compute all batch removal and bio correction score metrics.
+        Get needed kNNs for metrics computation.
         """
-        # Parse options, and compute each metric/layer/int_method job.
+        if metric in self.batch_metrics:
+
+            try:
+                rep = get_representation(self.adata, layer=layer, method=method, 
+                    k=k, n_components=n_components, only_index=only_index, only_conn=only_conn)
+            except:
+                print(f'{method} is not available for layer {layer}')
+        
+        elif metric in self.bio_metrics:
+
+            try:
+                rep = [
+                    get_representation(self.adata, layer=layer, method='original', 
+                    k=k, n_components=n_components, only_index=only_index, only_conn=only_conn),
+                    get_representation(self.adata, layer=layer, method=method, 
+                    k=k, n_components=n_components, only_index=only_index, only_conn=only_conn)
+                ]
+            except:
+                print(f'{method} is not available for layer {layer}')
+
+        return rep
+
+    ##
+
+    def run(self, args=[], kwargs={}):
+        """
+        Run one of the methods.
+        """
+        metric = kwargs['metric']
+
+        if metric in self.all_functions:
+            func = self.all_functions[metric]
+            rep = self.get_kNN(**kwargs)
+            score = run_command(func, *args)
+        else:
+            raise ValueError(f'Metrics {metric} is not available!')
+
+        return score
+
+    ##
+
+    def compute_metrics(self):
+        """
+        Compute one of the available metrics.
+        """
         if self.d_options is None:
             raise ValueError('Parse options first!')
 
         for opt in self.d_options: 
+            
+            options_l = self.d_options[opt]
+            args = options_l[0]
+            kwargs = options_l[1]
 
-            func = self.d_options[opt][0]
-            args = self.d_options[opt][1]
-            score = run_command(func, *args)
-        
-            metric, layer, int_method = opt.split('|')
-            key = '|'.join([layer, int_method, f'{k}_NN_{n_components}_comp'])
-
-            if metric in self.batch_metrics:
-                self.batch_removal_scores[metric][key] = score
-            elif metric in self.bio_metrics:
-                self.bio_conservation_scores[metric][key] = score
+            self.scores[opt] = self.run(args=args, kwargs=kwargs)
 
     ##
 
@@ -134,21 +146,20 @@ class Int_evaluator:
         Rank methods, as in scib paper (Luecknen et al. 2022).
         """
         # Create results df 
-        df = pd.concat(
-            [ 
-                format_metric_dict(self.batch_removal_scores, 'batch'), 
-                format_metric_dict(self.bio_conservation_scores, 'bio') 
-            ], 
-            axis=0
-        )
+        df = pd.Series(self.scores).to_frame('score')
+        df['metric'] = df.index.map(lambda x: x.split('|')[0])
+        df['run'] = df.index.map(lambda x: '|'.join([ x.split('|')[1], x.split('|')[2] ]))
 
-        # Fix names and save
-        df['run'] = df['run'].map(lambda x: '|'.join(x.split('|')[:-1]))
+        L = []
+        for metric in self.bio_metrics + self.batch_metrics:
+            rescaled_scores = rescale(df.query('metric == @metric')['score'])
+            L.append(rescaled_scores)
+
+        df = pd.concat(L).to_frame('rescaled_score').join(df).reset_index(drop=True)
+        df['type'] = np.where(df['metric'].isin(self.bio_metrics), 'bio', 'batch')
+
+        # Save
         df.to_excel(path + 'integration_diagnostics_results.xlsx', index=False)
-
-        # Create summary and rankings dfs
-        runs = [ x for x in df['run'].unique() if x.split('|')[1] != 'original' ] # Filter out original runs
-        df = df[df['run'].isin(runs)]
 
         # Rankings df
         df_rankings = rank_runs(df)
@@ -172,7 +183,6 @@ class Int_evaluator:
         """
         Plot rankings. 
         """
-
         # Plot
         fig = plot_rankings(
             df, 

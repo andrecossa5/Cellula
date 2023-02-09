@@ -96,6 +96,13 @@ my_parser.add_argument(
 # Parse arguments
 args = my_parser.parse_args()
 
+# path_main = '/Users/IEO5505/Desktop/cellula_ex/'
+# version = 'default'
+# scoring = 'scanpy'
+# organism = 'human'
+# which = [ 'Hotspot', 'wu' ]
+# curated = True
+
 path_main = args.path_main
 version = args.version
 Hotspot = 'Hotspot' if args.Hotspot else None
@@ -159,6 +166,7 @@ def Signatures():
     clusters = pd.read_csv(path_clusters + 'clustering_solutions.csv', index_col=0)
     with open(path_markers + 'clusters_markers.pickle', 'rb') as f:
         markers = pickle.load(f)
+
     # Handle curated
     if args.curated:
         curated = format_curated(path_main)
@@ -168,11 +176,17 @@ def Signatures():
     ##
 
     # Retrieve gene_sets and score them
-    S = Scores(adata, clusters, markers, curated=curated, organism=organism)
+    S = Scores(
+        adata, 
+        clusters, 
+        markers, 
+        curated=curated, 
+        organism=organism, 
+        methods=['wu', 'barkley']
+    )
 
     logger.info('Begin GMs retrieval...')
-    S.parse_options()
-    S.compute_GMs(kind=which)#  
+    S.compute_GMs()
     logger.info(f'GMs retrieval: {t.stop()} s.')
 
     t.start()

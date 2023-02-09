@@ -47,7 +47,7 @@ my_parser.add_argument(
 
 # n_pcs
 my_parser.add_argument( 
-    '--n_pcs', 
+    '--n_comps', 
     type=int,
     default=30,
     help='n_pcs for kNN indices computation. Default: 30.'
@@ -65,7 +65,7 @@ my_parser.add_argument(
 args = my_parser.parse_args()
 path_main = args.path_main
 version = args.version
-n_pcs = args.n_pcs
+n_comps = args.n_comps
 covariate = args.covariate
 
 ########################################################################
@@ -76,7 +76,7 @@ covariate = args.covariate
 # Code
 import scanpy as sc
 from Cellula._utils import *
-from Cellula.preprocessing._metrics import choose_K_for_kBET, kBET_score
+from Cellula.preprocessing._metrics import *
 from Cellula.preprocessing._neighbors import *
 
 #-----------------------------------------------------------------#
@@ -114,7 +114,7 @@ def kBET():
     t = Timer()
     t.start()
 
-    logger.info(f'Execute kBET: --n_pcs {n_pcs} --covariate {covariate}')
+    logger.info(f'Execute kBET: --n_pcs {n_comps} --covariate {covariate}')
 
     # Load reduced adata
     adata = sc.read(path_data + 'reduced.h5ad')
@@ -127,7 +127,7 @@ def kBET():
     # and 1 found using the heuristic specified in Buttner et al. 2018.
 
     # Define k_range
-    k_range = [ 15, 30, 50, 100, 250, 500, choose_K_for_kBET(adata, covariate) ]
+    k_range = [ 15, 30, 50, 100, 250, 500 ]
 
     # Compute kNN indices and kBET
     kbet_computation = {}
@@ -135,8 +135,15 @@ def kBET():
         t.start()
         logger.info(f'Begin operations on all representations, for k {k}...')
         for layer in adata.layers:
-            adata = compute_kNN(adata, layer=layer, int_method='original', k=k, n_components=n_pcs)
-            score = kBET_score(adata, covariate=covariate, method='original', layer=layer, k=k, n_components=n_pcs)
+            adata = compute_kNN(adata, layer=layer, int_method='original', k=k, n_components=n_comps)
+            score = kBET_score(
+                adata, 
+                covariate=covariate, 
+                method='original', 
+                layer=layer,
+                k=k, 
+                n_components=n_comps
+            )
             kbet_computation.update(score)
         
         logger.info(f'kBET calculations finished for k {k}: {t.stop()} s.')

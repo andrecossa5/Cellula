@@ -89,7 +89,7 @@ if not args.skip:
     from Cellula.clustering._Clust_evaluator import *
     from Cellula.plotting._plotting import *
     from Cellula.plotting._colors import *
-    from Cellula.preprocessing._embeddings import embeddings
+    from Cellula.preprocessing._embeddings import *
 
     #-----------------------------------------------------------------#
 
@@ -317,11 +317,9 @@ def clustering_diagnostics():
     #-----------------------------------------------------------------#
 
     # Final choice: chosen viz + write clustered adata
-
     if chosen is not None: # Only chosen
 
         t.start()
-
         logger.info(f'{chosen} embeddings/vizualization options')
 
         # Read pre-processed adata

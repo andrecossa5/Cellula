@@ -80,6 +80,14 @@ my_parser.add_argument(
     help='Number of HVGs to select. Default: 2000.'
 )
 
+# n_comps
+my_parser.add_argument(
+    '--n_comps', 
+    type=int,
+    default=30,
+    help='Number of PCs to select. Default: 30.'
+)
+
 # Organism
 my_parser.add_argument(
     '--organism', 
@@ -121,6 +129,7 @@ normalization_method = args.norm
 scoring_method = args.score
 n_HVGs = args.n_HVGs
 organism = args.organism
+n_comps = args.n_comps
 
 ########################################################################
 
@@ -268,7 +277,7 @@ def preprocessing():
     adata_red = regress_and_scale(adata_red)
 
     for layer in adata_red.layers:
-        adata_red = pca(adata_red, layer=layer)
+        adata_red = pca(adata_red, layer=layer, n_components=n_comps)
 
     adata_red.write(path_data + 'reduced.h5ad')
 

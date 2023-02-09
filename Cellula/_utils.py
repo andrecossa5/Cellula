@@ -162,7 +162,8 @@ def rescale(x):
 ##
 
 
-def get_representation(adata, layer=None, method='original', k=None, n_components=None, only_index=False):
+def get_representation(adata, layer=None, method='original', k=None, n_components=None, 
+    only_index=False, only_conn=False):
     """
     Take out desired representation from a adata.obsm/obsp.
     """
@@ -179,6 +180,8 @@ def get_representation(adata, layer=None, method='original', k=None, n_component
         )
         if only_index:
             representation = representation[0]
+        if only_conn:
+            representation = representation[1]
             
     return representation
 

@@ -191,7 +191,7 @@ def Signatures():
 
     t.start()
     logger.info('Begin signatures scoring...')
-    S.score_signatures(kind=scoring) # Default, scanpy
+    S.score_signatures(method=scoring) # Default, scanpy
     logger.info(f'Signatures scoring: {t.stop()} s.')
     
     # Save scores

@@ -182,7 +182,7 @@ def preprocessing():
     t = Timer()
     t.start()
 
-    logger.info(f'Execute pp: -v {version} --norm {normalization_method} --scoring_method {scoring_method} --n_HVGs {n_HVGs} --custom_meta {args.custom_meta} --organism {organism}')
+    logger.info(f'Execute pp: -v {version} --norm {normalization_method} --scoring_method {scoring_method} --n_HVGs {n_HVGs} --custom_meta {args.custom_meta} --organism {organism} --n_comps {n_comps}')
 
     # Read QC
     adata = sc.read(path_data + 'QC.h5ad')
@@ -277,7 +277,7 @@ def preprocessing():
     adata_red = regress_and_scale(adata_red)
 
     for layer in adata_red.layers:
-        adata_red = pca(adata_red, layer=layer, n_components=n_comps)
+        adata_red = pca(adata_red, n_pcs=n_comps, layer=layer)
 
     adata_red.write(path_data + 'reduced.h5ad')
 

@@ -46,8 +46,12 @@ class Int_evaluator:
         for metric in self.all_functions:
             for layer in self.adata.layers:
                 for method in self.methods:
-
-                    if method != 'original':
+                    option_check=False
+                    if method != 'original' and layer != 'raw' and method != 'scVI':
+                        option_check=True
+                    elif method != 'original' and layer == 'raw' and method == 'scVI':
+                        option_check=True
+                    if option_check:
 
                         l_options = []
                         if metric in ['kBET', 'entropy_bb']:
@@ -112,11 +116,16 @@ class Int_evaluator:
         Run one of the methods.
         """
         metric = kwargs['metric']
-
+        
         if metric in self.all_functions:
             func = self.all_functions[metric]
-            rep = self.get_kNN(**kwargs)
-            score = run_command(func, *args)
+            rep = self.get_kNNs(**kwargs)
+            if metric in self.batch_metrics:
+                args = [rep] + args
+                score = run_command(func, *args)
+            else:
+                args = rep
+                score = run_command(func, *args)
         else:
             raise ValueError(f'Metrics {metric} is not available!')
 

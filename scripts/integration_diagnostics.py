@@ -171,7 +171,7 @@ def integration_diagnostics():
     # Compute diagnostics metrics
     t.start()
     I.parse_options(covariate=covariate) 
-    I.compute_metrics(k=k, n_components=n_comps)
+    I.compute_metrics()
     logger.info(f'Metrics calculations: {t.stop()} s.')
 
     # Integration runs evaluation

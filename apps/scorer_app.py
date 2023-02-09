@@ -23,11 +23,10 @@ def load_data(path_data, version):
     Load data.
     """
     adata = sc.read(path_data + f'/{version}/clustered.h5ad')
-    embs = pd.read_csv(path_data + f'/{version}/embeddings.csv', index_col=0)
-    with open(path_data + f'/{version}/signatures.txt', 'rb') as f:
+    with open(path_data + f'/{version}/signatures.pickle', 'rb') as f:
         signatures = pickle.load(f)
     
-    return adata, embs, signatures
+    return adata, signatures
 
 
 ##
@@ -141,7 +140,13 @@ submit_data = form_data.form_submit_button('Load')
 ##
 
 # Load data
-adata, embs, signatures = load_data(path_data, version)
+adata, signatures = load_data(path_data, version)
+embs = pd.DataFrame(
+    adata.obsm['X_umap'], 
+    columns=['UMAP1', 'UMAP2'], 
+    index=adata.obs_names
+).join(adata.obs)
+
 plot = False
 
 # Show cats

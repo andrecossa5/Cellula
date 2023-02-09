@@ -21,10 +21,16 @@ st.title('Embeddings visualization')
 
 # Load args
 path_main = sys.argv[1]
-
+path_data = path_main + 'data/'
+ 
 # Version
-versions = os.listdir(path_main + 'dist_features_objects/')
-version = st.selectbox("Choose version:", versions, index=versions[0])
+form_data = st.form(key='Data')
+version = form_data.selectbox(
+    'Choose data from a Cellula version',
+    [ x for x in os.listdir(path_data) if x != '.DS_Store' and len(os.listdir(f'{path_data}/{x}/')) > 0 ],
+    key='Version'
+)
+submit_data = form_data.form_submit_button('Load')
 
 # Data
 adata = sc.read(path_main + f'/data/{version}/clustered.h5ad')

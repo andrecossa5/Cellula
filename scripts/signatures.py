@@ -42,27 +42,6 @@ my_parser.add_argument(
     help='The pipeline step to run. Default: default.'
 )
 
-# Hotspot
-my_parser.add_argument( 
-    '--Hotspot', 
-    action='store_true',
-    help='Compute Hotspot GMs and their signature scores. Default: False.'
-)
-
-# Barkley
-my_parser.add_argument( 
-    '--barkley', 
-    action='store_true',
-    help='Compute barkley2022 GMs and their signature scores. Default: False.'
-)
-
-# Wu
-my_parser.add_argument( 
-    '--wu', 
-    action='store_true',
-    help='Compute wu2021 GMs and their signature scores. Default: False.'
-)
-
 # Curated
 my_parser.add_argument( 
     '--curated', 
@@ -85,6 +64,14 @@ my_parser.add_argument(
     default='scanpy',
     help='The scoring method. Default: scanpy. Other options: z_score, rank.'
 )
+#Methods
+my_parser.add_argument( 
+    '-m',
+    '--method', 
+    type=str,
+    default='all',
+    help='Method to run. Default: all.'
+)
 
 # Skip
 my_parser.add_argument(
@@ -95,23 +82,10 @@ my_parser.add_argument(
 
 # Parse arguments
 args = my_parser.parse_args()
-
-# path_main = '/Users/IEO5505/Desktop/cellula_ex/'
-# version = 'default'
-# scoring = 'scanpy'
-# organism = 'human'
-# which = [ 'Hotspot', 'wu' ]
-# curated = True
-
 path_main = args.path_main
 version = args.version
-Hotspot = 'Hotspot' if args.Hotspot else None
-wu = 'wu' if args.wu else None
-barkley = 'barkley' if args.barkley else None
 scoring = args.scoring
 organism = args.organism
-
-which = [ Hotspot, wu, barkley ]
 
 ########################################################################
 
@@ -159,13 +133,19 @@ def Signatures():
     t = Timer()
     t.start()
 
-    logger.info(f'Begin signatures: --Hotspot {args.Hotspot} --wu {args.wu} --barkley {args.barkley} --curated {args.curated} --scoring {scoring} --organism {organism}')
+    logger.info(f'Begin signatures: --curated {args.curated} --scoring {scoring} --organism {organism}')
 
     # Load adata, clusters, markers and curated
     adata = sc.read(path_data + 'clustered.h5ad')
     clusters = pd.read_csv(path_clusters + 'clustering_solutions.csv', index_col=0)
     with open(path_markers + 'clusters_markers.pickle', 'rb') as f:
         markers = pickle.load(f)
+    
+    #Selected integration methods
+    if args.method == 'all':
+        methods = ['wu', 'Hotspot', 'barkley']
+    else:
+        methods = args.method.split(':')  
 
     # Handle curated
     if args.curated:
@@ -182,7 +162,7 @@ def Signatures():
         markers, 
         curated=curated, 
         organism=organism, 
-        methods=['wu', 'barkley']
+        methods=methods
     )
 
     logger.info('Begin GMs retrieval...')

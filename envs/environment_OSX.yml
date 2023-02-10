@@ -28,6 +28,7 @@ dependencies:
   - lightgbm
   - pip
   - python-annoy
+  - ipykernel=6.16.0 
   - pip:
     - gseapy==0.13.0
     - streamlit 
@@ -56,3 +57,5 @@ dependencies:
     - torchmetrics==0.9.3
     - wot==1.0.8.post2
     - scarches
+    - dadapy==0.1.1 
+    - fastcluster

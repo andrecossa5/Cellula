@@ -122,23 +122,3 @@ def compute_metrics(k=15, n_components=30):
                 I.bio_conservation_scores[metric][key] = score
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

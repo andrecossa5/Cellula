@@ -284,18 +284,19 @@ def scatter(df, x, y, by=None, c='r', s=1.0, a=1, l=None, ax=None, scale_x=None,
 
 ##
 
-def hist(df, x, n=10, by=None, c='r', a=1, l=None, ax=None):
+
+def hist(df, x, n=10, by=None, c='r', a=1, l=None, ax=None, density=False):
     """
     Basic histogram plot.
     """
     if by is None:
-       ax.hist(df[x], bins=n, color=c, alpha=a, label=l, density=True)
+       ax.hist(df[x], bins=n, color=c, alpha=a, label=l, density=density)
     elif by is not None and isinstance(c, dict):
         categories = df[by].unique()
         if all([ cat in list(c.keys()) for cat in categories ]):
             for cat in categories:
                 df_ = df.loc[df[by] == cat, :]
-                ax.hist(df_[x], bins=n, color=c[cat], alpha=a, label=x, density=True)
+                ax.hist(df_[x], bins=n, color=c[cat], alpha=a, label=x, density=density)
     else:
         raise ValueError(f'{by} categories do not match provided colors keys')
 
@@ -318,11 +319,12 @@ def bar(df, y, x=None, by=None, c='grey', s=0.35, a=1, l=None, ax=None, annot_si
         x = np.arange(df[y].size)
         categories = df[by].unique()
         n_cat = len(categories)
-        if all([ cat in list(c.keys()) for cat in categories ]):
+        if all([ cat in c for cat in categories ]):
             for i, cat in enumerate(categories):
                 height = df[y].values
-                height = [ height[i] if x == cat else 0 for i, x in enumerate(df[by]) ]
-                ax.bar(x, height, align='center', width=s, alpha=a, color=c[cat])
+                idx = [ i for i, x in enumerate(df[by]) if x == cat ]
+                height = df[y].values[idx]
+                ax.bar(x[idx], height, align='center', width=s, alpha=a, color=c[cat])
                 ax.bar_label(ax.containers[i], padding=0, size=annot_size)
 
     elif by is not None and x is not None and isinstance(c, dict):
@@ -339,6 +341,7 @@ def bar(df, y, x=None, by=None, c='grey', s=0.35, a=1, l=None, ax=None, annot_si
 
 
 ##
+
 
 
 def box(df, x, y, by=None, c=None, a=1, l=None, ax=None, with_stats=False, 
@@ -363,18 +366,20 @@ def box(df, x, y, by=None, c=None, a=1, l=None, ax=None, with_stats=False,
 
     elif isinstance(c, dict) and by is None:
         if all([ True if k in df[x].unique() else False for k in c.keys() ]):
+
             ax = sns.boxplot(data=df, x=x, y=y, palette=c.values(), ax=ax, saturation=0.7, order=order, **params)
             ax.set(xlabel='')
+        else:
+            raise ValueError(f'{by} categories do not match provided colors keys')
             
     elif isinstance(c, dict) and by is not None:
-        if all([ True if col in cat else False for col, cat in zip(list(c.keys()), df[by].unique()) ]):
-            ax = sns.boxplot(data=df, x=x, y=y, palette=c.values(), hue=by, 
-                ax=ax, saturation=0.7, **params)
+        if all([ True if k in df[by].unique() else False for k in c.keys() ]):
+            ax = sns.boxplot(data=df, x=x, y=y, palette=c.values(), hue=by, width=s,
+                ax=ax, saturation=a, **params)
             ax.legend([], [], frameon=False)
             ax.set(xlabel='')
-
-    else:
-        raise ValueError(f'{by} categories do not match provided colors keys')
+        else:
+            raise ValueError(f'{by} categories do not match provided colors keys')
 
     if with_stats:
         add_wilcox(df, x, y, pairs, ax, order=order)
@@ -386,6 +391,7 @@ def box(df, x, y, by=None, c=None, a=1, l=None, ax=None, with_stats=False,
 
 
 def strip(df, x, y, by=None, c=None, a=1, l=None, s=5, ax=None, with_stats=False, order=None, pairs=None):
+
     """
     Base stripplot.
     """
@@ -401,16 +407,17 @@ def strip(df, x, y, by=None, c=None, a=1, l=None, s=5, ax=None, with_stats=False
         if all([ True if k in df[x].unique() else False for k in c.keys() ]):
             ax = sns.stripplot(data=df, x=x, y=y, palette=c.values(), ax=ax, size=s, order=order)
             ax.set(xlabel='')
+        else:
+            raise ValueError(f'{by} categories do not match provided colors keys')
             
     elif isinstance(c, dict) and by is not None:
-        if all([ True if col in cat else False for col, cat in zip(list(c.keys()), df[by].unique()) ]):
+        if all([ True if k in df[by].unique() else False for k in c.keys() ]):
             ax = sns.stripplot(data=df, x=x, y=y, palette=c.values(), hue=by, 
                 ax=ax, size=s)
             ax.legend([], [], frameon=False)
-            ax.set(xlabel='')
-
-    else:
-        raise ValueError(f'{by} categories do not match provided colors keys')
+            ax.set(xlabel='')    
+        else:
+            raise ValueError(f'{by} categories do not match provided colors keys')
 
     if with_stats:
         add_wilcox(df, x, y, pairs, ax, order=None)

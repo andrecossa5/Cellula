@@ -69,7 +69,10 @@ def prep_jobs_contrasts(adata, path, contrasts_name):
         for k in d[f]:
             D = d[f][k]
             print(k)
-            jobs[k], contrasts[k] = prep_one_contrast_jobs(adata.obs, D)
+            try:
+                jobs[k], contrasts[k] = prep_one_contrast_jobs(adata.obs, D)
+            except:
+                print(f'{f} {k} analysis was impossible to set up, possibly because of wrong contrasts specification')
 
     return jobs, contrasts
 

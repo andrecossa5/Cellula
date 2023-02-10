@@ -4,7 +4,8 @@ _signatures.py stores functions and utilities for scoring a Gene_set or a list o
 
 import os
 import pandas as pd 
-import numpy as np 
+import numpy as np
+import sys
 from random import seed, sample
 from scipy.sparse import csr_matrix, csc_matrix, issparse 
 from collections import Counter 

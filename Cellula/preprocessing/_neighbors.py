@@ -2,7 +2,9 @@
 _neighbors.py: nearest neighbors functions.
 """
 
+
 from Cellula._utils import *
+
 from joblib import cpu_count
 import sys
 import numpy as np
@@ -17,6 +19,7 @@ from scanpy.neighbors import _get_sparse_matrix_from_indices_distances_umap
 ##
 
 
+
 def _NN(X, k=15, metric='euclidean', implementation='pyNNDescent', random_state=1234, metric_kwds={}):
     """
     kNN search over an X obs x features matrix. pyNNDescent and hsnwlib implementation available.
@@ -26,10 +29,12 @@ def _NN(X, k=15, metric='euclidean', implementation='pyNNDescent', random_state=
         knn_indices, knn_dists, forest = nearest_neighbors(
             X,
             k,
+
             metric=metric, 
             metric_kwds=metric_kwds,
             angular=False,
             random_state=random_state
+
         )
 
     # kNN search: hnswlib. Only for euclidean and massive cases
@@ -140,3 +145,4 @@ def compute_kNN(
     adata.obsp[k_conn] = conn
     
     return adata    
+

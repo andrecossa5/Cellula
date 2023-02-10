@@ -14,7 +14,6 @@ import anndata
 import scanpy as sc
 from pegasus.tools.diff_expr import _de_test as DE
 
-from ..preprocessing import _GE_space as ge
 from .._utils import rescale, Timer
 from ._dist_features import one_hot_from_labels
 from ..ML._ML import classification
@@ -41,24 +40,22 @@ class Dist_features:
 
 	    # Genes
         self.genes = {}
-        self.genes['original'] = anndata.AnnData(
-            X=adata.X, 
-            var=pd.DataFrame(index=adata.var_names),
-            obs=pd.DataFrame(index=adata.obs_names)
-        )
+        self.genes['original'] = adata.copy()
 
         # PCs
-        g = ge.GE_space(adata).red().scale().pca() # FIX STRANGE BEHAVIOUR
-
+        from ..preprocessing._pp import pca, red, scale
+        reduced = pca(scale(red(adata)))
+        embs = reduced.obsm['scaled|original|X_pca']
+        loadings = reduced.varm['scaled|original|pca_loadings']
         PCs = pd.DataFrame(
-            data=g.PCA.embs,
-            columns=[ f'PC{x}' for x in range(1, g.PCA.loads.shape[1]+1)], 
+            data=embs,
+            columns=[ f'PC{x}' for x in range(1, embs.shape[1]+1)], 
             index=adata.obs_names
         )
         loadings = pd.DataFrame(
-            data=g.PCA.loads, 
-            index=adata.var_names[adata.var['highly_variable_features']],
-            columns=[ f'PC{x}' for x in range(1, g.PCA.loads.shape[1]+1) ]
+            data=loadings, 
+            index=reduced.var_names,
+            columns=[ f'PC{x}' for x in range(1, embs.shape[1]+1) ]
         )
         self.PCs = PCs 
 
@@ -66,7 +63,7 @@ class Dist_features:
         # Add others here...
         ####################################
         
-        del g
+        del reduced
 
         # Signatures
         self.signatures = signatures['scores'] if signatures is not None else None
@@ -411,5 +408,5 @@ class Dist_features:
         """
         Dump self.Results to path_results.
         """
-        with open(path_results + f'{name}.txt', 'wb') as f:
+        with open(path_results + f'{name}.pickle', 'wb') as f:
             pickle.dump(self.Results, f)

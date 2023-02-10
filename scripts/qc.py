@@ -5,7 +5,6 @@
 # Parsing CLI args 
 
 # Libraries
-import sys
 import argparse
 
 # Create the parser
@@ -93,13 +92,6 @@ my_parser.add_argument(
     help='n MADs for adaptive tresholds filtering. Default: 5.'
 )
 
-# Skip
-my_parser.add_argument(
-    '--skip', 
-    action='store_true',
-    help='Skip analysis. Default: False.'
-)
-
 # Parse arguments
 args = my_parser.parse_args()
 mode = args.mode
@@ -114,35 +106,33 @@ nmads = args.nmads
 ########################################################################
 
 # Preparing run: import code, set logger, prepare directories
-if not args.skip:
 
-    # Code
-    from Cellula._utils import *
-    from Cellula.plotting._plotting import *
-    from Cellula.preprocessing._qc import *
+# Code
+from Cellula._utils import *
+from Cellula.plotting._plotting import *
+from Cellula.preprocessing._qc import *
 
-    #-----------------------------------------------------------------#
+#-----------------------------------------------------------------#
+# Set other paths 
+path_matrices = path_main + '/matrices/'
+path_data = path_main + '/data/'
+path_runs = path_main + '/runs/'
+path_viz = path_main + '/results_and_plots/vizualization/QC/'
 
-    # Set other paths 
-    path_matrices = path_main + '/matrices/'
-    path_data = path_main + '/data/'
-    path_runs = path_main + '/runs/'
-    path_viz = path_main + '/results_and_plots/vizualization/QC/'
+# Create step_{i} folders. Overwrite, if they have already been created
+to_make = [ (path_runs, version), (path_viz, version), (path_data, version) ]
+for x, y in to_make:
+    make_folder(x, y, overwrite=True)
 
-    # Create step_{i} folders. Overwrite, if they have already been created
-    to_make = [ (path_runs, version), (path_viz, version), (path_data, version) ]
-    for x, y in to_make:
-        make_folder(x, y, overwrite=True)
+# Update paths
+path_data += f'/{version}/'
+path_runs += f'/{version}/'
+path_viz += f'/{version}/' 
 
-    # Update paths
-    path_data += f'/{version}/'
-    path_runs += f'/{version}/'
-    path_viz += f'/{version}/' 
+#-----------------------------------------------------------------#
 
-    #-----------------------------------------------------------------#
-
-    # Set logger 
-    logger = set_logger(path_runs, 'logs_qc.txt')
+# Set logger 
+logger = set_logger(path_runs, 'logs_qc.txt')
 
 ########################################################################
 
@@ -167,7 +157,7 @@ def qc():
         'nUMIs' : nUMIs_t,
         'detected_genes' : detected_genes_t
     }
-    adata = QC(
+    adata, removed_cells = QC(
         adatas, 
         mode=qc_mode, 
         min_cells=3, 
@@ -181,6 +171,9 @@ def qc():
     logger.info(adata)
     adata.write(path_data + 'QC.h5ad')
     adata.obs.to_csv(path_data + 'cells_meta.csv')
+
+    # Save removed cells 
+    pd.DataFrame({'cell':removed_cells}).to_csv(path_main + f'data/removed_cells/QC_{qc_mode}_{nUMIs_t}_{detected_genes_t}_{mito_perc_t}.csv')
    
     # Write final exec time
     logger.info(f'Execution was completed successfully in total {T.stop()} s.')
@@ -189,7 +182,6 @@ def qc():
 
 # Run program
 if __name__ == "__main__":
-    if not args.skip:
-        qc()
+    qc()
 
 #######################################################################

@@ -4,31 +4,9 @@ _clusterign.py: utils for clustering
 
 import numpy as np
 import pandas as pd
-import leidenalg
-import scanpy as sc
 from scipy.spatial.distance import cdist
-from sklearn.metrics import davies_bouldin_score, silhouette_score
 
-from .._utils import *
-
-
-##
-
-
-def leiden_clustering(A, res=0.5):
-    """
-    Compute leiden clustering, at some resolution.
-    """
-    g = sc._utils.get_igraph_from_adjacency(A, directed=True)
-    part = leidenalg.find_partition(
-        g,
-        leidenalg.RBConfigurationVertexPartition,
-        resolution_parameter=res,
-        seed=1234
-    )
-    labels = np.array(part.membership)
-
-    return labels
+from .._utils import custom_ARI
 
 
 ##
@@ -92,7 +70,7 @@ def compute_inertia(space, solution, metric='euclidean'):
 ##
 
 
-def kNN_purity(index, solution, **kwargs):
+def kNN_purity(index, solution):
     """
     Calculate kNN_purity for one partitioning.
     """
@@ -103,14 +81,3 @@ def kNN_purity(index, solution, **kwargs):
         purity.append(np.sum(labels == ref) / labels.size)
     
     return np.median(purity)
-
-
-##
-
-
-all_functions = {
-    'inertia' : compute_inertia,
-    'DB' : davies_bouldin_score,
-    'silhouette' : silhouette_score,
-    'kNN_purity' : kNN_purity
-}

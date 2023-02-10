@@ -106,7 +106,7 @@ def QC_plot(adata, ax, title=None):
     biplot, at different stages of cell QC.
     """
     scatter(adata.obs, 'nUMIs', 'detected_genes', by='mito_perc', c='viridis', ax=ax)
-    format_ax(adata.obs, ax, title=title, xlabel='nUMIs', ylabel='detected_genes')
+    format_ax(ax, title=title, xlabel='nUMIs', ylabel='detected_genes')
 
 
 ##  
@@ -123,7 +123,8 @@ def QC(adatas, mode='seurat', min_cells=3, min_genes=200, nmads=5, path_viz=None
     
     # For each adata, produce a figure
     with PdfPages(path_viz + 'original_QC_by_sample.pdf') as pdf:
-
+        
+        removed_cells = []
         for s, adata in adatas.items():
 
             fig, axs = plt.subplots(1,3,figsize=(15,5))
@@ -146,6 +147,8 @@ def QC(adatas, mode='seurat', min_cells=3, min_genes=200, nmads=5, path_viz=None
 
             # Post doublets removal QC plot
             sc.external.pp.scrublet(adata, random_state=1234)
+            adata_remove = adata[adata.obs['predicted_doublet'], :]
+            removed_cells.extend(list(adata_remove.obs_names))
             adata = adata[~adata.obs['predicted_doublet'], :].copy()
             n1 = adata.shape[0]
             logger.info(f'Cells retained after scrublet: {n1}, {n0-n1} removed.')
@@ -180,6 +183,8 @@ def QC(adatas, mode='seurat', min_cells=3, min_genes=200, nmads=5, path_viz=None
 
             # QC plot
             QC_test = (adata.obs['passing_mt']) & (adata.obs['passing_nUMIs']) & (adata.obs['passing_ngenes'])
+            removed = QC_test.loc[lambda x : x == False]
+            removed_cells.extend(list(removed.index.values))
             logger.info(f'Total cell filtered out with this last --mode {mode} QC (and its chosen options): {n1-np.sum(QC_test)}')
             adata = adata[QC_test, :].copy()
             n2 = adata.shape[0]
@@ -219,4 +224,4 @@ def QC(adatas, mode='seurat', min_cells=3, min_genes=200, nmads=5, path_viz=None
     sc.pp.filter_cells(adata, min_genes=min_genes)
     sc.pp.filter_genes(adata, min_cells=min_cells)
 
-    return adata
+    return adata, removed_cells

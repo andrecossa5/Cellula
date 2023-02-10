@@ -23,11 +23,10 @@ def load_data(path_data, version):
     Load data.
     """
     adata = sc.read(path_data + f'/{version}/clustered.h5ad')
-    embs = pd.read_csv(path_data + f'/{version}/embeddings.csv', index_col=0)
-    with open(path_data + f'/{version}/signatures.txt', 'rb') as f:
+    with open(path_data + f'/{version}/signatures.pickle', 'rb') as f:
         signatures = pickle.load(f)
     
-    return adata, embs, signatures
+    return adata, signatures
 
 
 ##
@@ -39,56 +38,65 @@ def viz(embs, feature, adata, q1, q2):
     """
 
     # Data prep
-    df_ = embs.assign(feature=feature).join(adata.obs)
-    cells_q1 = df_.query(q1).index.to_list()
+    df_ = embs.join(adata.obs).assign(feature=feature)
+    
+    # Prep covariates
 
-    if q2 == 'rest':
-        cells_q2 = df_.index[~df_.index.isin(cells_q1)].to_list()
-    else:
-        cells_q2 = df_.query(q2).index.to_list()
+    # Cat
+    df_['group'] = 'others'
+    df_.loc[df_.query(q1).index, 'group'] = 'q1'
+    df_.loc[df_.query(q2).index, 'group'] = 'q2'
+    
+    query = 'group != "others"'
+    if df_.query(query).shape[0] == 0:
+        query = None
 
-    df_['group'] = np.select(
-        [ df_.index.isin(cells_q1), df_.index.isin(cells_q2) ],
-        ['q1', 'q2']
+    # fig
+
+    fig, axs = plt.subplots(1,3,figsize=(16, 5))
+
+    # Cat
+    draw_embeddings(
+        df_, 
+        cat='group', 
+        ax=axs[0], 
+        query=query, 
+        legend_kwargs={
+            'bbox_to_anchor' : (0.0,1),
+            'loc' : 'upper right',
+            'only_top' : 30
+        }
     )
 
-    # Fig
-    fig, axs = plt.subplots(1,3, figsize=(13, 5))
-
     # Expression
-    scatter(df_, 'UMAP1', 'UMAP2', by='feature', c='viridis', s=0.5, a=1, ax=axs[0])
-    add_cbar(g, color='viridis', ax=axs[0], fig=fig, loc='upper left', label_size=7, 
-        ticks_size=5, width="20%", height="1%", label='Expression')
-    axs[0].set(title='Expression')
-    axs[0].axis('off')
-
-    # Groups
-    scatter(df_.query('group == "0"'), 'UMAP1', 'UMAP2', c='grey', s=0.1, a=1.0, ax=axs[1])
-    scatter(df_.query('group == "q1"'), 'UMAP1', 'UMAP2', c='#DF600B', s=0.1, a=1, ax=axs[1])
-    scatter(df_.query('group == "q2"'), 'UMAP1', 'UMAP2', c='#0B60DF', s=0.1, a=1, ax=axs[1])
-    axs[1].set(title='Groups')
-    axs[1].axis('off')
-
-    df_reduced = df_.query('group != "0"')
-    df_reduced['group'] = pd.Categorical(df_reduced['group'])
-    add_labels_on_loc(df_reduced, 'UMAP1', 'UMAP2', 'group', ax=axs[1], s=10)
-
-    # Violins
-    violin(df_reduced, x='group', y='feature', c={'q1':'#DF600B', 'q2':'#0B60DF'}, ax=axs[2], 
-        with_stats=True, pairs=[['q1', 'q2']])
+    draw_embeddings(
+        df_, 
+        cont='feature', 
+        ax=axs[1], 
+        query=query,
+        cbar_kwargs={
+            'pos' : 2
+        }
+    )
+  
+    # Violin
+    c = {
+        **create_palette(df_.query(query), 'group', sc.pl.palettes.vega_20_scanpy), 
+        **{'others':'darkgrey'}
+    }
+    order = ['q1', 'q2', 'others']
+    violin(df_, x='group', y='feature', c=c, ax=axs[2], order=order)
+    format_ax(axs[2], title='q1 vs q2', title_size=10, xticks=order)
+    add_wilcox(df_, 'group', 'feature', [['q1', 'q2']], axs[2], order=order)
     axs[2].spines.right.set_visible(False)
     axs[2].spines.top.set_visible(False)
-    axs[2].spines.left.set_visible(False)
-    axs[2].spines.bottom.set_visible(False)
-    format_ax(df_reduced, ax=axs[2], title='q1 vs q2', xticks=['q1', 'q2'], yticks='')
-
-    fig.tight_layout()
+    plt.subplots_adjust(left=0.15, top=0.85, right=0.85, bottom=0.15)
 
     # Report medians and pval
     from scipy.stats import mannwhitneyu
-    x = df_reduced.loc[cells_q1, :]['feature']
+    x = df_.loc[df_.query(q1).index,:]['feature']
     x_median = x.median()
-    y = df_reduced.loc[cells_q2, :]['feature']
+    y = df_.loc[df_.query(q2).index,:]['feature']
     y_median = y.median()
 
     p = round(mannwhitneyu(x, y)[1], 3)
@@ -141,7 +149,12 @@ submit_data = form_data.form_submit_button('Load')
 ##
 
 # Load data
-adata, embs, signatures = load_data(path_data, version)
+adata, signatures = load_data(path_data, version)
+embs = pd.DataFrame(
+    adata.obsm['X_umap'], 
+    columns=['UMAP1', 'UMAP2'], 
+    index=adata.obs_names
+)
 plot = False
 
 # Show cats
@@ -228,14 +241,18 @@ elif query == 'user-defined':
 
 # Report
 if plot:
+    # q1 = 'sample == "a"'
+    # q2 = 'sample == "b"'
     p, x_median, y_median, fig = viz(embs, feature, adata, q1, q2)
     st.markdown('Compute DE among selected cells...')
     st.pyplot(fig)
+    status = 'upregulated' if x_median>y_median else 'downregulated'
     st.markdown(f"""
         Differential expression/activation results
         * q1 median: {x_median:.3f}
         * q2 median: {y_median:.3f} 
-        * Fold-Change: __{x_median / (y_median + 0.00001):.3f}__
+        * Status : {status}
+        * Fold-Change: __{abs(x_median / (y_median + 0.00001)):.3f}__
         * pvalue: __{p:.3f}__
         """
     )

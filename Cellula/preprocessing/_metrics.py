@@ -2,16 +2,18 @@
 _metrics.py: integration metrics functions.
 """
 
-import gc
+
+import sys
 from joblib import cpu_count, parallel_backend, Parallel, delayed
 import numpy as np
 import pandas as pd
 import scanpy as sc
 from scipy.stats import chi2
-from scipy.special import binom
 from scipy.sparse.csgraph import connected_components
+from sklearn.metrics import normalized_mutual_info_score
 
-from .._utils import chunker
+from .._utils import *
+from ..clustering._clustering import leiden_clustering
 
 
 ##
@@ -47,29 +49,29 @@ def kbet_one_chunk(index, batch, null_dist):
 ##
 
 
-def choose_K_for_kBET(meta, covariate):
-    """
-    Use the heuristic set in Buttner et al. 2018 to choose the optimal number of NN (K)
-    to evaluate the kBET metric.
-    """
-
-    # Check 'seq_run' is in meta
-    try:
-        meta[covariate]
-    except:
-        print(f'No {covariate} in cells meta! Reformat.')
-        sys.exit()
-
-    # Calculate K 
-    K = np.min(pd.Series(meta['seq_run'].value_counts()).values) // 4
-
-    return K
+# def choose_K_for_kBET(adata, covariate):
+#     """
+#     Use the heuristic set in Buttner et al. 2018 to choose the optimal number of NN (K)
+#     to evaluate the kBET metric.
+#     """
+# 
+#     # Check 'seq_run' is in meta
+#     try:
+#         adata.obs[covariate]
+#     except:
+#         print(f'No {covariate} in cells meta! Reformat.')
+#         sys.exit()
+# 
+#     # Calculate K 
+#     K = np.min(pd.Series(adata.obs['seq_run'].value_counts()).values) // 4
+# 
+#     return K
     
 
 ##
 
 
-def kbet(index, batch, alpha=0.05):
+def kbet(index, batch, alpha=0.05, only_score=True):
     """
     Re-implementation of pegasus kBET, to start from a pre-computed kNN index.
     """
@@ -101,45 +103,40 @@ def kbet(index, batch, alpha=0.05):
     stat_mean, pvalue_mean = kBET_arr.mean(axis=0)
     accept_rate = (kBET_arr[:, 1] >= alpha).sum() / len(batch)
 
-    return (stat_mean, pvalue_mean, accept_rate)
+    if only_score:
+        return accept_rate
+    else:
+        return (stat_mean, pvalue_mean, accept_rate)
 
 
 ##
 
 
-def graph_conn(adata, conn, labels=None, resolution=0.2):
+def graph_conn(A, labels=None, resolution=0.2):
     """
     Compute the graph connectivity metric of some kNN representation (conn).
     """
-    # Prep adata
-    adata.uns['neighbors'] = {}
-    adata.obsp['connectivities'] = conn
-    
     # Compute the graph connectivity metric, for each separate cluster
     per_group_results = []
-    
     # Labels 
-    if labels is None:
-        sc.tl.leiden(adata, resolution=resolution, key_added='groups') # Dataset-specific tuning
-        labels = adata.obs['groups']
+    if labels is None:    
+        labels = leiden_clustering(A, res=resolution) #A e' la matrice di connectivities
+        labels = pd.Categorical(labels)
     else:
-        adata.obs['groups'] = pd.Series(labels).astype('category')
-
+        pass
     # Here we go
-    for g in labels.cat.categories:
-        adata_sub = adata[adata.obs['groups'].isin([g]), :]
+    for g in labels.categories:
+        test = labels == g
         # Calculate connected components labels
         _, l = connected_components(
-            adata_sub.obsp["connectivities"], connection="strong"
+           A[np.ix_(test, test)], connection="strong"
         )
         tab = pd.value_counts(l)
         per_group_results.append(tab.max() / sum(tab))
     
     return np.mean(per_group_results)
 
-
 ##
-
 
 def entropy_bb(index, batch):
     """
@@ -148,7 +145,7 @@ def entropy_bb(index, batch):
     SH = []
     for i in range(index.shape[0]):
         freqs = batch[index[i, :]].value_counts(normalize=True).values
-        SH.append( - np.sum(freqs * np.log(freqs + 0.00001))) # Avoid 0 division
+        SH.append(-np.sum(freqs * np.log(freqs + 0.00001))) # Avoid 0 division
     
     return np.median(SH)
 
@@ -179,49 +176,81 @@ def kNN_retention_perc(original_idx, int_idx):
 ##
 
 
-def leiden_from_kNN(adata, conn, resolution=0.2):
+def compute_NMI(original_conn, integrated_conn, labels=None, resolution=0.2):
     """
-    Compute Leiden clustering from an adata and an already pre-computed kNN connectivity matrix.
+    Compute the normalized mutual information score among labels 
+    obtained by clustering original and integrated kNN graphs.
     """
-    M = adata.copy() # Do not overwrite
-    M.uns['neighbors'] = {}
-    M.obsp['connectivities'] = conn
-    sc.tl.leiden(M, resolution=resolution, random_state=1234)
-    leiden = M.obs['leiden'].values
-    del M
-    gc.collect()
+    # Check if ground truth is provided and compute original and integrated labels 
+    if labels is None:
+        g1 = leiden_clustering(original_conn, res=resolution)
+    else:
+        g1 = labels
+    g2 = leiden_clustering(integrated_conn, res=resolution)
 
-    return leiden
+    # Compute NMI score
+    score = normalized_mutual_info_score(g1, g2, average_method='arithmetic')
+
+    return score
+    
+
+##
+
+
+def compute_ARI(original_conn, integrated_conn, labels=None, resolution=0.2):
+    """
+    Compute the Adjusted Rand Index score among labels 
+    obtained by clustering original and integrated kNN graphs.
+    """
+    # Check if ground truth is provided and compute original and integrated labels 
+    if labels is None:
+        g1 = leiden_clustering(original_conn, res=resolution)
+    else:
+        g1 = labels
+    g2 = leiden_clustering(integrated_conn, res=resolution)
+
+    # Compute ARI score
+    score = custom_ARI(g1, g2)
+
+    return score
 
 
 ##
 
 
-def binom_sum(x, k=2):
-    return binom(x, k).sum()
+def kBET_score(adata, covariate='seq_run', method='original', layer='lognorm', k=15, n_components=30):
+    """
+    Function to calculate the kBET score for a given layer, method, k and n_components 
+    and store it in a dictionary for use in the kBET script prior to integration.
+    """
+    score = {}
+
+    KNN_index = get_representation(
+        adata, 
+        layer=layer, 
+        method=method, 
+        k=k, 
+        n_components=n_components, 
+        only_index=True
+    )
+
+    batch = adata.obs[covariate]
+    score_kbet = kbet(KNN_index, batch)
+    key = f'{layer}|{method}|{k}_NN_{n_components}_comp'
+    score = {key:score_kbet}
+
+    return score
 
 
 ##
 
 
-def custom_ARI(g1, g2):
-    """
-    Compute scib modified ARI.
-    """
 
-    # Contingency table
-    n = len(g1)
-    contingency = pd.crosstab(g1, g2)
-
-    # Calculate and rescale ARI
-    ai_sum = binom_sum(contingency.sum(axis=0))
-    bi_sum = binom_sum(contingency.sum(axis=1))
-    index = binom_sum(np.ravel(contingency))
-    expected_index = ai_sum * bi_sum / binom_sum(n, 2)
-    max_index = 0.5 * (ai_sum + bi_sum)
-
-    return (index - expected_index) / (max_index - expected_index)
-
-
-
-  
+all_functions = {
+    'kBET' : kbet,
+    'entropy_bb' : entropy_bb,
+    'graph_conn' : graph_conn,
+    'kNN_retention_perc' : kNN_retention_perc,
+    'NMI': compute_NMI, 
+    'ARI': compute_ARI
+}

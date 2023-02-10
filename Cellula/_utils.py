@@ -11,6 +11,7 @@ from joblib import cpu_count
 from shutil import rmtree 
 import pandas as pd 
 import numpy as np 
+from scipy.special import binom
 
 
 ##
@@ -100,11 +101,41 @@ def chunker(n):
 ##
 
 
+def run_command(func, *args, verbose=False, **kwargs):
+    """
+    Helper function caller.
+    """
+    if verbose:
+        print(f'{func.__name__} called with *args {args} and **kwargs {kwargs}')
+
+    t = Timer()
+    t.start()
+    out = func(*args, **kwargs)
+    print(f'Elapsed time: {t.stop()}')
+    
+    return out
+
+##
+
+
+def update_params(d_original, d_passed):
+    for k in d_passed:
+        if k in d_original:
+            pass
+        else:
+            print(f'{k}:{d_passed[k]} kwargs added...')
+        d_original[k] = d_passed[k]
+        
+    return d_original
+
+
+##
+
+
 def fix_sorting(L):
     """
     Sort a list with strings beginning with numbers.
     """
-    L = list(df_separation['kNN'].unique())
     numeric_sorted = sorted([ int(x.split('_')[0]) for x in L ])
     new_L = []
     for x in numeric_sorted:
@@ -126,4 +157,61 @@ def rescale(x):
         return (x - np.min(x)) / (np.max(x) - np.min(x))
     else:
         return x
+
+
+##
+
+
+def get_representation(adata, layer=None, method='original', k=None, n_components=None, 
+    only_index=False, only_conn=False):
+    """
+    Take out desired representation from a adata.obsm/obsp.
+    """
+    embedding_type = 'X_pca' if method == 'original' else 'X_corrected'
+    if method != 'BBKNN' and k is None and n_components is None:
+        representation = adata.obsm[f'{layer}|{method}|{embedding_type}']
+    elif method == 'BBKNN' and k is None and n_components is None:
+        raise ValueError('The BBKNN method has no associated X_corrected embedding.')
+    else:
+        representation = (
+            adata.obsm[f'{layer}|{method}|{embedding_type}|{k}_NN_{n_components}_comp_idx'],
+            adata.obsp[f'{layer}|{method}|{embedding_type}|{k}_NN_{n_components}_comp_conn'],
+            adata.obsp[f'{layer}|{method}|{embedding_type}|{k}_NN_{n_components}_comp_dist']
+        )
+        if only_index:
+            representation = representation[0]
+        if only_conn:
+            representation = representation[1]
+            
+    return representation
+
+
+##
+
+
+def binom_sum(x, k=2):
+    return binom(x, k).sum()
+
+
+##
+
+
+def custom_ARI(g1, g2):
+    """
+    Compute scib modified ARI.
+    """
+
+    # Contingency table
+    n = len(g1)
+    contingency = pd.crosstab(g1, g2)
+
+    # Calculate and rescale ARI
+    ai_sum = binom_sum(contingency.sum(axis=0))
+    bi_sum = binom_sum(contingency.sum(axis=1))
+    index = binom_sum(np.ravel(contingency))
+    expected_index = ai_sum * bi_sum / binom_sum(n, 2)
+    max_index = 0.5 * (ai_sum + bi_sum)
+
+    return (index - expected_index) / (max_index - expected_index)
+
 

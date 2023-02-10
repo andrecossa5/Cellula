@@ -53,22 +53,6 @@ my_parser.add_argument(
     help='The clustering solution to choose. Default: None.'
 )
 
-# rep
-my_parser.add_argument( 
-    '--rep', 
-    type=str,
-    default='original',
-    help='Final representation to use for cell embeddings. Default: original.'
-)
-
-# Chosen 
-my_parser.add_argument( 
-    '--kNN', 
-    type=str,
-    default=None,
-    help='Final kNN to use for cell embeddings. Default: 15_NN_30_components.'
-)
-
 # Remove cell subsets
 my_parser.add_argument( 
     '--remove', 
@@ -91,8 +75,6 @@ path_main = args.path_main
 version = args.version
 chosen = args.chosen
 remove = args.remove
-rep = args.rep
-kNN = args.kNN
 
 ########################################################################
 
@@ -107,7 +89,7 @@ if not args.skip:
     from Cellula.clustering._Clust_evaluator import *
     from Cellula.plotting._plotting import *
     from Cellula.plotting._colors import *
-    from Cellula.preprocessing._embeddings import embeddings
+    from Cellula.preprocessing._embeddings import *
 
     #-----------------------------------------------------------------#
 
@@ -208,6 +190,7 @@ def clustering_diagnostics():
         # Add chosen to adata.obs and create colors
         adata.obs[chosen] = clustering_solutions[chosen] 
         colors = create_colors(adata.obs, chosen=chosen) 
+
         # Fig
         fig = QC_plot(
             adata.obs, 
@@ -218,7 +201,6 @@ def clustering_diagnostics():
             legend=True, 
             labels=True,
         )
-
         fig.savefig(path_viz + f'QC_{chosen}.pdf')
 
         logger.info(f'Adding {chosen} solution QC vizualization: {t.stop()} s.')
@@ -246,15 +228,13 @@ def clustering_diagnostics():
 
         logger.info(f'ARI among solutions: total {t.stop()} s.')
 
-        # Initialize Clust_evaluator
+        # Calculate metrics (NB. all intrinsic metrics. No ground truth needed.)
         t.start()
         logger.info('Begin calculation of clusters separation and purity metrics...')
-        C = Clust_evaluator(adata, clustering_solutions)
 
-        # Calculate metrics (NB. all intrinsic metrics. No ground truth needed.)
-        for metric in C.up_metrics + C.down_metrics:
-            C.compute_metric(metric=metric)
-
+        C = Clust_evaluator(adata, clustering_solutions, metrics='all')
+        C.parse_options()
+        C.compute_metrics()
         logger.info(f'Metrics calculation: total {t.stop()} s.')
 
         # Clustering runs evaluation
@@ -267,14 +247,7 @@ def clustering_diagnostics():
         t.start()
 
         # Overall solution rankings 
-        fig = C.viz_results(
-            df, 
-            df_summary, 
-            df_rankings, 
-            feature='score', 
-            by='ranking', 
-            figsize=(15,5)
-        )
+        fig = C.viz_results(df, df_summary, df_rankings)
         fig.savefig(path_viz + 'clustering_solutions_rankings.pdf')
 
         # Clusters separation metrics trends
@@ -307,7 +280,7 @@ def clustering_diagnostics():
         logger.info('Diagnostics 3: Top clustering solutions relationships.')
 
         # Load markers
-        with open(path_main + f'results_and_plots/dist_features/{version}/clusters_markers.txt', mode='rb') as f:
+        with open(path_main + f'results_and_plots/dist_features/{version}/clusters_markers.pickle', mode='rb') as f:
             markers = pickle.load(f)
 
         # Subset 
@@ -344,33 +317,57 @@ def clustering_diagnostics():
     #-----------------------------------------------------------------#
 
     # Final choice: chosen viz + write clustered adata
-
     if chosen is not None: # Only chosen
 
         t.start()
+        logger.info(f'{chosen} embeddings/vizualization options')
 
-        logger.info(f'{chosen} embeddings/vizualization options: --rep {rep} --kNN {kNN}')
-
-        # Read pre-processed and log-normalized adata
+        # Read pre-processed adata
         pp = sc.read(path_data + 'preprocessed.h5ad')
         clustering_solutions = pd.read_csv(
             path_results + 'clustering_solutions.csv', 
             index_col=0, 
             dtype='category'
         )
-        lognorm = sc.read(path_data + 'lognorm.h5ad')
 
-        # Merge info 
-        adata = lognorm.copy()
-        adata.obsm = pp.obsm 
-        adata.obsp = pp.obsp
-        adata.uns = pp.uns
-        adata.obs['leiden'] = clustering_solutions[chosen].astype('category')
+        # Add chosen to pp.obs
+        pp.obs[chosen] = clustering_solutions[chosen]
+
+        # Get info from preprocessed adata and chosen clustering solution
+        layer = list(pp.obsm.keys())[0].split('|')[0]
+        int_method =  list(pp.obsm.keys())[0].split('|')[1]
+        k = int(chosen.split('_')[0])
+        n_components = int(chosen.split('_')[2])
 
         # Compute final embeddings
-        df = embeddings(adata, paga_groups='leiden', rep=rep, key=kNN)
+        df = embeddings(
+            pp, 
+            paga_groups=chosen, 
+            layer=layer,
+            rep=int_method,
+            k=k,
+            n_components=n_components
+        )
+        X_umap = df.loc[:, ['UMAP1', 'UMAP2']].values
 
-        # Save clustered and cells_embeddings
+        # Fill info in a final, cleaned adata
+        lognorm = sc.read(path_data + 'lognorm.h5ad')
+        adata = lognorm.copy()
+        adata.obs['leiden'] = clustering_solutions[chosen].astype('category')
+        space = 'X_pca' if int_method == 'original' else 'X_corrected'
+        adata.obsm['X_reduced'] = pp.obsm[f'{layer}|{int_method}|{space}']
+        adata.obsm['X_umap'] = X_umap
+        adata.obsm['kNN_index'] = pp.obsm[f'{layer}|{int_method}|{space}|{k}_NN_{n_components}_comp_idx']
+        adata.obsp['connectivities'] = pp.obsp[f'{layer}|{int_method}|{space}|{k}_NN_{n_components}_comp_conn']
+       
+        # Put all chosen options in a dictionary
+        adata.uns['final_pp_clustering_options'] = {
+            'layer' : layer,
+            'representation' : int_method,
+            'chosen_solution' : chosen
+        }
+
+        # Save clustered adata and cells_embeddings
         print(adata)
         adata.write(path_data + 'clustered.h5ad')
         df.to_csv(path_data + 'embeddings.csv')
@@ -398,12 +395,11 @@ def remove_partition():
 
     # Write to data/removed_cells/step/
     path_remove = path_data + '/removed_cells/'
-    make_folder(path_remove, version, overwrite=False)
     pd.DataFrame(
         data=to_remove, 
         index=to_remove, 
         columns=['cell']
-    ).to_csv(path_remove + f'/{version}/removed.csv')
+    ).to_csv(path_remove + f'/{version}_clustering_{s}_{p}_cells.csv')
 
     # Print exec time and exit
     logger.info(f'Remove cells from {remove}: {T.stop()} s.')

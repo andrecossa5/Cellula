@@ -13,9 +13,10 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import seaborn as sns 
 plt.style.use('default')
 
+from ._colors import *
 from ._plotting_base import *
 from ..preprocessing._embeddings import embeddings
-from ..preprocessing._GE_space import GE_space
+from .._utils import *
 
 
 ##
@@ -76,16 +77,17 @@ def plot_heatmap(df, palette='mako', ax=None, title=None, x_names=True, y_names=
 ##
 
 
-def plot_rankings(df, df_rankings, df_summary, feature='score', by='score', assessment=None, loc='lower left', 
-    bbox_to_anchor=(0.1, 0.25), figsize=(8,5), legend=True):
+def plot_rankings(df, df_rankings, df_summary, feature='rescaled_score', by='score', loc='upper right', 
+    bbox_to_anchor=(1,1), figsize=(13,5), title='', legend=True):
     """
     Plot rankings. 
     """
+
     # Join
     df_viz = df.merge(df_rankings, on=['run', 'metric'])
+
     # Create categories and colors
-    categories = df_viz['type'].unique()
-    colors = sns.color_palette('dark', len(categories))
+    colors = create_palette(df, 'metric', 'dark')
 
     # Create runs order
     if by == 'score':
@@ -95,7 +97,7 @@ def plot_rankings(df, df_rankings, df_summary, feature='score', by='score', asse
 
     # Figure
     fig, ax = plt.subplots(figsize=figsize)
-    # Box
+
     sns.boxplot(
         data=df_viz, 
         x='run', 
@@ -108,25 +110,22 @@ def plot_rankings(df, df_rankings, df_summary, feature='score', by='score', asse
             'medianprops':{'color':'black'}, 'whiskerprops':{'color':'black'}, 'capprops':{'color':'black'}
         }
     )
-    # Swarm on top
-    sns.swarmplot(
+    sns.stripplot(
         data=df_viz, 
         x='run', 
-        y=feature, 
-        hue='type',
+        y=feature,
+        hue='metric',
         order=order, 
-        palette=colors
+        palette=colors.values()
     )
     
     # Remove dafault legend, and add custom if requested 
-    ax.legend([],[], frameon=False)
     if legend:
-        handles = create_handles(categories, colors=colors)
-        fig.legend(handles=handles, loc=loc, bbox_to_anchor=bbox_to_anchor, frameon=True, shadow=False, title='Type')
-    # Ticks and axis
-    ax.set(title=f'{assessment} runs {feature}. Runs ordered by mean {by}', ylabel=feature.capitalize(), xlabel='') 
-    ax.tick_params(axis='x', labelrotation = 90)
-
+        ax.legend([], [], frameon=False)
+        add_legend(label='Metric', colors=colors, ax=ax, loc=loc, bbox_to_anchor=bbox_to_anchor, ncols=2)
+    
+    # Ticks and axis``
+    format_ax(ax, xlabel='', title=title, ylabel='Rescaled score', rotx=90)
     fig.tight_layout()
      
     return fig
@@ -140,9 +139,6 @@ def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), labels=Fals
     """
     Plot boxplot of QC covariates, by some cell goruping.
     """
-
-    # Format data 
-
     # Figure
     fig = plt.figure(figsize=figsize)
     # Axes
@@ -178,7 +174,7 @@ def pca_var_plot(exp_var, cum_sum, title, ax):
         where='mid', label='Cumulative explained variance'
     )
     ax.set(xlabel='PC rank', ylabel='Explained variance ratio', title=title)
-    ax.legend(loc='best')
+    ax.legend(fontsize=6, loc='center right')
 
     return ax
 
@@ -186,13 +182,20 @@ def pca_var_plot(exp_var, cum_sum, title, ax):
 ##
 
 
-def explained_variance_plot(GE_spaces, figsize=(10,7)):
+def explained_variance_plot(adata, figsize=(10,7)):
     # Figure
     fig = plt.figure(figsize=figsize)
     # Axes
-    for i, key in enumerate(GE_spaces):
-        ax = plt.subplot(2, 2, i+1)
-        pca_var_plot(GE_spaces[key].PCA.var_ratios, GE_spaces[key].PCA.cum_sum_eigenvalues, key, ax=ax)
+    i = 0
+    for k in adata.obsm:
+        ax = plt.subplot(2, 3, i+1)
+        i = i + 1
+        pca_var_plot(
+            adata.uns[k.replace('X_pca','pca_var_ratios')], 
+            adata.uns[k.replace('X_pca','cum_sum_eigenvalues')], 
+            k.split('|')[0], 
+            ax=ax
+        )
     fig.tight_layout()
 
     return fig
@@ -201,18 +204,19 @@ def explained_variance_plot(GE_spaces, figsize=(10,7)):
 ##
 
 
-def plot_biplot_PCs(g, covariate='sample', colors=None):
+def plot_biplot_PCs(adata, layer=None, covariate='sample', colors=None):
     """
     Plot a biplot of the first 5 PCs, colored by a cell attribute.
     """
     # Data
+    embs = get_representation(adata, layer=layer, method='original')
     df_ = pd.DataFrame(
-        data=g.PCA.embs[:,:5], 
+        data=embs[:,:5], 
         columns=[f'PC{i}' for i in range(1,6)],
-        index=g.matrix.obs_names
+        index=adata.obs_names
     )
 
-    df_[covariate] = g.matrix.obs[covariate] 
+    df_[covariate] = adata.obs[covariate] 
 
     # Figure
     fig, axs = plt.subplots(5, 5, figsize=(10, 10), sharex=True, sharey=True)
@@ -224,7 +228,7 @@ def plot_biplot_PCs(g, covariate='sample', colors=None):
                     scatter(df_, x, y, by=covariate, c=colors[covariate], a=1, s=0.1, ax=axs[i,j])
                 else:
                     scatter(df_, x, y, by=covariate, c='viridis', a=1, s=0.1, ax=axs[i,j])
-                format_ax(df_, axs[i, j], xlabel=x, ylabel=y)
+                format_ax(axs[i, j], xlabel=x, ylabel=y)
 
     # Legend/colorbar
     if colors is not None and covariate in colors:
@@ -253,36 +257,24 @@ def plot_biplot_PCs(g, covariate='sample', colors=None):
 ##
 
 
-def plot_embeddings(g, rep='original', colors=None, a=1, s=0.1, umap_only=True):
+def plot_embeddings(adata, layer=None, rep='original', k=15, n_components=30):
     """
-    Plot QC covariates in the UMAP embeddings obtained from original data.
+    Plot QC covariates in the UMAP embeddings obtained from original or original and integrated data.
     """
 
     # Prep data
-    adata = g.to_adata(rep=rep)
-    df = embeddings(adata, paga_groups='sample', rep=rep, umap_only=umap_only).loc[:, ['UMAP1', 'UMAP2']]
-    df = df.join(adata.obs)
+    umap = embeddings(adata, paga_groups='sample', rep=rep, layer=layer, 
+    umap_only=True, k=k, n_components=n_components)
+    umap = umap.join(adata.obs)
 
     covariates = ['seq_run', 'sample', 'nUMIs', 'cycle_diff']
-
-    # Fig
-    fig, axs = plt.subplots(1,4, figsize=(12,4))
-
-    for i, cov in enumerate(covariates):
-        
-        # Set covariate color(s)
-        c = colors[cov] if colors is not None and cov in colors else 'viridis'
-
-        # Orig, first row
-        scatter(df, 'UMAP1', 'UMAP2', by=cov, c=c, a=a, s=s, ax=axs[i])
-        format_ax(df, ax=axs[i], xlabel='UMAP1', ylabel='UMAP2')
-        axs[i].axis('off')
-
-        if c == 'viridis':
-            add_cbar(cov, ax=axs[i], fig=fig, color='viridis')
+    fig, axs = plt.subplots(1, len(covariates), figsize=(6 * len(covariates), 6))
+    for i, c in enumerate(covariates):
+        if c == 'nUMIs' or c == 'cycle_diff':
+            draw_embeddings(umap, cont=c, ax=axs[i])
         else:
-            add_legend(df, cov, ax=axs[i], colors=c)
-
+            draw_embeddings(umap, cat=c, ax=axs[i])
+    # Fig
     fig.tight_layout()
 
     return fig
@@ -291,43 +283,199 @@ def plot_embeddings(g, rep='original', colors=None, a=1, s=0.1, umap_only=True):
 ##
 
 
-def plot_orig_int_embeddings(g, rep_1='original', rep_2='BBKNN', colors=None, a=1, s=0.1):
+def format_draw_embeddings(
+    ax, df, x, y, title=None, cat=None, cont=None, axes_params={}):
     """
-    Plot QC covariates in the UMAP embeddings obtained from original and integrated data.
+    Utils to format a draw embeddings plots.
+    """
+    legend_params = axes_params['legend_params']
+    cbar_params = axes_params['cbar_params']
+
+    not_format_keys = ['only_labels', 'no_axis', 'legend', 'cbar', 'legend_params', 'cbar_params']
+    format_kwargs = { k : axes_params[k] for k in axes_params if k not in not_format_keys }
+
+    if title is None:
+        cov = cat if cat is not None else cont 
+        title = cov.capitalize()
+    else:
+        assert isinstance(title, str)
+
+    format_ax(ax=ax, xlabel=x, ylabel=y, title=title, **format_kwargs)
+
+    if axes_params['only_labels']:
+        remove_ticks(ax)
+    elif axes_params['no_axis']:
+        ax.axis('off')
+    
+    if axes_params['legend'] and cat is not None:
+        if 'label' not in legend_params or legend_params['label'] is None:
+            legend_params['label'] = cat.capitalize()
+        add_legend(ax=ax, **legend_params)
+    
+    elif axes_params['cbar'] and cont is not None:
+        add_cbar(df[cont], label=cont, ax=ax, **cbar_params)
+
+    return ax
+
+
+##
+
+
+def handle_colors(df, cat, legend_params, query=None):
+    """
+    Util to handle colors in draw_embeddings.
+    """
+    if query is not None:
+        df_ = df.query(query)
+    else:
+        df_ = df
+
+    categories = df_[cat].unique()
+    if categories.size <=20 and legend_params['colors'] is None:
+        palette_cat = sc.pl.palettes.vega_20_scanpy
+        legend_params['colors'] = create_palette(df_, cat, palette_cat)
+    elif categories.size > 20 and legend_params['colors'] is None:
+        palette_cat = sc.pl.palettes.godsnot_102
+        legend_params['colors'] = create_palette(df_, cat, palette_cat)
+    elif isinstance(legend_params['colors'], dict):
+        legend_params['colors'] = { 
+            k: legend_params['colors'][k] for k in legend_params['colors'] \
+            if k in categories
+        }
+    else:
+        raise ValueError('Provide a correctly formatted palette for your categorical labels!')
+
+    return legend_params
+
+
+##
+
+
+def draw_embeddings(
+    df, x='UMAP1', y='UMAP2', cat=None, cont=None, ax=None, s=3, query=None, title=None,
+    cbar_kwargs={}, legend_kwargs={}, axes_kwargs={}):
+    """
+    Draw covariates on embeddings plot.
     """
 
-    # Prep data
-    orig = g.to_adata(rep=rep_1)
-    integrated = g.to_adata(rep=rep_2)
-    umap_orig = embeddings(orig, paga_groups='sample', rep=rep_1, umap_only=True).loc[:, ['UMAP1', 'UMAP2']]
-    umap_int = embeddings(integrated, paga_groups='sample', rep=rep_2, umap_only=True).loc[:, ['UMAP1', 'UMAP2']]
-    umap_orig = umap_orig.join(orig.obs)
-    umap_int = umap_int.join(integrated.obs)
-    covariates = ['seq_run', 'sample', 'nUMIs', 'cycle_diff']
+    cbar_params={
+        'color' : 'viridis',
+        'label_size' : 8, 
+        'ticks_size' : 6,  
+        'pos' : 2,
+        'orientation' : 'v'
+    }
 
-    # Fig
-    fig, axs = plt.subplots(2,4,figsize=(12,6))
+    legend_params={
+        'bbox_to_anchor' : (1,1),
+        'loc' : 'upper right', 
+        'label_size' : 10,
+        'ticks_size' : 8,
+        'colors' : None,
+        'ncols' : 1
+    }
 
-    for i, cov in enumerate(covariates):
-        
-        # Set covariate color(s)
-        c = colors[cov] if colors is not None and cov in colors else 'viridis'
+    axes_params = {
+        'only_labels' : True,
+        'no_axis' : False, 
+        'legend' : True,
+        'cbar' : True,
+        'title_size' : 10
+    }
 
-        # Orig, first row
-        scatter(umap_orig, 'UMAP1', 'UMAP2', by=cov, c=c, a=a, s=s, ax=axs[0, i])
-        format_ax(umap_orig, ax=axs[0, i], xlabel='UMAP1', ylabel='UMAP2')
-        axs[0, i].axis('off')
+    cbar_params = update_params(cbar_params, cbar_kwargs)
+    legend_params = update_params(legend_params, legend_kwargs)
+    axes_params = update_params(axes_params, axes_kwargs)
+    axes_params['cbar_params'] = cbar_params
+    axes_params['legend_params'] = legend_params
 
-        if c == 'viridis':
-            add_cbar(cov, ax=axs[0, i], fig=fig, color='viridis')
+    if cat is not None and cont is None:
+
+        legend_params = handle_colors(df, cat, legend_params, query=query)
+
+        if query is None:
+            scatter(df, x=x, y=y, by=cat, c=legend_params['colors'], ax=ax, s=s)
+            format_draw_embeddings(ax, df, x, y, title=title,
+                cat=cat, cont=None, axes_params=axes_params
+            )
         else:
-            add_legend(umap_orig, cov, ax=axs[0, i], colors=c)
+            if isinstance(query, str):
+                subset = df.query(query).index
+            else:
+                subset = query
+            if subset.size > 0:
+                legend_params['colors'] = {**legend_params['colors'], **{'others':'darkgrey'}}
+                scatter(df.loc[~df.index.isin(subset), :], x=x, y=y, c='darkgrey', ax=ax, s=s/3)
+                scatter(df.loc[subset, :], x=x, y=y, by=cat, c=legend_params['colors'], ax=ax, s=s)
+                format_draw_embeddings(ax, df.loc[subset, :], x, y, title=title,
+                    cat=cat, cont=None, axes_params=axes_params
+                )
+            else:
+                raise ValueError('The queried subset has no obs...')
+    
+    elif cat is None and cont is not None:
+        
+        if query is None:
+            scatter(df, x=x, y=y, by=cont, c=cbar_params['color'], ax=ax, s=s)
+            format_draw_embeddings(ax, df, x, y, title=title, cont=cont, axes_params=axes_params)
+        else:
+            if isinstance(query, str):
+                subset = df.query(query).index
+            else:
+                subset = query
+            if subset.size > 0:
+                scatter(df.loc[~df.index.isin(subset), :], x=x, y=y, c='darkgrey', ax=ax, s=s/3)
+                scatter(df.loc[subset, :], x=x, y=y, by=cont, c=cbar_params['color'], ax=ax, s=s)
+                format_draw_embeddings(
+                    ax, df.loc[subset, :], x, y, title=title, cont=cont, axes_params=axes_params
+                )
+            else:
+                raise ValueError('The queried subset has no obs available...')
 
-        # Integrated, second row
-        scatter(umap_int, 'UMAP1', 'UMAP2', by=cov, c=c, a=a, s=s, ax=axs[1, i])
-        format_ax(umap_int, ax=axs[1, i], xlabel='UMAP1', ylabel='UMAP2')
-        axs[1, i].axis('off')
+    else:
+        raise ValueError('Specifiy either a categorical or a continuous covariate for plotting.')
 
+    return ax
+
+
+##
+
+
+def faceted_draw_embedding(
+    df, x='UMAP1', y='UMAP2', figsize=None, n_cols=None,
+    cont=None, cat=None, query=None, facet=None, **kwargs):
+    """
+    Draw embeddings with faceting.
+    """
+    fig = plt.figure(figsize=figsize)
+
+    n_axes, idxs, names = find_n_axes(df, facet, query=query)
+
+    if n_axes == 0:
+        raise ValueError('No subsets to plot...')
+
+    n_rows, n_cols = find_n_rows_n_cols(n_axes, n_cols=n_cols)
+
+    for i, (idx, name) in enumerate(zip(idxs, names)):
+
+        draw_legend = True if i == 0 else False
+        draw_cbar = True if i == 0 else False
+
+        ax = plt.subplot(n_rows, n_cols, i+1)
+        draw_embeddings(
+            df.loc[idx, :], 
+            x=x, y=y,
+            cont=cont, 
+            cat=cat, 
+            ax=ax, 
+            query=query,
+            axes_kwargs={'legend' : draw_legend, 'cbar' : draw_cbar},
+            **kwargs
+        )
+        format_ax(ax, title=name)
+
+    fig.supxlabel(x)
+    fig.supylabel(y)
     fig.tight_layout()
 
     return fig
@@ -358,7 +506,7 @@ def cluster_separation_plot(clustering_solutions, df_kNN):
     for metric, c in zip(metrics, colors):
         d = df_kNN.query('metric == @metric')
         x = [ str(x) for x in d['resolution'] ]
-        y = d['score']
+        y = d['rescaled_score']
         axs[0].plot(x, y,  marker='o', label=metric, color=c)
         axs[0].plot(x, y,  linestyle='-', color=c)
     axs[0].set(title='Metrics trend', xlabel='Resolution', ylabel='Rescaled score')
@@ -367,7 +515,7 @@ def cluster_separation_plot(clustering_solutions, df_kNN):
     # n clusters by resolution
     df_ = pd.DataFrame({'n':n_clusters, 'sol':solutions})
     bar(df_, 'n', x='sol', c='#C0C0C0', s=0.7, ax=axs[1])
-    format_ax(df_, title='n clusters by resolution', xticks=solutions, rotx=90, ylabel='n', ax=axs[1])
+    format_ax(ax=axs[1], title='n clusters by resolution', xticks=solutions, rotx=90, ylabel='n')
 
     # Layout
     fig.tight_layout()
@@ -385,14 +533,27 @@ def _prep_paga_umap(adata, clustering_solutions, sol=None, rep='original', color
     """
     a = adata.copy()
     a.obs[sol] = clustering_solutions[sol]
-    s_ = '_'.join(sol.split('_')[:-1])
-    key = f'{s_}_components'
-    df = embeddings(a, paga_groups=sol, rep=rep, key=key)
+
+    layer = list(a.obsm.keys())[0].split('|')[0] 
+    rep = list(a.obsm.keys())[0].split('|')[1] 
+    k = int(sol.split('_')[0])
+    n_components = int(sol.split('_')[2])
+    
+    a_new, df = embeddings(
+        a, 
+        paga_groups=sol,
+        layer=layer, 
+        rep=rep, 
+        k=k, 
+        n_components=n_components, 
+        with_adata=True
+    )
+
     df[sol] = clustering_solutions[sol]
     colors = color_fun(a.obs, chosen=sol)
-    a.uns[f'{sol}_colors'] = list(colors[sol].values())
+    a_new.uns[f'{sol}_colors'] = list(colors[sol].values())
 
-    return a, df, colors
+    return a_new, df, colors
 
 
 ##
@@ -402,18 +563,16 @@ def top_3_paga_umap(adata, clustering_solutions, top_sol, s=13, color_fun=None, 
     """
     Plot PAGA and umap embeddings of top3 ranked clustering solutions.
     """
-    # Data 
-    top_3 = clustering_solutions.loc[:, top_sol]
 
     # Fig
     fig, axs = plt.subplots(2,3,figsize=figsize)
     
     # Axes
-    for i in range(3):
-        a, df, colors = _prep_paga_umap(adata, clustering_solutions, sol=top_3.columns[i], color_fun=color_fun)
-        sc.pl.paga(a, frameon=False, show=False, ax=axs[0,i], title=top_3.columns[i])
-        scatter(df, 'UMAP1', 'UMAP2', by=top_3.columns[i], c=colors[top_3.columns[i]], ax=axs[1,i])
-        add_labels_on_loc(df, 'UMAP1', 'UMAP2', top_3.columns[i], ax=axs[1,i], s=s)
+    for i, sol in enumerate(top_sol):
+        a_new, df, colors = _prep_paga_umap(adata, clustering_solutions, sol=sol, color_fun=color_fun)
+        sc.pl.paga(a_new, frameon=False, show=False, ax=axs[0,i], title=sol)
+        scatter(df, 'UMAP1', 'UMAP2', by=sol, c=colors[sol], ax=axs[1,i])
+        add_labels_on_loc(df, 'UMAP1', 'UMAP2', sol, ax=axs[1,i], s=s)
         axs[1,i].axis('off')
     
     return fig
@@ -506,7 +665,7 @@ def top_3_ji_cells(markers, sol, title_size=10, figsize=(16, 10)):
     return fig
 
 
-##    
+##
 
 
 def genes_log2FC_and_perc(adata, genes, sol, g):
@@ -519,6 +678,7 @@ def genes_log2FC_and_perc(adata, genes, sol, g):
         adata[~test_cells, genes].X.mean(axis=0) + 0.0000001 
     )
     perc = np.sum(adata[test_cells, genes].X > 0, axis=0) / test_cells.sum()
+    
     return np.asarray(log2FC).flatten(), np.asarray(perc).flatten()
 
 

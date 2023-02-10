@@ -2,88 +2,130 @@
 _integration.py: integration utils. 
 """
 
-import gc
-import pickle
-import os
-from glob import glob
-import numpy as np
-import pandas as pd
-import scanpy as sc
 
-from ._GE_space import GE_space
+import pandas as pd 
+import numpy as np 
+import scanpy 
+import anndata
+from harmony import harmonize
+from scvi.model import SCVI
+from bbknn.matrix import bbknn
+from scanorama import correct_scanpy
+
+from .._utils import get_representation
 from .._utils import rescale
-
-
-def fill_from_integration_dirs(GE_spaces, path_results):
-    """
-    A piece of code that take a dictionary of GE_spaces and a folder with integration results,
-    and fill GE_spaces attributes with the appropriate algorithm output. 
-    """
-    # Walk down ./results_and_plots/pp/step_{i}/integration/ folder
-    for x in os.walk(path_results):
-        for y in glob(os.path.join(x[0], '*.txt')):
-
-            # Open any encountered pickle
-            with open(y, 'rb') as f:
-                integrated = pickle.load(f)
-
-            # Objects checks
-            try:
-                el = integrated[list(integrated.keys())[0]]
-                if isinstance(el, GE_space):
-                    pass
-                else:
-                    continue
-            except:
-                el = integrated
-                if isinstance(el, GE_space):
-                    pass
-                else:
-                    continue
-
-            # Figure out which attribute needs to be added to GE_spaces objects
-            key_to_add = el.int_methods[0]
-
-            # If the pickled file store the same GE_spaces, only with a newly calculated integration 
-            # attribute, fill the new slots in the original objects dictionary 
-            if key_to_add != 'scVI':
-                for k in GE_spaces:
-                    GE_spaces[k].__dict__['int_methods'] += integrated[k].__dict__['int_methods']
-                    GE_spaces[k].__dict__[key_to_add] = integrated[k].__dict__[key_to_add]
-            else:
-                GE_spaces['raw_red'] = el.pca() # Compute also PCA on raw, reduced matrix on which scVI has ben computed
-            
-            del integrated
-            del el
-            
-            # Collect garbage
-            gc.collect()
-
-    return GE_spaces
+from Cellula.preprocessing._neighbors import *
 
 
 ##
 
 
-def format_metric_dict(d, t):
+def compute_Scanorama(adata, covariate='seq_run', layer='scaled', k=15, n_components=30):
     """
-    Helper function for formatting a dictionary of metrics scores into a df.
+    Compute the scanorama batch-(covariate) corrected representation of adata.
     """
-    df = pd.concat(
-        [
-            pd.DataFrame(
-                data={ 
-                        'run' : d[k].keys(),
-                        'score' : rescale(list(d[k].values())), 
-                        'metric' : [k] * len(d[k].keys()),
-                        'type' : [t] * len(d[k].keys())
-                    },
-            )
-            for k in d.keys()   
-        ], axis=0
+    # Compute Scanorama latent space
+    key = f'{layer}|Scanorama|X_corrected'
+    categories = adata.obs[covariate].cat.categories.to_list()
+    adata_mock = anndata.AnnData(X=adata.layers[layer], obs=adata.obs, var=adata.var)
+    splitted = [ adata_mock[adata_mock.obs[covariate] == c, :].copy() for c in categories ]
+    corrected = correct_scanpy(splitted, return_dimred=True)
+
+    # Add representation
+    X_corrected = np.concatenate([ x.obsm['X_scanorama'] for x in corrected ], axis=0)
+    adata.obsm[key] = X_corrected
+    adata = compute_kNN(adata, layer=layer, int_method='Scanorama', k=k, n_components=n_components)
+
+    return adata
+
+
+##
+
+
+def compute_Harmony(adata, covariate='seq_run',  layer='scaled', k=15, n_components=30):
+    """
+     Compute the Harmony batch- (covariate) corrected representation of the original PCA space.
+    """
+    key = f'{layer}|Harmony|X_corrected'
+    X_original = get_representation(adata, layer=layer, method='original')
+
+    X_corrected = harmonize(
+        X_original[:, :n_components],
+        adata.obs,
+        covariate,
+        n_clusters=None,
+        n_jobs=-1,
+        random_state=1234,
+        max_iter_harmony=1000,
+    )
+
+    adata.obsm[key] =  X_corrected
+    adata = compute_kNN(adata, layer=layer, int_method='Harmony', k=k, n_components=n_components)
+
+    return adata
+
+
+##
+
+
+def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_perc', 'nUMIs'],
+    n_layers=2, n_latent=30, n_hidden=128, max_epochs=None, k = 15, n_components= 30):
+    """
+    Compute the scVI (Lopez et al., 2018) batch-corrected latent space.
+    """
+    # Check adata
+    adata_mock = anndata.AnnData(X=adata.layers['raw'], obs=adata.obs, var=adata.var)
+    adata_mock.layers['counts'] = adata.layers['raw']
+    assert adata_mock.layers['counts'] is not None
+
+    # Prep
+    SCVI.setup_anndata(adata_mock,
+        categorical_covariate_keys=categorical_covs,
+        continuous_covariate_keys=continuous_covs
+    )
+    vae = SCVI(adata_mock, 
+        gene_likelihood="nb", 
+        n_layers=n_layers, 
+        n_latent=n_latent, 
+        n_hidden=n_hidden
     )
     
-    return df
+    # Train and add trained model to adata
+    vae.train(train_size=1.0, max_epochs=max_epochs)
+    adata.obsm['raw|scVI|X_corrected'] = vae.get_latent_representation()
+
+    # Add latent space
+    adata = compute_kNN(adata, layer='raw', int_method='scVI', k=k, n_components=n_components)
+
+    return adata
+
+
+##
+
+
+def compute_BBKNN(adata, covariate='seq_run', layer='scaled', k=15, n_components=30, trim=None):
+    """
+    Compute the BBKNN batch-(covariate) corrected kNN graph on the original PCA space.
+    """
+    # Run BBKNN
+    X_original = get_representation(adata, layer=layer, method='original')
+    X_corrected = bbknn(
+        X_original[:, :n_components], 
+        adata.obs[covariate],
+        use_annoy=False,
+        neighbors_within_batch=k//len(adata.obs[covariate].cat.categories),
+        pynndescent_n_neighbors=50, 
+        trim=trim,
+        pynndescent_random_state=1234,
+        metric='euclidean'
+    )
+
+    # X_corrected in this case is equal to X_pca original
+    adata.obsp[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_dist'] = X_corrected[0]
+    adata.obsp[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_conn'] = X_corrected[1]
+    adata.obsm[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_idx']  = get_idx_from_simmetric_matrix(X_corrected[0], k=k)[0]
+   
+    return adata
 
 
 ##
@@ -91,11 +133,11 @@ def format_metric_dict(d, t):
 
 def rank_runs(df):
     """
-    Computes each metrics rankings. 
+    Computes each metrics rankings, based on the (rescaled) metric score.
     """
     DF = []
     for metric in df['metric'].unique():
-        s = df[df['metric'] == metric].sort_values(by='score', ascending=False)['run']
+        s = df.query('metric == @metric').sort_values(by='rescaled_score', ascending=False)['run']
         DF.append(
             pd.DataFrame({ 
                 'run' : s, 
@@ -110,19 +152,19 @@ def rank_runs(df):
 ##
 
 
-def summary_one_run(df, run, evaluation=None):
+def summary_one_run(df, run, evaluation='clustering'):
     """
     Computes a comulative score for each alternative run of the same anlysis step (e.e., integration, clustering...).
     """
     if evaluation == 'integration':
-        total_batch = df.query('run == @run and type == "batch"')['score'].mean()
-        total_bio = df.query('run == @run and type == "bio"')['score'].mean()
+        total_batch = df.query('run == @run and type == "batch"')['rescaled_score'].mean()
+        total_bio = df.query('run == @run and type == "bio"')['rescaled_score'].mean()
         total = 0.6 * total_bio + 0.4 * total_batch
 
         return run, total_batch, total_bio, total
 
     elif evaluation == 'clustering':
-        total = df.query('run == @run')['score'].mean()
+        total = df.query('run == @run')['rescaled_score'].mean()
         
         return run, total
 
@@ -130,12 +172,40 @@ def summary_one_run(df, run, evaluation=None):
 ##
 
 
-def summary_metrics(df, df_rankings, evaluation=None):
+def format_metric_dict(d, t):
+    """
+    Helper function for formatting a dictionary of metrics scores into a df.
+    """
+    df = pd.concat(
+        [
+            pd.DataFrame(
+                data={ 
+                        'run' : d[k].keys(),
+                        'score' : list(d[k].values()),
+                        'rescaled_score' : rescale(list(d[k].values())), 
+                        'metric' : [k] * len(d[k].keys()),
+                        'type' : [t] * len(d[k].keys())
+                    },
+            )
+            for k in d.keys()   
+        ], axis=0
+    )
+    
+    return df
+
+
+##
+
+
+def summary_metrics(df, df_rankings, evaluation='clustering'):
     """
     For all runs of a certain anlysis step (e.e., integration, clustering...) compute the cumulative (across all metrics used) 
     ranking and score.
     """
-    cols = ['run', 'total_batch', 'total_bio', 'cumulative_score'] if evaluation == 'integration' else ['run', 'cumulative_score']
+    if evaluation == 'integration':
+       cols = ['run', 'total_batch', 'total_bio', 'cumulative_score']
+    else: 
+        cols = ['run', 'cumulative_score']
     runs = df['run'].unique()
 
     # Summary df
@@ -145,3 +215,41 @@ def summary_metrics(df, df_rankings, evaluation=None):
     ).assign(cumulative_ranking=[ df_rankings.query('run == @run')['ranking'].mean() for run in runs ])
 
     return df_summary
+
+def parse_integration_options(adata, methods, covariate='seq_run', k=15, n_components=30, 
+    categorical_covs=['seq_run'], continuous_covs=['mito_perc', 'nUMIs']
+    ):
+    """
+    Function to parse integration options.
+    """
+    all_functions = {
+        'Scanorama' : compute_Scanorama, 
+        'BBKNN' : compute_BBKNN, 
+        'scVI' : compute_scVI, 
+        'Harmony' : compute_Harmony
+    }
+    functions_int = { k : all_functions[k] for k in all_functions if k in methods }
+
+    integration_d = {}
+    for m in methods:
+        
+        for layer in adata.layers:
+            kwargs = { 'k' : k, 'n_components' : n_components }
+
+            if m != 'scVI' and layer != 'raw':
+                kwargs = { 
+                    **kwargs, 
+                    **{ 'covariate' : covariate, 'layer' : layer } 
+                }
+                analysis = '|'.join([m, layer])
+                integration_d[analysis] = [ functions_int[m], adata, kwargs ]
+            elif m == 'scVI' and layer == 'raw':
+                kwargs = { 
+                    **kwargs, 
+                    **{ 'categorical_covs' : categorical_covs, 'continuous_covs' : continuous_covs } 
+                } 
+                analysis = '|'.join([m, layer])
+                integration_d[analysis] = [ functions_int[m], adata, kwargs ]
+
+    return integration_d
+

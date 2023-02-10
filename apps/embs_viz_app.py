@@ -87,12 +87,17 @@ if facet is not None:
     if pd.api.types.is_categorical_dtype(adata.obs[covariate]):
         fig = faceted_draw_embedding(
             umap, x='UMAP1', y='UMAP2', cat=covariate, 
-            facet=facet, query=query, n_cols=n_cols, figsize=figsize
-        )
+            facet=facet, query=query, n_cols=n_cols, figsize=figsize,
+            legend_kwargs={
+                'only_top' : 5
+        })
     else:
         fig = faceted_draw_embedding(
             umap, x='UMAP1', y='UMAP2', cont=covariate, 
-            facet=facet, query=query, n_cols=n_cols, figsize=figsize)
+            facet=facet, query=query, n_cols=n_cols, figsize=figsize, 
+            legend_kwargs={
+                'only_top' : 5
+        })
     fig.tight_layout()
     st.write("Draw Embeddings")
     st.pyplot(fig)

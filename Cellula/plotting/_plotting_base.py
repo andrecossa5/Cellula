@@ -123,7 +123,7 @@ def add_wilcox(df, x, y, pairs, ax, order=None):
     """
     annotator = Annotator(ax, pairs, data=df, x=x, y=y, order=order)
     annotator.configure(test='Mann-Whitney', text_format='star', show_test_name=False,
-        line_height=0.01, text_offset=3)
+        line_height=0.001, text_offset=3)
     annotator.apply_and_annotate()
 
 
@@ -342,7 +342,7 @@ def bar(df, y, x=None, by=None, c='grey', s=0.35, a=1, l=None, ax=None, annot_si
 
 
 def box(df, x, y, by=None, c=None, a=1, l=None, ax=None, with_stats=False, 
-    pairs=None, kwargs={}):
+    pairs=None, order=None, kwargs={}):
     """
     Base box plot.
     """
@@ -358,12 +358,12 @@ def box(df, x, y, by=None, c=None, a=1, l=None, ax=None, with_stats=False,
     params = update_params(params, kwargs)
     
     if isinstance(c, str):
-        ax = sns.boxplot(data=df, x=x, y=y, color=c, ax=ax, saturation=0.7, **params) 
+        ax = sns.boxplot(data=df, x=x, y=y, color=c, ax=ax, saturation=0.7, order=order, **params) 
         ax.set(xlabel='')
 
     elif isinstance(c, dict) and by is None:
         if all([ True if k in df[x].unique() else False for k in c.keys() ]):
-            ax = sns.boxplot(data=df, x=x, y=y, palette=c.values(), ax=ax, saturation=0.7, **params)
+            ax = sns.boxplot(data=df, x=x, y=y, palette=c.values(), ax=ax, saturation=0.7, order=order, **params)
             ax.set(xlabel='')
             
     elif isinstance(c, dict) and by is not None:
@@ -377,7 +377,7 @@ def box(df, x, y, by=None, c=None, a=1, l=None, ax=None, with_stats=False,
         raise ValueError(f'{by} categories do not match provided colors keys')
 
     if with_stats:
-        add_wilcox(df, x, y, pairs, ax, order=None)
+        add_wilcox(df, x, y, pairs, ax, order=order)
 
     return ax
 
@@ -385,21 +385,21 @@ def box(df, x, y, by=None, c=None, a=1, l=None, ax=None, with_stats=False,
 ##
 
 
-def strip(df, x, y, by=None, c=None, a=1, l=None, s=5, ax=None, with_stats=False, pairs=None):
+def strip(df, x, y, by=None, c=None, a=1, l=None, s=5, ax=None, with_stats=False, order=None, pairs=None):
     """
     Base stripplot.
     """
     if isinstance(c, str):
-        ax = sns.stripplot(data=df, x=x, y=y, color=c, ax=ax, size=s) 
+        ax = sns.stripplot(data=df, x=x, y=y, color=c, ax=ax, size=s, order=order) 
         ax.set(xlabel='')
     
     elif isinstance(c, str) and by is not None:
-        g = sns.stripplot(data=df, x=x, y=y, hue=by, palette=c, ax=ax)
+        g = sns.stripplot(data=df, x=x, y=y, hue=by, palette=c, ax=ax, order=order)
         g.legend_.remove()
 
     elif isinstance(c, dict) and by is None:
         if all([ True if k in df[x].unique() else False for k in c.keys() ]):
-            ax = sns.stripplot(data=df, x=x, y=y, palette=c.values(), ax=ax, size=s)
+            ax = sns.stripplot(data=df, x=x, y=y, palette=c.values(), ax=ax, size=s, order=order)
             ax.set(xlabel='')
             
     elif isinstance(c, dict) and by is not None:
@@ -421,7 +421,7 @@ def strip(df, x, y, by=None, c=None, a=1, l=None, s=5, ax=None, with_stats=False
 ##
 
 
-def violin(df, x, y, by=None, c=None, a=1, l=None, ax=None, with_stats=False, pairs=None):
+def violin(df, x, y, by=None, c=None, a=1, l=None, ax=None, with_stats=False, order=None, pairs=None):
     """
     Base violinplot.
     """
@@ -434,12 +434,12 @@ def violin(df, x, y, by=None, c=None, a=1, l=None, ax=None, with_stats=False, pa
     }
     
     if isinstance(c, str):
-        ax = sns.violinplot(data=df, x=x, y=y, color=c, ax=ax, saturation=0.7, **params) 
+        ax = sns.violinplot(data=df, x=x, y=y, color=c, ax=ax, saturation=0.7, order=order, **params) 
         ax.set(xlabel='', ylabel='')
         ax.set_xticklabels(np.arange(df[x].unique().size))
 
     elif isinstance(c, dict) and by is None:
-        ax = sns.violinplot(data=df, x=x, y=y, palette=c.values(), ax=ax, saturation=0.7, **params)
+        ax = sns.violinplot(data=df, x=x, y=y, palette=c.values(), ax=ax, saturation=0.7, order=order, **params)
         ax.set(xlabel='', ylabel='') 
         ax.set_xticklabels(np.arange(df[x].unique().size))
             

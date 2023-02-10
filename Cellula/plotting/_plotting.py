@@ -399,7 +399,10 @@ def draw_embeddings(
                 cat=cat, cont=None, axes_params=axes_params
             )
         else:
-            subset = df.query(query).index
+            if isinstance(query, str):
+                subset = df.query(query).index
+            else:
+                subset = query
             if subset.size > 0:
                 legend_params['colors'] = {**legend_params['colors'], **{'others':'darkgrey'}}
                 scatter(df.loc[~df.index.isin(subset), :], x=x, y=y, c='darkgrey', ax=ax, s=s/3)
@@ -416,7 +419,10 @@ def draw_embeddings(
             scatter(df, x=x, y=y, by=cont, c=cbar_params['color'], ax=ax, s=s)
             format_draw_embeddings(ax, df, x, y, title=title, cont=cont, axes_params=axes_params)
         else:
-            subset = df.query(query).index
+            if isinstance(query, str):
+                subset = df.query(query).index
+            else:
+                subset = query
             if subset.size > 0:
                 scatter(df.loc[~df.index.isin(subset), :], x=x, y=y, c='darkgrey', ax=ax, s=s/3)
                 scatter(df.loc[subset, :], x=x, y=y, by=cont, c=cbar_params['color'], ax=ax, s=s)

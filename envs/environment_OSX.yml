@@ -1,4 +1,3 @@
-name: single_cell
 channels:
   - conda-forge
   - bioconda

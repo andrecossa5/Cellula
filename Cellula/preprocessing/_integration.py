@@ -24,17 +24,25 @@ def compute_Scanorama(adata, covariate='seq_run', layer='scaled', k=15, n_compon
     """
     Compute the scanorama batch-(covariate) corrected representation of adata.
     """
+    logger = logging.getLogger("my_logger") 
+    t = Timer()
+    t.start()
+    logger.info(f'Compute Scanorama latent space for pp={layer}')
     # Compute Scanorama latent space
     key = f'{layer}|Scanorama|X_corrected'
     categories = adata.obs[covariate].cat.categories.to_list()
     adata_mock = anndata.AnnData(X=adata.layers[layer], obs=adata.obs, var=adata.var)
     splitted = [ adata_mock[adata_mock.obs[covariate] == c, :].copy() for c in categories ]
     corrected = correct_scanpy(splitted, return_dimred=True)
+    logger.info(f'End of Scanorama latent space computation for pp={layer}: {t.stop()} s.')
 
     # Add representation
     X_corrected = np.concatenate([ x.obsm['X_scanorama'] for x in corrected ], axis=0)
     adata.obsm[key] = X_corrected
+    t.start()
+    logger.info(f'Compute KNN for Scanorama for pp={layer}')
     adata = compute_kNN(adata, layer=layer, int_method='Scanorama', k=k, n_components=n_components)
+    logger.info(f'End of Scanorama KNN computation for pp={layer}: {t.stop()} s.')
 
     return adata
 
@@ -46,6 +54,10 @@ def compute_Harmony(adata, covariate='seq_run',  layer='scaled', k=15, n_compone
     """
      Compute the Harmony batch- (covariate) corrected representation of the original PCA space.
     """
+    logger = logging.getLogger("my_logger") 
+    t = Timer()
+    t.start()
+    logger.info(f'Compute Harmony latent space for pp={layer}')
     key = f'{layer}|Harmony|X_corrected'
     X_original = get_representation(adata, layer=layer, method='original')
 
@@ -58,9 +70,13 @@ def compute_Harmony(adata, covariate='seq_run',  layer='scaled', k=15, n_compone
         random_state=1234,
         max_iter_harmony=1000,
     )
+    logger.info(f'End of Harmony latent space computation for pp={layer}: {t.stop()} s.')
 
     adata.obsm[key] =  X_corrected
+    t.start()
+    logger.info(f'Compute KNN for Harmony for pp={layer}')
     adata = compute_kNN(adata, layer=layer, int_method='Harmony', k=k, n_components=n_components)
+    logger.info(f'End of Harmony KNN computation for pp={layer}: {t.stop()} s.')
 
     return adata
 
@@ -78,6 +94,11 @@ def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_per
     adata_mock.layers['counts'] = adata.layers['raw']
     assert adata_mock.layers['counts'] is not None
 
+    logger = logging.getLogger("my_logger") 
+    t = Timer()
+    t.start()
+    logger.info('Compute scVI latent space for pp=raw')
+
     # Prep
     SCVI.setup_anndata(adata_mock,
         categorical_covariate_keys=categorical_covs,
@@ -93,9 +114,14 @@ def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_per
     # Train and add trained model to adata
     vae.train(train_size=1.0, max_epochs=max_epochs)
     adata.obsm['raw|scVI|X_corrected'] = vae.get_latent_representation()
+    logger.info(f'End of scVI latent space computation for pp=raw: {t.stop()} s.')
 
     # Add latent space
+    t.start()
+    logger.info(f'Compute KNN for scVI for pp=raw')
     adata = compute_kNN(adata, layer='raw', int_method='scVI', k=k, n_components=n_components)
+    logger.info(f'End of scVI KNN computation for pp=raw: {t.stop()} s.')
+
 
     return adata
 
@@ -107,6 +133,10 @@ def compute_BBKNN(adata, covariate='seq_run', layer='scaled', k=15, n_components
     """
     Compute the BBKNN batch-(covariate) corrected kNN graph on the original PCA space.
     """
+    logger = logging.getLogger("my_logger") 
+    t = Timer()
+    t.start()
+    logger.info(f'Compute BBKNN graph for pp={layer}')
     # Run BBKNN
     X_original = get_representation(adata, layer=layer, method='original')
     X_corrected = bbknn(
@@ -124,6 +154,7 @@ def compute_BBKNN(adata, covariate='seq_run', layer='scaled', k=15, n_components
     adata.obsp[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_dist'] = X_corrected[0]
     adata.obsp[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_conn'] = X_corrected[1]
     adata.obsm[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_idx']  = get_idx_from_simmetric_matrix(X_corrected[0], k=k)[0]
+    logger.info(f'End of BBKNN graph computation for pp={layer}: {t.stop()} s.')
    
     return adata
 

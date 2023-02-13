@@ -355,7 +355,7 @@ def clustering_diagnostics():
         adata = lognorm.copy()
         adata.obs['leiden'] = clustering_solutions[chosen].astype('category')
         space = 'X_pca' if int_method == 'original' else 'X_corrected'
-        adata.obsm['X_reduced'] = pp.obsm[f'{layer}|{int_method}|{space}']
+        adata.obsm['X_reduced'] = pp.obsm[f'{layer}|original|X_pca'] if int_method == 'BBKNN' else pp.obsm[f'{layer}|{int_method}|{space}']
         adata.obsm['X_umap'] = X_umap
         adata.obsm['kNN_index'] = pp.obsm[f'{layer}|{int_method}|{space}|{k}_NN_{n_components}_comp_idx']
         adata.obsp['connectivities'] = pp.obsp[f'{layer}|{int_method}|{space}|{k}_NN_{n_components}_comp_conn']

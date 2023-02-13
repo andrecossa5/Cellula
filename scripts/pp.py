@@ -221,8 +221,11 @@ def preprocessing():
     #-----------------------------------------------------------------#
 
     # Log-normalization, hvg selection, signatures scoring
+    g = Timer()
     t.start()
     adata.raw = adata.copy()
+    g.start()
+    logger.info('Begin the following preprocessing steps: Log-normalization, hvg selection, signatures scoring')
     adata = pp(
         adata, 
         mode=normalization_method,  
@@ -231,6 +234,7 @@ def preprocessing():
         score_method=scoring_method,
         organism=organism
     )
+    logger.info(f'End of preprocessing steps in: {g.stop()} s.')
 
     # Save 
     adata.write(path_data + 'lognorm.h5ad')
@@ -240,6 +244,9 @@ def preprocessing():
     # Cell QC on merged samples
 
     # Create a summary of median QC metrics per sample 
+    s = Timer()
+    s.start()
+    logger.info('Start Cell QC on merged samples and generate the following files: QC_results.xlsx and QC.pdf')
     QC_covariates = [
                         'nUMIs', 'detected_genes', 'mito_perc', \
                         'cell_complexity', 'cycle_diff', 'cycling', \
@@ -252,6 +259,7 @@ def preprocessing():
     # Visualize QC metrics 
     fig = QC_plot(adata.obs, 'sample', QC_covariates, colors, labels=False, figsize=(12, 10))
     fig.savefig(path_viz + 'QC.pdf')
+    logger.info(f'End of Cell QC on merged samples and files generation: {s.stop()} s.')
     logger.info(f'Adata gene filtering, log-normalization, HVGs ({n_HVGs}) selection, cc_scores calculation, and QC: {t.stop()} s.')
 
     #-----------------------------------------------------------------#
@@ -271,21 +279,41 @@ def preprocessing():
 
     t.start()
 
+    g = Timer()
+    g.start()
+    logger.info('Begin matrix maipulation and linear dimensionality reduction')
+    logger.info('HVGs subsetting')
     adata_red = red(adata)
+    logger.info(f'End of HVGs subsetting: {g.stop()} s.')
+    g.start()
+    logger.info('HVGs subsetting and scaling')
     adata_red = scale(adata_red)
+    logger.info(f'End of HVGs subsetting and scaling: {g.stop()} s.')
+    g.start()
+    logger.info('HVGs subsetting, regressing out of technical covariates')
     adata_red = regress(adata_red)
+    logger.info(f'End of HVGs subsetting, regressing out of technical covariates: {g.stop()} s.')
+    g.start()
+    logger.info('HVGs subsetting, regressing out of technical covariates and scaling')
     adata_red = regress_and_scale(adata_red)
-
+    logger.info(f'End of HVGs subsetting, regressing out of technical covariates and scaling: {g.stop()} s.')
+    logger.info('Begin linear dimensionality reduction for each previous step')
     for layer in adata_red.layers:
+        g.start()
+        logger.info(f'Begin linear dimensionality reduction for pp={layer}')
         adata_red = pca(adata_red, n_pcs=n_comps, layer=layer)
+        logger.info(f'End of linear dimensionality reduction for pp={layer}: {g.stop()} s.')
 
     adata_red.write(path_data + 'reduced.h5ad')
 
     #-----------------------------------------------------------------#
 
     # Visualize % explained variance of top50 PCs, for each PCA space
+    g.start()
+    logger.info('Visualize percentage explained variance of top30 PCs, for each PCA space')
     fig = explained_variance_plot(adata_red, figsize=(12,8))
     fig.savefig(path_viz + 'explained_variance.pdf')
+    logger.info(f'Generation of explained_variance.pdf: {g.stop()} s.')
 
     #-----------------------------------------------------------------#
 
@@ -293,10 +321,13 @@ def preprocessing():
     if not args.no_biplot:
         for layer in adata_red.layers:
             with PdfPages(path_viz + f'PCs_{layer}.pdf') as pdf:
+                g.start()
+                logger.info(f'Visualize sample biplots, top5 PCs for pp={layer} for the following covariates:seq_run,sample,nUMIs,cycle_diff')
                 for cov in ['seq_run', 'sample', 'nUMIs', 'cycle_diff']:
                     fig = plot_biplot_PCs(adata_red, layer=layer, covariate=cov, colors=colors)
                     pdf.savefig()  
                     plt.close()
+                logger.info(f'Generation of PCs_{layer}.pdf: {g.stop()} s.')
 
     logger.info(f'Matrix manipulation and PCA vizualization: {t.stop()} s.')
     
@@ -311,8 +342,14 @@ def preprocessing():
 
         with PdfPages(path_viz + f'original_embeddings.pdf') as pdf:
             for layer in adata_red.layers:
+                g.start()
+                logger.info(f'Begin KNN computation for pp={layer}')
                 adata_red = compute_kNN(adata_red, layer=layer, int_method='original')
+                logger.info(f'End of KNN computation for pp={layer}: {g.stop()} s.')
+                g.start()
+                logger.info(f'Begin plotting embedding for pp={layer}')
                 fig = plot_embeddings(adata_red, layer=layer)
+                logger.info(f'End of plotting embedding for pp={layer}: {g.stop()} s.')
                 fig.suptitle(layer)
                 pdf.savefig()  
                 plt.close()

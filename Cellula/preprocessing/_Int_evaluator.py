@@ -28,6 +28,7 @@ class Int_evaluator:
         self.all_functions = all_functions
         self.d_options = None
         self.scores = {}
+        self.logger = logging.getLogger("my_logger")  
 
     ##
 
@@ -137,16 +138,18 @@ class Int_evaluator:
         """
         Compute one of the available metrics.
         """
+        t = Timer()
         if self.d_options is None:
             raise ValueError('Parse options first!')
 
         for opt in self.d_options: 
-            
+            t.start()
             options_l = self.d_options[opt]
             args = options_l[0]
             kwargs = options_l[1]
-
+            self.logger.info(f'Begin the computation for the following combination of metric|pp|int_method:{opt}') 
             self.scores[opt] = self.run(args=args, kwargs=kwargs)
+            self.logger.info(f'End of {opt} computation: {t.stop()} s.') 
 
     ##
 

@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages 
 
 from ..plotting._plotting_base import scatter, format_ax
+from .._utils import *
 
 
 ##
@@ -117,7 +118,7 @@ def QC(adatas, mode='seurat', min_cells=3, min_genes=200, nmads=5, path_viz=None
     Perform Quality Control on a adata dictionary (one by sample).
     Merge matrices to a single adata.
     """
-
+    t = Timer()
     # Logging 
     logger = logging.getLogger("my_logger")  
     
@@ -132,12 +133,15 @@ def QC(adatas, mode='seurat', min_cells=3, min_genes=200, nmads=5, path_viz=None
             logger.info(f'Sample {s} QC...')
 
             # QC metrics
+            t.start()
+            logger.info('Calculate QC metrics')
             adata.var_names_make_unique()
             adata.var["mt"] = adata.var_names.str.startswith("MT-")
             adata.obs['nUMIs'] = adata.X.toarray().sum(axis=1)  
             adata.obs['mito_perc'] = adata[:, adata.var["mt"]].X.toarray().sum(axis=1) / adata.obs['nUMIs'].values
             adata.obs['detected_genes'] = (adata.X.toarray() > 0).sum(axis=1)  
             adata.obs['cell_complexity'] = adata.obs['detected_genes'] / adata.obs['nUMIs']
+            logger.info(f'End calculation of QC metrics: {t.stop()} s.')
 
             # Original QC plot
             n0 = adata.shape[0]
@@ -146,6 +150,8 @@ def QC(adatas, mode='seurat', min_cells=3, min_genes=200, nmads=5, path_viz=None
             axs[0].text(np.quantile(adata.obs['nUMIs'], 0.992), 1000, f'n:{n0}')
 
             # Post doublets removal QC plot
+            t.start()
+            logger.info('Begin of post doublets removal and QC plot')
             sc.external.pp.scrublet(adata, random_state=1234)
             adata_remove = adata[adata.obs['predicted_doublet'], :]
             removed_cells.extend(list(adata_remove.obs_names))
@@ -154,10 +160,13 @@ def QC(adatas, mode='seurat', min_cells=3, min_genes=200, nmads=5, path_viz=None
             logger.info(f'Cells retained after scrublet: {n1}, {n0-n1} removed.')
             QC_plot(adata, axs[1], title='After scublet')
             axs[1].text(np.quantile(adata.obs['nUMIs'], 0.992), 1000, f'n:{n1}')
+            logger.info(f'End of post doublets removal and QC plot: {t.stop()} s.')
 
             # Post seurat or mads filtering QC plot
 
             # Filters
+            t.start()
+            logger.info('Filters application (seurat or mads)')
             if mode == 'seurat':
                 adata.obs['passing_mt'] = adata.obs['mito_perc'] < tresh['mito_perc']
                 adata.obs['passing_nUMIs'] = adata.obs['nUMIs'] > tresh['nUMIs']
@@ -180,7 +189,7 @@ def QC(adatas, mode='seurat', min_cells=3, min_genes=200, nmads=5, path_viz=None
                 logger.info(f'Tresholds used, nUMIs: ({nUMIs_t[0]}, {nUMIs_t[1]}); filtered-out-cells: {n1-np.sum(adata.obs["passing_nUMIs"])}')
                 logger.info(f'Tresholds used, n genes: ({n_genes_t[0]}, {n_genes_t[1]}); filtered-out-cells: {n1-np.sum(adata.obs["passing_ngenes"])}')
                 logger.info(f'Lower treshold, mito %: {tresh["mito_perc"]}; filtered-out-cells: {n1-np.sum(adata.obs["passing_mt"])}')
-
+            logger.info(f'Filters applicated: {t.stop()} s.')
             # QC plot
             QC_test = (adata.obs['passing_mt']) & (adata.obs['passing_nUMIs']) & (adata.obs['passing_ngenes'])
             removed = QC_test.loc[lambda x : x == False]

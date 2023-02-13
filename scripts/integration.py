@@ -150,14 +150,20 @@ def Integration():
 
     # Parse integration options, and run each integration task
     d = parse_integration_options(adata, methods=methods)
-    for opt in d: 
+    for opt in d:
+        t.start()
         func = d[opt][0]
         adata = d[opt][1]
         kwargs = d[opt][2]
+        logger.info(f'Begin the following integration method with associated pp:{opt}') 
         adata = run_command(func, adata, **kwargs)
+        logger.info(f'End of {opt} integration method: {t.stop()} s.') 
 
     # Save results
+    t.start()
+    logger.info('Write the new integrated AnnData')
     adata.write(path_data + 'integration.h5ad')
+    logger.info(f'End of writing of the new integrated AnnData: {t.stop()} s.') 
 
     #-----------------------------------------------------------------#
 

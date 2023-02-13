@@ -11,6 +11,7 @@ from sklearn.decomposition import PCA
 from pegasus.tools import predefined_signatures, load_signatures_from_file 
 from sklearn.cluster import KMeans  
 from ..dist_features._signatures import scanpy_score, wot_zscore, wot_rank
+from .._utils import *
 
 ##
 
@@ -59,11 +60,18 @@ def pp(adata, mode='scanpy', target_sum=50*1e4, n_HVGs=2000, score_method='scanp
     """
     Pre-processing pp_wrapper on QCed and merged adata.
     """
+    logger = logging.getLogger("my_logger") 
+    t = Timer()
+    g = Timer()
     # Log-normalization, HVGs identification
+    t.start()
+    logger.info('Begin log-normalization, HVGs identification')
     adata.raw = adata.copy()
     pg.identify_robust_genes(adata, percent_cells=0.05)
     adata = adata[:, adata.var['robust']]
-
+    logger.info(f'End of log-normalization, HVGs identification: {t.stop()} s.')
+    g.start()
+    logger.info('Begin size normalization and pegasus batch aware HVGs selection or Perason residuals workflow')
     if mode == 'scanpy': # Size normalization + pegasus batch aware HVGs selection
         sc.pp.normalize_total(
             adata, 
@@ -84,6 +92,7 @@ def pp(adata, mode='scanpy', target_sum=50*1e4, n_HVGs=2000, score_method='scanp
         adata.var = adata.var.drop(columns=['highly_variable'])
         adata.var = adata.var.rename(columns={'means':'mean', 'variances':'var'})
 
+    logger.info(f'End of size normalization and pegasus batch aware HVGs selection or Perason residuals workflow: {g.stop()} s.')
     # Calculate signature scores, if necessary
     if not any([ 'cycling' == x for x in adata.obs.columns ]):
         scores = _sig_scores(adata, score_method=score_method, organism=organism)

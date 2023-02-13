@@ -154,9 +154,13 @@ def integration_diagnostics():
 
     # Compute and compare embeddings
     methods = pd.Series([ x.split('|')[1] for x in adata.obsp.keys()]).unique()
-    t.start()
+    G = Timer()
+    G.start()
+    logger.info(f'Begin embeddings visualization:')
     for layer in adata.layers:
         with PdfPages(path_viz + f'orig_int_embeddings_{layer}.pdf') as pdf:
+            t.start()
+            logger.info(f'Start the visualization of the embedding for all integration methods (for raw there are only scVI and original) on the following pp:{layer}')
             for int_rep in methods:
                 try:
                     fig = plot_embeddings(adata, layer=layer, rep=int_rep)  
@@ -166,7 +170,8 @@ def integration_diagnostics():
                     plt.close()
                 except:
                     print(f'Embedding {int_rep} is not available for layer {layer}')
-    logger.info(f'Embeddings visualization: {t.stop()} s.')
+            logger.info(f'End of the visualization on all methods on the following pp {layer}: {t.stop()} s.')
+    logger.info(f'Embeddings visualization completed: {G.stop()} s.')
 
     # Compute diagnostics metrics
     t.start()
@@ -198,6 +203,7 @@ def choose_preprocessing_option():
 
     T = Timer()
     T.start()
+    t = Timer()
 
     # Data loading and preparation
     pp, chosen_int = chosen.split(':') 
@@ -222,10 +228,14 @@ def choose_preprocessing_option():
 
     # k calculation
     for k in [5, 10, 15, 30, 50, 100]:
+        t.start()
         if chosen_int != 'BBKNN':
+            logger.info(f'Begin the KNN computation for {chosen_int} and k = {k}')
             new_adata = compute_kNN(new_adata, layer=pp, int_method=chosen_int, k=k, n_components=n_comps) # 6 kNN graphs
         else:
+            logger.info(f'Begin the KNN computation for {chosen_int} and k = {k}')
             new_adata = compute_BBKNN(new_adata, layer=pp, covariate=covariate, k=k, n_components=n_comps, trim=None)
+        logger.info(f'End of computation for {chosen_int} and k = {k}: {t.stop()} s.')
 
     # Save
     new_adata.write(path_data + 'preprocessed.h5ad')

@@ -125,7 +125,8 @@ def kBET():
 
     # Run kBET (for each preprocessed dataset across a range of 7 Ks, 6 default, 
     # and 1 found using the heuristic specified in Buttner et al. 2018.
-
+    g = Timer()
+    s = Timer()
     # Define k_range
     k_range = [ 15, 30, 50, 100, 250, 500 ]
 
@@ -135,7 +136,12 @@ def kBET():
         t.start()
         logger.info(f'Begin operations on all representations, for k {k}...')
         for layer in adata.layers:
+            g.start()
+            s.start()
+            logger.info(f'KNN computation for k = {k} and pp = {layer}')
             adata = compute_kNN(adata, layer=layer, int_method='original', k=k, n_components=n_comps)
+            logger.info(f'End of KNN computation for  k = {k} and pp = {layer}: {g.stop()} s.')
+            logger.info(f'kBET computation for k = {k} and pp = {layer}')
             score = kBET_score(
                 adata, 
                 covariate=covariate, 
@@ -145,6 +151,7 @@ def kBET():
                 n_components=n_comps
             )
             kbet_computation.update(score)
+            logger.info(f'End of kBET computation for k = {k} and pp = {layer}: {s.stop()} s.')
         
         logger.info(f'kBET calculations finished for k {k}: {t.stop()} s.')
 
@@ -162,6 +169,7 @@ def kBET():
     df.pop('rep')
     df.sort_values(by='acceptance_rate', ascending=False).to_excel(path_results + 'kBET_df.xlsx')
     
+    logger.info(f'kBET_df.xlsx finished in: {t.stop()} s.')
     #-----------------------------------------------------------------#
 
     # Calculate results summary, and make a (temporary) integration 

@@ -133,9 +133,13 @@ def Signatures():
     t = Timer()
     t.start()
 
+    g = Timer()
+
     logger.info(f'Begin signatures: --curated {args.curated} --scoring {scoring} --organism {organism}')
 
     # Load adata, clusters, markers and curated
+    g.start()
+    logger.info('Begin loading adata, clusters, markers and curated')
     adata = sc.read(path_data + 'clustered.h5ad')
     clusters = pd.read_csv(path_clusters + 'clustering_solutions.csv', index_col=0)
     with open(path_markers + 'clusters_markers.pickle', 'rb') as f:
@@ -152,6 +156,7 @@ def Signatures():
         curated = format_curated(path_main)
     else:
         curated = None
+    logger.info(f'End of loading in: {g.stop()} s.')
 
     ##
 
@@ -175,9 +180,12 @@ def Signatures():
     logger.info(f'Signatures scoring: {t.stop()} s.')
     
     # Save scores
+    g.start()
+    logger.info('Saving scores in a pickle file')
     signatures = S.format_results()
     with open(path_results + 'signatures.pickle', 'wb') as f:
         pickle.dump(signatures, f)
+    logger.info(f'Generated signatures.pickle file in: {g.stop()} s.')
 
     # Write final exec time
     logger.info(f'Execution was completed successfully in total {T.stop()} s.')

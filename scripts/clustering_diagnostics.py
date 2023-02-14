@@ -122,7 +122,9 @@ if not args.skip:
 
 # clustering_diagnostics
 def clustering_diagnostics():
-
+    t = Timer()
+    t.start()
+    logger.info('Loading data: preprocessed.h5ad and clustering_solutions.csv')
     # Load data
     adata = sc.read(path_data + 'preprocessed.h5ad')
     clustering_solutions = pd.read_csv(
@@ -130,6 +132,7 @@ def clustering_diagnostics():
         index_col=0, 
         dtype='category'
     )
+    logger.info(f'Loaded data in: {t.stop()} s.')
 
     # Define QC_covariates
     QC_covariates = [
@@ -260,6 +263,9 @@ def clustering_diagnostics():
         )
 
         # Plots
+        g = Timer()
+        g.start()
+        logger.info('Generation of clusters_separation.pdf')
         with PdfPages(path_viz + 'clusters_separation.pdf') as pdf:
             for k in sorted(df['NN'].unique()):
                 df_kNN = df.loc[df['NN'] == k]
@@ -267,7 +273,7 @@ def clustering_diagnostics():
                 fig.suptitle(f'{k} NN')
                 pdf.savefig()  
                 plt.close()
-
+        logger.info(f'Generated clusters_separation.pdf in: {g.stop()} s.')
         logger.info(f'Vizualization cluster separation and purity: {t.stop()} s.')
 
     #-----------------------------------------------------------------#
@@ -280,6 +286,9 @@ def clustering_diagnostics():
         logger.info('Diagnostics 3: Top clustering solutions relationships.')
 
         # Load markers
+        g = Timer()
+        g.start()
+        logger.info('Begin loading for markers and getting the full matrix with a subset of clustering solutions')
         with open(path_main + f'results_and_plots/dist_features/{version}/clusters_markers.pickle', mode='rb') as f:
             markers = pickle.load(f)
 
@@ -292,8 +301,11 @@ def clustering_diagnostics():
         # Get full matrix
         lognorm = sc.read(path_data + 'lognorm.h5ad')
         lognorm.obs = lognorm.obs.join(sol) # add top3
+        logger.info(f'Get full matrix in: {g.stop()} s.')
 
         # Here we go
+        g.start()
+        logger.info('Begin following visualizations: paga and umap, ji, dot plots')
         with PdfPages(path_viz + 'top_3.pdf') as pdf:
             # Paga and umap
             fig = top_3_paga_umap(adata, clustering_solutions, top_3, s=13, color_fun=create_colors)
@@ -308,6 +320,7 @@ def clustering_diagnostics():
             fig.tight_layout()
             pdf.savefig()  
             plt.close()
+        logger.info(f'End of plotting in: {g.stop()} s.')
 
         logger.info(f'Adding relationship among solutions to {chosen} one: {t.stop()} s.')
 
@@ -321,7 +334,9 @@ def clustering_diagnostics():
 
         t.start()
         logger.info(f'{chosen} embeddings/vizualization options')
-
+        g = Timer()
+        g.start()
+        logger.info('Read pre-processed adata and add chosen to pp.obs')
         # Read pre-processed adata
         pp = sc.read(path_data + 'preprocessed.h5ad')
         clustering_solutions = pd.read_csv(
@@ -339,6 +354,10 @@ def clustering_diagnostics():
         k = int(chosen.split('_')[0])
         n_components = int(chosen.split('_')[2])
 
+        logger.info(f'End of reading in: {g.stop()} s.')
+
+        g.start()
+        logger.info('Compute final embeddings')
         # Compute final embeddings
         df = embeddings(
             pp, 
@@ -349,8 +368,11 @@ def clustering_diagnostics():
             n_components=n_components
         )
         X_umap = df.loc[:, ['UMAP1', 'UMAP2']].values
+        logger.info(f'End of embeddings computation in: {g.stop()} s.')
 
         # Fill info in a final, cleaned adata
+        g.start()
+        logger.info('Fill info in a final and cleaned adata')
         lognorm = sc.read(path_data + 'lognorm.h5ad')
         adata = lognorm.copy()
         adata.obs['leiden'] = clustering_solutions[chosen].astype('category')
@@ -366,6 +388,7 @@ def clustering_diagnostics():
             'representation' : int_method,
             'chosen_solution' : chosen
         }
+        logger.info(f'Final adata in: {g.stop()} s.')
 
         # Save clustered adata and cells_embeddings
         print(adata)

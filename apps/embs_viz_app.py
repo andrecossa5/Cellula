@@ -11,6 +11,16 @@ from Cellula.plotting._plotting_base import *
 from Cellula.plotting._plotting import *
 from Cellula.dist_features._signatures import scanpy_score
 
+
+##
+
+
+# Loader func
+@st.cache
+def load(path_main, version):
+    return sc.read(path_main + f'/data/{version}/clustered.h5ad')
+
+
 ##
 
 
@@ -33,7 +43,7 @@ version = form_data.selectbox(
 submit_data = form_data.form_submit_button('Load')
 
 # Data
-adata = sc.read(path_main + f'/data/{version}/clustered.h5ad')
+adata = load(path_main, version)
 
 
 ##

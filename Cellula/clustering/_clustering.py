@@ -17,7 +17,17 @@ from .._utils import *
 
 def leiden_clustering(A, res=0.5):
     """
-    Compute leiden clustering, at some resolution.
+    Performs Leiden clustering on an adjacency matrix A (connectivities matrix) using the specified resolution coefficient.
+
+    Parameters:
+        A : numpy.ndarray
+            An adjacency matrix of a network.
+        res : float, optional (default: 0.5)
+            The resolution coefficient for Leiden clustering.
+
+    Returns:
+        labels : numpy.ndarray
+            An array of cluster labels assigned to each node.
     """
     g = sc._utils.get_igraph_from_adjacency(A, directed=True)
     part = leidenalg.find_partition(

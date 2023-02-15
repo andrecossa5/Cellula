@@ -15,7 +15,26 @@ from ..plotting._plotting import plot_rankings
 
 class Int_evaluator:
     """
-    A class to hold, evaluate and select the appropriate preprocessed and integrated adata after pp and integration.
+    This class evaluates a series of metrics (batch and biological) using k-nearest-neighbors graphs of the different integration
+    methods used.
+
+    Attributes:
+    - adata: AnnData object that contains the input data.
+    - methods: Series that contains the different integration methods available in adata.
+    - batch_metrics: list of batch metrics that can be computed.
+    - bio_metrics: list of biological metrics that can be computed.
+    - all_functions: dictionary of available metrics.
+    - d_options: dictionary of configuration options for the self.compute_metrics method.
+    - scores: dictionary that contains the results of the metric computations.
+
+    Methods:
+    - __init__(self, adata): Instantiate the main class attributes.
+    - parse_options(self, covariate='seq_run'): Parse a dictionary of configuration options for the self.compute_metrics method.
+    - get_kNNs(self, layer='scaled', method=None, metric=None, k=15, n_components=30, only_index=False, only_conn=False): Get needed kNNs for metrics computation.
+    - run(self, args=[], kwargs={}): Run one of the methods.
+    - compute_metrics(self): Compute one of the available metrics.
+    - evaluate_runs(self, path, by='cumulative_score'): Rank methods, as in scib paper (Luecknen et al. 2022).
+
     """
     def __init__(self, adata):
         '''

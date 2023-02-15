@@ -17,7 +17,6 @@ dependencies:
   - scrublet=0.2.3
   - python=3.10.6
   - scanpy=1.9.1
-  - scikit-learn=1.1.2
   - scipy=1.9.0
   - seaborn=0.12.0
   - statsmodels=0.13.2
@@ -30,6 +29,7 @@ dependencies:
   - ipykernel=6.16.0 
   - pip:
     - streamlit 
+    - scikit-learn==1.1.2
     - git+https://github.com/YosefLab/Hotspot.git@c8bc56d689cc0b770ca59080e194a2d9e93f3c5e
     - bbknn==1.5.1
     - cython==0.29.32

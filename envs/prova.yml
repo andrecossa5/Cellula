@@ -4,4 +4,5 @@ channels:
   - defaults
 dependencies:
   - python=3.10.6
-  - scanpy=1.9.1
+  - numpy
+  - pandas

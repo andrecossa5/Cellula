@@ -42,6 +42,7 @@ dependencies:
   - scanpy=1.9.1=pyhd8ed1ab_0
   - scikit-image=0.19.3=py310h769672d_2
   - scikit-learn=1.1.2=py310h0c3af53_0
+  - scikit-misc==0.1.4
   - scipy=1.9.0=py310hdfbd76f_0
   - scrublet=0.2.3=pyh5e36f6f_1
   - seaborn=0.12.0=hd8ed1ab_0
@@ -72,7 +73,6 @@ dependencies:
     - python-igraph==0.9.11
     - pytorch-lightning==1.6.5
     - scanorama==1.7.2
-    - scikit-misc==0.1.4
     - scvi-tools==0.17.1
     - streamlit==1.13.0
     - torch==1.12.1

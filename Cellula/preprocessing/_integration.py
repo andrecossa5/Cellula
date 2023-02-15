@@ -22,7 +22,26 @@ from Cellula.preprocessing._neighbors import *
 
 def compute_Scanorama(adata, covariate='seq_run', layer='scaled', k=15, n_components=30):
     """
-    Compute the scanorama batch-(covariate) corrected representation of adata.
+    Compute Scanorama latent space and KNN graph for the given AnnData object for a given layer.
+
+    Parameters:
+    -----------
+    adata: AnnData object
+        Annotated data matrix with rows representing cells and columns representing features.
+    covariate : str, optional (default: 'seq_run')
+        The covariate used for batch correction.
+    layer: str, optional (default: 'scaled')
+        Key for the layer in `adata.layers` to use for batch correction.
+    k: int, optional (default: 15)
+        Number of nearest neighbors to use for building the KNN graph.
+    n_components: int, optional (default: 30)
+        Number of dimensions used in the reduction method (default is 30).
+
+    Returns:
+    --------
+    adata: AnnData object
+        Annotated data matrix with the Scanorama latent space added to `adata.obsm` 
+        and KNN graph added to `adata.obsm` and `adata.obsp`.
     """
     logger = logging.getLogger("my_logger") 
     t = Timer()
@@ -52,7 +71,27 @@ def compute_Scanorama(adata, covariate='seq_run', layer='scaled', k=15, n_compon
 
 def compute_Harmony(adata, covariate='seq_run',  layer='scaled', k=15, n_components=30):
     """
-     Compute the Harmony batch- (covariate) corrected representation of the original PCA space.
+    Compute Harmony latent space ( it corrects the original PCA ) and k-nearest neighbor graph 
+    for `adata`.
+
+    Parameters
+    ----------
+    adata : AnnData object
+        Annotated data matrix with rows representing cells and columns representing features.
+    covariate : str, optional (default: 'seq_run')
+        The covariate used for batch correction.
+    layer : str, optional (default: 'scaled')
+        The name of the data layer in `adata` to use for the batch correction.
+    k : int, optional (default: 15)
+        The number of nearest neighbors to consider when constructing the k-nearest neighbor graph.
+    n_components : int, optional (default: 30)
+        The number of principal components to use in the Harmony batch correction.
+
+    Returns:
+    --------
+    adata: AnnData object
+        Annotated data matrix with the Harmony latent space added to `adata.obsm` 
+        and KNN graph added to `adata.obsm` and `adata.obsp`.
     """
     logger = logging.getLogger("my_logger") 
     t = Timer()
@@ -87,7 +126,34 @@ def compute_Harmony(adata, covariate='seq_run',  layer='scaled', k=15, n_compone
 def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_perc', 'nUMIs'],
     n_layers=2, n_latent=30, n_hidden=128, max_epochs=None, k = 15, n_components= 30):
     """
-    Compute the scVI (Lopez et al., 2018) batch-corrected latent space.
+    Compute scVI latent space and KNN graph for the given AnnData object for the raw layer.
+
+    Parameters
+    ----------
+    adata : AnnData object
+        Annotated data matrix with rows representing cells and columns representing features.
+    categorical_covs : list[str], optional (default: ['seq_run'])
+        List of keys for categorical covariates in `adata.obs` to be included in the model.
+    continuous_covs : list[str], optional (default: ['mito_perc', 'nUMIs'])
+        List of keys for continuous covariates in `adata.obs` to be included in the model.
+    n_layers : int, optional (default: 2)
+        The number of layers in the neural network of the scVI model.
+    n_latent : int, optional (default: 30)
+        The dimensionality of the latent space of the scVI model.
+    n_hidden : int, optional (default: 128)
+        The number of hidden units in the neural network of the scVI model.
+    max_epochs : int or None, optional (default: None)
+        The maximum number of epochs to train the scVI model. If None, will train until convergence.
+    k : int, optional (default: 15)
+        The number of nearest neighbors to use when building the KNN graph.
+    n_components : int, optional (default: 30)
+        The number of components to use for the KNN graph.
+
+    Returns
+    -------
+    adata : AnnData object
+       Annotated data matrix with the scVI latent space added to `adata.obsm` 
+       and KNN graph added to `adata.obsm` and `adata.obsp`.
     """
     # Check adata
     adata_mock = anndata.AnnData(X=adata.layers['raw'], obs=adata.obs, var=adata.var)
@@ -131,7 +197,28 @@ def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_per
 
 def compute_BBKNN(adata, covariate='seq_run', layer='scaled', k=15, n_components=30, trim=None):
     """
-    Compute the BBKNN batch-(covariate) corrected kNN graph on the original PCA space.
+    Compute the BBKNN graph for the input AnnData object.
+
+    Parameters
+    ----------
+    adata : AnnData object
+        Annotated data matrix with rows representing cells and columns representing features.
+    covariate : str, optional
+        The name of the column in adata.obs to use for batch correction. Default is 'seq_run'.
+    layer : str, optional
+        The name of the layer to extract the original PCA that is used as input for the computation of the BBKNN graph. 
+        Default is 'scaled'.
+    k : int, optional
+        The number of neighbors to consider for each point in the computation of the BBKNN graph. Default is 15.
+    n_components : int, optional
+        The number of principal components to use in the computation of the BBKNN graph. Default is 30.
+    trim : float or None, optional
+        The trimming threshold for the shared nearest neighbors metric. If None, no trimming is applied. Default is None.
+
+    Returns
+    -------
+    adata : AnnData object
+        The input AnnData object with the computed BBKNN graph stored in its .obsp and .obsm attributes.
     """
     logger = logging.getLogger("my_logger") 
     t = Timer()

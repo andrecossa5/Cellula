@@ -42,7 +42,6 @@ class Clust_evaluator:
         self.solutions = clustering_solutions
         self.scores = {}
         self.d_options = {}
-        self.logger = logging.getLogger("my_logger") 
 
         # Handle metrics
         if metrics == 'all':
@@ -127,6 +126,7 @@ class Clust_evaluator:
         """
         Compute one of the available metrics.
         """
+        logger = logging.getLogger("my_logger") 
         g = Timer()
 
         if self.d_options is None:
@@ -138,10 +138,10 @@ class Clust_evaluator:
             metric = self.d_options[opt][0]
             args = self.d_options[opt][1]
             kwargs = self.d_options[opt][2]
-            self.logger.info(f'Begin the computation for the following combination of metric|solution:{opt}') 
+            logger.info(f'Begin the computation for the following combination of metric|solution:{opt}') 
             score = self.run(metric, args=args, kwargs=kwargs)
             self.scores[opt] = score
-            self.logger.info(f'End of {opt} computation: {g.stop()} s.') 
+            logger.info(f'End of {opt} computation: {g.stop()} s.') 
 
     ##
 

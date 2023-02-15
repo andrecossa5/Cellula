@@ -38,12 +38,32 @@ def adata_name_formatter(adata):
 
 def read_matrices(path, mode='filtered'):
     """
-    Read all .mtx matrices from a path to 'raw' or 'filtered' matrix, the STARsolo or CellRanger
-    output. If mode == 'raw', it will search filter the summary_sheet_cells.csv file to filter 
-    'good' CBC-GBC combinations, retrieved with the CBC_GBC_classification script. 
-    Otherwise, it just read the filtered matrix, reformatting its cell names. 
-    Returns a dictionary of sample_name : original_sample_adata.
-    """  
+    Reads 10x Genomics matrices from a specified path and returns a dictionary of AnnData objects.
+
+    Parameters
+    ----------
+    path : str
+        Path to the directory containing the matrices.
+    mode : str, optional
+        Specifies the type of matrix to read. Default is 'filtered'.
+        If set to 'raw', reads the raw gene-barcode matrices.
+
+    Returns
+    -------
+    adatas : dict
+        A dictionary where each key represents a sample name and each value is an AnnData object containing the
+        gene-barcode matrix and additional information (cell metadata, sample name, etc.).
+
+    Examples
+    --------
+    To read filtered gene-barcode matrices from a directory and get a dictionary of AnnData objects:
+
+    >>> adatas = read_matrices('/path/to/matrices')
+
+    To read raw gene-barcode matrices instead, set the `mode` parameter to 'raw':
+
+    >>> adatas = read_matrices('/path/to/matrices', mode='raw')
+    """
     adatas = {}
     if mode == 'raw':
         for s in os.listdir(path):
@@ -115,8 +135,38 @@ def QC_plot(adata, ax, title=None):
 
 def QC(adatas, mode='seurat', min_cells=3, min_genes=200, nmads=5, path_viz=None, tresh=None):
     """
-    Perform Quality Control on a adata dictionary (one by sample).
-    Merge matrices to a single adata.
+    Perform quality control on a dictionary of AnnData objects.
+    
+    This function calculates several QC metrics, including mitochondrial percentage, nUMIs, 
+    and detected genes, and produces several plots visualizing the QC metrics for each sample. 
+    The function performs doublet detection using scrublet and filtering using either 
+    Seurat or MADs. The function returns a merged AnnData object with cells that passed QC filters
+    and a list of cells that did not pass QC on all samples.
+
+    Parameters
+    ----------
+    adatas : dict
+        A dictionary of AnnData objects, one for each sample.
+    mode : str, optional
+        The filtering method to use. Valid options are 'seurat' and 'mads'. Default is 'seurat'.
+    min_cells : int, optional
+        The minimum number of cells for a sample to pass QC. Default is 3.
+    min_genes : int, optional
+        The minimum number of genes for a cell to pass QC. Default is 200.
+    nmads : int, optional
+        The number of MADs to use for MADs filtering. Default is 5.
+    path_viz : str, optional
+        The path to save the QC plots. Default is None.
+    tresh : dict, optional
+        A dictionary of QC thresholds. The keys should be 'mito_perc', 'nUMIs', and 'detected_genes'.
+        Only used if mode is 'seurat'. Default is None.
+
+    Returns
+    -------
+    adata : AnnData
+        An AnnData object containing cells that passed QC filters.
+    removed_cells : list
+        List of cells that did not pass QC on all samples.
     """
     t = Timer()
     # Logging 

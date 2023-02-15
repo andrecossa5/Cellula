@@ -27,8 +27,7 @@ class Int_evaluator:
         self.bio_metrics = ['kNN_retention_perc', 'NMI', 'ARI']
         self.all_functions = all_functions
         self.d_options = None
-        self.scores = {}
-        self.logger = logging.getLogger("my_logger")  
+        self.scores = {} 
 
     ##
 
@@ -138,6 +137,7 @@ class Int_evaluator:
         """
         Compute one of the available metrics.
         """
+        logger = logging.getLogger("my_logger") 
         t = Timer()
         if self.d_options is None:
             raise ValueError('Parse options first!')
@@ -147,9 +147,9 @@ class Int_evaluator:
             options_l = self.d_options[opt]
             args = options_l[0]
             kwargs = options_l[1]
-            self.logger.info(f'Begin the computation for the following combination of metric|pp|int_method:{opt}') 
+            logger.info(f'Begin the computation for the following combination of metric|pp|int_method:{opt}') 
             self.scores[opt] = self.run(args=args, kwargs=kwargs)
-            self.logger.info(f'End of {opt} computation: {t.stop()} s.') 
+            logger.info(f'End of {opt} computation: {t.stop()} s.') 
 
     ##
 

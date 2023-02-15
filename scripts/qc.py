@@ -180,6 +180,7 @@ def qc():
     pd.DataFrame({'cell':removed_cells}).to_csv(path_main + f'data/removed_cells/QC_{qc_mode}_{nUMIs_t}_{detected_genes_t}_{mito_perc_t}.csv')
     # Write final exec time
     logger.info(f'Execution was completed successfully in total {T.stop()} s.')
+    
 
 #######################################################################
 

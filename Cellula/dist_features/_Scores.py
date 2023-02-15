@@ -35,8 +35,7 @@ class Scores():
         self.wu = {}
         self.barkley = {}
         self.gene_sets = {}
-        self.scores = None
-        self.logger = logging.getLogger("my_logger")  
+        self.scores = None 
 
         if methods == 'all':
             self.methods = {
@@ -118,13 +117,14 @@ class Scores():
         """
         Compute GMs of some kind. Three kinds implemented.
         """
+        logger = logging.getLogger("my_logger") 
         g = Timer()
         for method in self.methods:
             g.start()
-            self.logger.info(f'Begin the computation for the following method:{method}') 
+            logger.info(f'Begin the computation for the following method:{method}') 
             print(f'Run method: {method}...')
             self.methods[method]()
-            self.logger.info(f'End of {method} computation: {g.stop()} s.') 
+            logger.info(f'End of {method} computation: {g.stop()} s.') 
 
         d = {**self.wu, **self.barkley, **self.Hotspot, **self.curated}
         d = { k : Gene_set(v, self.matrix.var, name=k, organism=self.organism) for k, v in d.items() }

@@ -58,7 +58,34 @@ def _sig_scores(adata, score_method='scanpy', organism='human'):
 
 def pp(adata, mode='scanpy', target_sum=50*1e4, n_HVGs=2000, score_method='scanpy', organism='human'):
     """
-    Pre-processing pp_wrapper on QCed and merged adata.
+    Preprocesses the AnnData object adata using either a scanpy or a pearson residuals workflow for size normalization
+    and highly variable genes (HVGs) selection, and calculates signature scores if necessary. 
+
+    Parameters:
+    ----------
+    adata: AnnData object
+        The data matrix.
+    mode: str, default 'scanpy'
+        The mode for size normalization and HVGs selection. It can be either 'scanpy' or 'pearson'. 
+        If 'scanpy', performs size normalization using scanpy's normalize_total() function and selects HVGs 
+        using pegasus' highly_variable_features() function with batch correction. If 'pearson', selects HVGs 
+        using scanpy's experimental.pp.highly_variable_genes() function with pearson residuals method and performs 
+        size normalization using scanpy's experimental.pp.normalize_pearson_residuals() function. 
+    target_sum: float, default 50*1e4
+        The target total count after normalization.
+    n_HVGs: int, default 2000
+        The number of HVGs to select.
+    score_method: str, default 'scanpy'
+        The method to calculate signature scores. It can be either 'scanpy' or 'cell_cycle' (only for human data).
+        If 'scanpy', calculates scores using scanpy's scoring.gex_scanpy() function. If 'cell_cycle', 
+        calculates scores using the 'cell_cycle' gene set from msigdb.
+    organism: str, default 'human'
+        The organism of the data. It can be either 'human' or 'mouse'. 
+
+    Returns:
+    -------
+    adata: AnnData object
+        The preprocessed data matrix. 
     """
     logger = logging.getLogger("my_logger") 
     t = Timer()
@@ -140,7 +167,21 @@ class my_PCA:
 
 def red(adata):
     """
-    Reduce to HVGs the input counts matrix.
+    Reduce the input AnnData object to highly variable features and store the resulting expression matrices.
+
+    Parameters
+    ----------
+    adata : AnnData
+        Annotated data matrix with n_obs x n_vars shape. Should contain a variable 'highly_variable_features'
+        that indicates which features are considered to be highly variable.
+
+    Returns
+    -------
+    adata : AnnData
+        Annotated data matrix with n_obs x n_vars shape. Adds new layers called 'lognorm' and 'raw' that store
+        the logarithmized normalized expression matrix and the unnormalized expression matrix, respectively.
+        The matrix is reduced to the highly variable features only.
+
     """
     adata = adata[:, adata.var['highly_variable_features']].copy()
     adata.layers['lognorm'] = adata.X
@@ -153,7 +194,19 @@ def red(adata):
 
 def scale(adata):
     """
-    Scale to 0 mean and unit variance the current matrix.
+    Scale the input AnnData object.
+
+    Parameters
+    ----------
+    adata : AnnData
+        Annotated data matrix with n_obs x n_vars shape.
+
+    Returns
+    -------
+    adata : AnnData
+        Annotated data matrix with n_obs x n_vars shape. Adds a new layer called 'scaled' that stores
+        the expression matrix that has been scaled to unit variance and zero mean.
+
     """
     adata_mock = sc.pp.scale(adata, copy=True)
     adata.layers['scaled'] = adata_mock.X
@@ -165,7 +218,20 @@ def scale(adata):
 
 def regress(adata):
     """
-    Regress-out 'mito_perc', 'nUMIs' technical covariates from the current matrix.
+    Regress out covariates from the input AnnData object.
+
+    Parameters
+    ----------
+    adata : AnnData
+        Annotated data matrix with n_obs x n_vars shape. Should contain columns 'mito_perc' and 'nUMIs'
+        that represent the percentage of mitochondrial genes and the total number of UMI counts, respectively.
+
+    Returns
+    -------
+    adata : AnnData
+        Annotated data matrix with n_obs x n_vars shape. Adds a new layer called 'regressed' that stores
+        the expression matrix with covariates regressed out.
+
     """
     adata_mock = sc.pp.regress_out(adata, ['mito_perc', 'nUMIs'], n_jobs=8, copy=True)
     adata.layers['regressed'] = adata_mock.X
@@ -177,7 +243,20 @@ def regress(adata):
 
 def regress_and_scale(adata):
     """
-    Regress-out 'mito_perc', 'nUMIs' technical covariates from the current matrix, and scale counts.
+    Regress out covariates from the input AnnData object and scale the resulting expression matrix.
+
+    Parameters
+    ----------
+    adata : AnnData
+        Annotated data matrix with n_obs x n_vars shape. Should contain a layer called 'regressed'
+        that stores the expression matrix with covariates regressed out.
+
+    Returns
+    -------
+    adata : AnnData
+        Annotated data matrix with n_obs x n_vars shape. Adds a new layer called 'regressed_and_scaled'
+        that stores the expression matrix with covariates regressed out and then scaled.
+
     """
     if 'regressed' not in adata.layers:
         raise KeyError('Regress out covariates first!')
@@ -194,7 +273,23 @@ def regress_and_scale(adata):
 
 def pca(adata, n_pcs=50, layer='scaled'):
     """
-    Compute my_PCA of the current matrix, and store its outputs in adata slots.
+    Performs Principal Component Analysis (PCA) on the data stored in a scanpy AnnData object.
+
+    Parameters
+    ----------
+    adata : AnnData
+        Annotated data matrix with rows representing cells and columns representing features.
+    n_pcs : int, optional (default: 50)
+        Number of principal components to calculate.
+    layer : str, optional (default: 'scaled')
+        The name of the layer in `adata` where the data to be analyzed is stored. Defaults to the 'scaled' layer,
+        and falls back to 'lognorm' if that layer does not exist. Raises a KeyError if the specified layer is not present.
+
+    Returns
+    -------
+    adata : AnnData
+        The original AnnData object with the calculated PCA embeddings and other information stored in its `obsm`, `varm`,
+        and `uns` fields.
     """
     if 'lognorm' not in adata.layers:
         adata.layers['lognorm'] = adata.X

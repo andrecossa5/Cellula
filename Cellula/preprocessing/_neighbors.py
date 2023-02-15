@@ -127,7 +127,31 @@ def compute_kNN(
     nn_kwargs={}, 
     ):
     """
-    Compute kNN_graph on some adata layer.
+    Given an AnnData object, extract the reduced representation with the get_representation() 
+    function and compute the k-nearest neighbors graph and save it in the same AnnData object.
+
+    Parameters
+    ----------
+    adata : AnnData
+        Annotated data matrix with n_obs x n_vars shape.
+    layer : str, optional
+        Layer of adata where the data for the computation should be taken from (default is 'scaled').
+    int_method : str, optional
+       int_method of adata where the data for the computation should be taken from (default is 'original').
+    k : int, optional
+        Number of nearest neighbors to compute (default is 15).
+    n_components : int, optional
+        Number of dimensions used in the reduction method (default is 30).
+    nn_kwargs : dict, optional
+        Additional keyword arguments.
+
+    Returns
+    -------
+    adata : AnnData
+        Annotated data matrix with n_obs x n_vars shape. Adds two new `obsp` entries and one new 'obsm' to the object
+        representing the computed k-nearest neighbors graph: the indices of the neighbors (`k_idx`), the
+        distances between them (`k_dist`), and the connectivity of the graph (`k_conn`).
+
     """
     if layer is not None and int_method is not None:
         X = get_representation(adata, layer=layer, method=int_method)

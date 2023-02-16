@@ -211,8 +211,55 @@ def report_one(df, gs, comparison_key=None, contrast=None, model=None, n=10,
 
 class Results_app:
     """
-    A class to store (and interact) with Dist_features results.
-    """
+        A class to store (and interact) with Dist_features results.
+
+        Parameters
+        ----------
+        adata: AnnData object
+            Annotated data matrix with observations (cells) in rows and features (genes) in columns.
+        contrasts: dict
+            A dictionary that defines the contrasts to test. The keys are the contrast names
+            and the values are Contrast objects.
+        jobs: dict
+            A dictionary that defines the different jobs to run on the data. The keys are the 
+            job names and the values are lists of dictionaries. Each dictionary corresponds to a 
+            model to use and the features to use with that model.
+
+        Attributes
+        ----------
+        matrix: AnnData object
+            Annotated data matrix with observations (cells) in rows and features (genes) in columns.
+        contrasts: dict
+            A dictionary that defines the contrasts to test.
+        jobs: dict
+            A dictionary that defines the different jobs to run on the data.
+        results: dict
+            A dictionary to store the results of the different jobs. The keys are strings that 
+            represent the jobs (contrast, features, and model separated by a '|'). The values 
+            are dictionaries with keys 'df' and 'gs'. 'df' is a pandas DataFrame with the 
+            results of the analysis, and 'gs' is a dictionary with the gene sets associated to 
+            each feature.
+        embeddings: None or array
+            The data embeddings, if any.
+
+        Methods:
+        --------
+        __init__(self, adata, contrasts, jobs):
+            Extract features and features metadata from input adata. Prep other attributes.
+        add_job_results(self, df, gs, job_key=None):
+            Add a result df and a Gene_set dict to the correct job_key self.results slots.
+        get_jobs_keys(self, contrast_key=None, feat_key=None, model_key=None):
+            Get jobs from results.
+        summary_one_comparison(self, job_key='sample|genes|wilcoxon', collection='GO_Biological_Process_2021',
+        comparison_key='bulk_d5_tr_vs_rest', n=10, show_genes=False, show_contrast=True, print_last=True):
+            Print a summary of one comparison.
+        summary_one_job(self, job_key='leiden|genes|wilcoxon', n=10, show_genes=False,
+        collection='GO_Biological_Process_2021'):
+            Print a summary of one entire job.
+        summary_one_comparison_multiple_jobs(self, contrast_key='leiden', feat_key='PCs', model_key=None,
+        collection='GO_Biological_Process_2021', comparison_key=None, show_genes=True, n=10):
+            Summary all results for a single comparison and a defined set of jobs.
+        """
 
     def __init__(self, adata, contrasts, jobs):
         """

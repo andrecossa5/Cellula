@@ -51,6 +51,58 @@ def check_equal_pars(p_original, p_new, is_tuple=False):
 class Gene_set:
     """
     A class to store and annotate a set of relevant genes.
+
+    Parameters:
+    -----------
+    results : list-like object or dataframe
+        A list-like object or dataframe representing the gene set, according to the method that produced the (ordered)
+        or not gene set.
+    genes_meta : dataframe
+        A dataframe containing information about the genes.
+    name : str or None, default=None
+        A name for the gene set.
+    organism : str, default='human'
+        The organism to which the genes belong.
+
+    Attributes:
+    -----------
+    name : str or None
+        The name of the gene set.
+    organism : str
+        The organism to which the genes belong.
+    stats : dataframe
+        A dataframe containing statistics about the genes in the set.
+    is_ordered : bool
+        A boolean value indicating whether the gene set is ordered or not.
+    is_filtered : bool
+        A boolean value indicating whether the gene set has been filtered or not.
+    filtered : dict
+        A dictionary containing the filtered gene sets.
+    filter_params : dict
+        A dictionary containing the parameters for filtering the gene set.
+    original_f : dict
+        A dictionary containing the original filter parameters.
+    rank_sort_params : dict
+        A dictionary containing the parameters for ranking and sorting the gene set.
+    original_s : dict
+        A dictionary containing the original rank and sort parameters.
+    ORA : dict
+        A dictionary containing the results of the over-representation analysis.
+    GSEA : dict
+        A dictionary containing the results of the gene set enrichment analysis.
+
+    Methods:
+    --------
+    __init__(self, results, genes_meta, name=None, organism='human'):
+        Set attrs. Results can be a list-like object or a df, according to the method that produced the 
+        (ordered) or not gene set.
+    filter_rank_genes(self, filtering=False, rank_sort=True, out=True, only_genes=False, filt_kwargs=None, sort_kwargs=None):
+        Filters and sorts the gene set based on the specified parameters.
+    compute_ORA(self, key='Default_ORA', by='Adjusted P-value', collection='GO_Biological_Process_2021', n_out=50):
+        Perform ORA (Over-Representation Analysis)
+    compute_GSEA(self, collection='KEGG_2019_Human', n_out=50, permutation_type='phenotype', pval_t=0.05, method='log2_ratio_of_classes')
+        Perform GSEA (Gene-Set Enrichment Anlysis).
+    
     """
 
     def __init__(self, results, genes_meta, name=None, organism='human'):

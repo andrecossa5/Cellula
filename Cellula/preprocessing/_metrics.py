@@ -137,10 +137,10 @@ def graph_conn(A, labels=None, resolution=0.2):
     Parameters:
     -----------
     A : ndarray of shape (n, n)
-        The adjacency matrix of the network to be analyzed.
+        The adjacency matrix of the KNN graph.
     labels : pandas.Categorical, optional
-        A categorical array specifying the cluster label for each node. If not provided,
-        the Leiden algorithm is used to cluster the nodes into groups with resolution parameter
+        A categorical array specifying the cluster label for each cell. If not provided,
+        the Leiden algorithm is used to cluster the cells into groups with resolution parameter
         `resolution`.
     resolution : float, optional (default : 0.2)
         The resolution parameter to be used with the Leiden algorithm for clustering nodes into
@@ -150,7 +150,7 @@ def graph_conn(A, labels=None, resolution=0.2):
     --------
     mean_conn : float
         The mean graph connectivity of the network, computed as the average of the maximum
-        fraction of nodes that are mutually connected within each group of nodes defined by the
+        fraction of cells that are mutually connected within each group of cells defined by the
         input `labels`.
     """
     # Compute the graph connectivity metric, for each separate cluster
@@ -177,23 +177,20 @@ def graph_conn(A, labels=None, resolution=0.2):
 
 def entropy_bb(index, batch):
     """
-    Computes the median batch-wise entropy of a set of categorical data.
+    Calculate the median (over cells) batches Shannon Entropy given an index matrix of a KNN graph.
 
     Parameters:
     -----------
     index : ndarray of shape (n, m)
-        An integer matrix containing the indices of the samples in `batch` that belong to each
-        batch. Each row of `index` represents a batch, and each element of the row represents the
-        index of a sample in `batch`.
-    batch : pandas.Series of shape (n,)
-        A pandas Series object containing the categorical data to be analyzed.
+        An array of shape (n_cells, n_neighbors) containing the indices of the k nearest neighbors for each cell.
+    batch : pandas.Series
+        A categorical pandas Series of length n_cells indicating the batch for each cell.
 
     Returns:
     --------
     median_entropy : float
-        The median batch-wise entropy of the categorical data. The entropy is computed as the
-        negative sum of the frequencies of each category multiplied by the logarithm of the
-        frequency, with a small offset to avoid division by zero. The median is taken over the
+        The entropy is computed as the negative sum of the frequencies of each category multiplied by the logarithm 
+        of the frequency, with a small offset to avoid division by zero. The median is taken over the
         entropy values computed for each batch.
     """
     SH = []
@@ -209,25 +206,22 @@ def entropy_bb(index, batch):
 
 def kNN_retention_perc(original_idx, int_idx):
     """
-    Computes the median percentage of nearest neighbors that are retained after an integration
-    procedure.
+    Calculate the median (over cells) kNN purity of each cell neighborhood.
 
     Parameters:
     -----------
-    original_idx : ndarray of shape (n, k+1)
-        An integer matrix containing the indices of the k nearest neighbors of each point in the
-        original dataset, plus the index of the point itself as the first column.
-    int_idx : ndarray of shape (n, k+1)
-        An integer matrix containing the indices of the k nearest neighbors of each point in the
-        integrated dataset, plus the index of the point itself as the first column.
+    original_idx : ndarray of shape (n, m)
+        An array of shape (n_cells, n_neighbors) containing the indices of the k nearest neighbors for each cell (original).
+    int_idx : ndarray of shape (n, m)
+        An array of shape (n_cells, n_neighbors) containing the indices of the k nearest neighbors for each cell (integrated).
 
     Returns:
     --------
     median_retention_perc : float
         The median percentage of nearest neighbors that are retained after the integration. For
         each point in the original dataset, the function compares its k nearest neighbors to the
-        k nearest neighbors of the corresponding point in the integrated dataset, and computes the
-        fraction of neighbors that are shared between the two sets. The median is taken over all
+        k nearest neighbors of the corresponding point in the integrated representation, and computes the
+        fraction of neighbors that are shared between the two representations. The median is taken over all
         points in the dataset.
     """
     # Sanity check
@@ -252,26 +246,26 @@ def kNN_retention_perc(original_idx, int_idx):
 def compute_NMI(original_conn, integrated_conn, labels=None, resolution=0.2):
     """
     Computes the normalized mutual information (NMI) score between the clustering results of the
-    original and integrated datasets.
+    original and integrated connectivities matrices of KNN graph.
 
     Parameters:
     -----------
     original_conn : ndarray of shape (n, n)
-        An adjacency matrix representing the connectivity of the original dataset.
+        The original adjacency matrix of the KNN graph.
     integrated_conn : ndarray of shape (n, n)
-        An adjacency matrix representing the connectivity of the integrated dataset.
+        The integrated adjacency matrix of the KNN graph.
     labels : ndarray of shape (n,), optional (default=None)
-        An array of integers representing the ground-truth labels for the nodes in the original
-        dataset. If not provided, the function will use the Leiden algorithm to cluster the nodes
-        in the original dataset.
+        An array of integers representing the ground-truth labels for the cells in the original
+        adjacency matrix. If not provided, the function will use the Leiden algorithm to cluster the cells
+        in the original adjacency matrix.
     resolution : float, optional (default=0.2)
-        The resolution parameter to use when clustering the nodes in the original dataset. This
+        The resolution parameter to use when clustering the cells in the original adjacency matrix. This
         parameter controls the level of granularity in the clustering.
 
     Returns:
     --------
     nmi_score : float
-        The NMI score between the clustering results of the original and integrated datasets. The
+        The NMI score between the clustering results of the original and integrated adjacency matrices. The
         NMI score measures the mutual information between the two sets of labels and normalizes it
         by the average entropy of the two sets. A higher NMI score indicates a better alignment of
         the clustering results.
@@ -300,21 +294,21 @@ def compute_ARI(original_conn, integrated_conn, labels=None, resolution=0.2):
     Parameters:
     -----------
     original_conn : ndarray of shape (n, n)
-        An adjacency matrix representing the connectivity of the original dataset.
+        The original adjacency matrix of the KNN graph.
     integrated_conn : ndarray of shape (n, n)
-        An adjacency matrix representing the connectivity of the integrated dataset.
+        The integrated adjacency matrix of the KNN graph.
     labels : ndarray of shape (n,), optional (default=None)
-        An array of integers representing the ground-truth labels for the nodes in the original
-        dataset. If not provided, the function will use the Leiden algorithm to cluster the nodes
-        in the original dataset.
+        An array of integers representing the ground-truth labels for the cells in the original
+        adjacency matrix. If not provided, the function will use the Leiden algorithm to cluster the cells
+        in the original adjacency matrix.
     resolution : float, optional (default=0.2)
-        The resolution parameter to use when clustering the nodes in the original dataset. This
+        The resolution parameter to use when clustering the cells in the original adjacency matrix. This
         parameter controls the level of granularity in the clustering.
 
     Returns:
     --------
     ari_score : float
-        The ARI score between the clustering results of the original and integrated datasets. The
+        The ARI score between the clustering results of the original and integrated adjacency matrices. The
         ARI score measures the similarity between the two sets of labels and adjusts for chance
         agreement. A higher ARI score indicates a better alignment of the clustering results.
     """

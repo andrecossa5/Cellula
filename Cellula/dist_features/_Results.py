@@ -127,6 +127,46 @@ def report_one(df, gs, comparison_key=None, contrast=None, model=None, n=10, sho
 class Results:
     """
     A class to store (and interact) with Dist_features results.
+    
+    Parameters:
+    ----------
+    adata : AnnData object
+        Annotated data matrix with observations (cells) in rows and features (genes) in columns.
+    contrasts : dict
+        A dictionary that provides contrast information.
+    jobs : dict
+        A dictionary that provides information about feature extraction and model specifications.
+    
+    Attributes:
+    ----------
+    matrix : AnnData object
+        Annotated data matrix with observations (cells) in rows and features (genes) in columns.
+    contrasts : dict
+        A dictionary that provides contrast information.
+    jobs : dict
+        A dictionary that provides information about feature extraction and model specifications.
+    results : dict
+        A dictionary that stores the result data. The keys of the dictionary are in the format 
+        `'|'.join([k, x['features'], x['model']])`, where `k` is a job key and `x` is an element of 
+        `self.jobs[k]`. The values of the dictionary are also dictionaries, with keys 'df' and 'gs'.
+    embeddings : None
+    
+    Methods:
+    --------
+    __init__(self, adata, contrasts, jobs):
+        Extract features and features metadata from input adata. Prep other attributes.
+    add_job_results(self, df, gs, job_key=None):
+        Add a result dataframe and a gene set dictionary to the correct job key `self.results` slots.
+    get_jobs_keys(self, contrast_key=None, feat_key=None, model_key=None):
+        Get jobs from results.
+    summary_one_comparison(self, job_key='sample|genes|wilcoxon', comparison_key='bulk_d5_tr_vs_rest', n=10, 
+                            show_genes=False, show_contrast=True, print_last=True):
+        Print a summary of one comparison.
+    summary_one_job(self, job_key='leiden|genes|wilcoxon', n=10, show_genes=False):
+        Print a summary of one entire job.
+    summary_one_comparison_multiple_jobs(self, contrast_key='leiden', feat_key='PCs', model_key=None, comparison_key=None, 
+                                          show_genes=True, n=10):
+        Print a summary of all results for a single comparison and a defined set of jobs.
     """
 
     def __init__(self, adata, contrasts, jobs):

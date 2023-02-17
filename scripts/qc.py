@@ -149,7 +149,9 @@ def qc():
     logger.info(f'Execute qc: --version {version} --mode {mode} --qc_mode {qc_mode}')
 
     # Read and format 10x/STARsolo matrices 
+    logger.info('Read and format 10x/STARsolo matrices')
     adatas = read_matrices(path_matrices, mode=mode)
+    logger.info(f'End of reading and formatting 10x/STARsolo matrices: {t.stop()} s.')
 
     # QC them
     tresholds = {
@@ -157,6 +159,8 @@ def qc():
         'nUMIs' : nUMIs_t,
         'detected_genes' : detected_genes_t
     }
+    t.start()
+    logger.info('Begin of quality control and plotting')
     adata, removed_cells = QC(
         adatas, 
         mode=qc_mode, 
@@ -166,7 +170,7 @@ def qc():
         nmads=nmads,
         tresh=tresholds
     )
-
+    logger.info(f'End of quality control and plotting: {t.stop()} s.')
     # Save adata and cells_meta.csv
     logger.info(adata)
     adata.write(path_data + 'QC.h5ad')
@@ -174,9 +178,9 @@ def qc():
 
     # Save removed cells 
     pd.DataFrame({'cell':removed_cells}).to_csv(path_main + f'data/removed_cells/QC_{qc_mode}_{nUMIs_t}_{detected_genes_t}_{mito_perc_t}.csv')
-   
     # Write final exec time
     logger.info(f'Execution was completed successfully in total {T.stop()} s.')
+    
 
 #######################################################################
 

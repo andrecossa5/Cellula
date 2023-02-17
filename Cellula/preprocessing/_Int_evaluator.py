@@ -15,7 +15,61 @@ from ..plotting._plotting import plot_rankings
 
 class Int_evaluator:
     """
-    A class to hold, evaluate and select the appropriate preprocessed and integrated adata after pp and integration.
+    This class evaluates a series of metrics (batch and biological) using k-nearest-neighbors graphs of the different integration
+    methods used.
+
+    Parameters
+    ----------
+    adata: AnnData object
+        Annotated data matrix with observations (cells) in rows and features (genes) in columns.
+    
+    Attributes:
+    -----------
+    adata: AnnData object
+        An annotated data matrix.
+    methods: pd.Series
+        A series of method names for integration.
+    batch_metrics: list
+        A list of metric names for batch effect correction.
+    bio_metrics: list
+        A list of metric names for biological validation.
+    all_functions: dict
+        A dictionary of metric names and corresponding evaluation functions.
+    d_options: dict
+        A dictionary of configuration options for self.compute_metrics() method.
+    scores: dict
+        A dictionary of computed scores.
+
+    Methods:
+    --------
+    __init__(self, adata): 
+        Instantiate the main class attributes.
+    parse_options(self, covariate='seq_run'):
+        Parse a dictionary of configuration options for the self.compute_metrics method.
+    get_kNNs(self, layer='scaled', method=None, metric=None, k=15, n_components=30,
+        only_index=False, only_conn=False):
+        Get needed kNNs for metrics computation.
+    run(self, args=[], kwargs={}):
+        Run one of the methods.
+    compute_metrics(self):
+        Compute one of the available metrics.
+    evaluate_runs(self, path, by='cumulative_score'):
+        Rank methods based on scores.
+    viz_results(self, df, df_summary, df_rankings, by='ranking', figsize=(13,5)):
+        Plot rankings.
+
+    Notes
+    -----
+    The available metrics are:
+        * 'kBET': computes the kBET metric to assess batch effects for an index matrix of a KNN graph.
+        * 'entropy_bb': calculate the median (over cells) batches Shannon Entropy given an index matrix of a KNN graph.
+        * 'graph_conn': calculates the graph connectivity of a network based on its adjacency matrix A (connectivities matrix of KNN).
+        * 'kNN_retention_perc': calculate the median (over cells) kNN purity of each cell neighborhood.
+        * 'NMI': computes the normalized mutual information (NMI) score between the clustering results of the
+                 original and integrated connectivities matrices of KNN graph.
+        * 'ARI': computes the adjusted Rand index (ARI) score between the clustering results 
+                 of the original and integrated connectivities matrices of KNN graph.
+
     """
     def __init__(self, adata):
         '''
@@ -27,7 +81,7 @@ class Int_evaluator:
         self.bio_metrics = ['kNN_retention_perc', 'NMI', 'ARI']
         self.all_functions = all_functions
         self.d_options = None
-        self.scores = {}
+        self.scores = {} 
 
     ##
 
@@ -137,16 +191,19 @@ class Int_evaluator:
         """
         Compute one of the available metrics.
         """
+        logger = logging.getLogger("my_logger") 
+        t = Timer()
         if self.d_options is None:
             raise ValueError('Parse options first!')
 
         for opt in self.d_options: 
-            
+            t.start()
             options_l = self.d_options[opt]
             args = options_l[0]
             kwargs = options_l[1]
-
+            logger.info(f'Begin the computation for the following combination of metric|pp|int_method:{opt}') 
             self.scores[opt] = self.run(args=args, kwargs=kwargs)
+            logger.info(f'End of {opt} computation: {t.stop()} s.') 
 
     ##
 

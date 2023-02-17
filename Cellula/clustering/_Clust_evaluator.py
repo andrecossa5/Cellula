@@ -20,6 +20,62 @@ from ..plotting._plotting import plot_rankings
 class Clust_evaluator:
     """
     A class to hold, evaluate and select the appropriate clustering solution.
+
+    Parameters
+    ----------
+    adata: AnnData
+        The preprocessed AnnData object to be used in the clustering evaluation.
+    clustering_solutions: dict
+        A dictionary of clustering solutions to be evaluated. 
+        Each key is a string representing the clustering solution name, and the 
+        value is a numpy array with the cluster assignments for each cell.
+    metrics: str or list of str, optional (default: 'all')
+        A list of metrics to be used for the clustering evaluation. 
+        Each metric is a string indicating the name of the method to be used. 
+        If 'all' is passed, all available metrics will be used.
+
+    Attributes
+    ----------
+    adata: AnnData
+        The input AnnData object.
+    layer: str
+        The layer of the data used in the analysis.
+    int_method: str
+        The integration method used.
+    space: numpy array
+        The space used in the analysis. This is either integrated latent space or 
+        the original PCA space (that is the same in case of BBKNN).
+    solutions: dict
+        A dictionary of the input clustering solutions.
+    scores: dict
+        A dictionary of the scores obtained for each metric and solution combination.
+    d_options: dict
+        A dictionary of configuration options for the `compute_metrics` method.
+
+    Methods
+    -------
+    def __init__(self, adata, clustering_solutions, metrics='all')
+        Instantiate the main class attributes, loading preprocessed adata.
+    parse_options(self)
+        Parse a dictionary of configuration options for the `compute_metrics` method.
+    get_rep(self, metric, k=15, n_components=30)
+        Get a representation based on the metric to score.
+    run(self, metric, args=None, kwargs=None)
+        Run one of the evaluation methods.
+    compute_metrics(self)
+        Compute the selected metrics for each clustering solution.
+    evaluate_runs(self, path, by='cumulative_score')
+        Rank the clustering solutions using the specified metric.
+    viz_results(self, df, df_summary, df_rankings, by='ranking', figsize=(13,5))
+        Plot rankings. 
+
+    Notes
+    -----
+    The available metrics are:
+        * 'inertia': calculate the total within-cluster sum of squares.
+        * 'DB': calculate the Davies-Bouldin index.
+        * 'silhouette': calculate the silhouette score.
+        * 'kNN_purity': calculate the kNN purity.
     """
     
     def __init__(self, adata, clustering_solutions, metrics='all'):
@@ -126,17 +182,22 @@ class Clust_evaluator:
         """
         Compute one of the available metrics.
         """
+        logger = logging.getLogger("my_logger") 
+        g = Timer()
+
         if self.d_options is None:
             raise ValueError('Parse options first!')
 
         for opt in self.d_options: 
-
+            print(opt)
+            g.start()
             metric = self.d_options[opt][0]
             args = self.d_options[opt][1]
             kwargs = self.d_options[opt][2]
+            logger.info(f'Begin the computation for the following combination of metric|solution:{opt}') 
             score = self.run(metric, args=args, kwargs=kwargs)
-
             self.scores[opt] = score
+            logger.info(f'End of {opt} computation: {g.stop()} s.') 
 
     ##
 

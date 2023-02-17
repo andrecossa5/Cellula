@@ -139,6 +139,9 @@ def clustering():
     logger.info(f'Begin clustering: --range {args.range} --n {n}')
 
     # Load preprocessed and lognorm
+    t = Timer()
+    t.start()
+    logger.info('Loading preprocessed AnnData and get preprocessing options')
     adata = sc.read(path_data + 'preprocessed.h5ad')
 
     # Define resolution range
@@ -150,6 +153,7 @@ def clustering():
     Ks = np.unique([ x.split('|')[3].split('_')[0] for x in adata.obsp ])
     n_components =  np.unique([ x.split('|')[3].split('_')[2] for x in adata.obsp ])[0]
     rep = 'X_corrected' if int_method != 'original' else 'X_pca'
+    logger.info(f'Get preprocessed AnnData and preprocessing options in: {t.stop()} s.')
 
     logger.info(f'Found kNN graphs from layer {layer} and int_method {int_method}...')
 
@@ -158,7 +162,6 @@ def clustering():
 
     for i, k in enumerate(Ks):
 
-        t = Timer()
         t.start()
 
         coonnectivities = get_representation(
@@ -181,10 +184,13 @@ def clustering():
         logger.info(f'Finished partitioning {i+1}/{len(Ks)} graph in total {t.stop()} s.')
 
     # Save
+    t.start()
+    logger.info('Save dictionary of clustering solutions as a Pandas Dataframe')
     pd.DataFrame(
         clustering_solutions, 
         index=adata.obs_names
     ).to_csv(path_results + 'clustering_solutions.csv')
+    logger.info(f'Generation of clustering_solutions.csv in: {t.stop()} s.')
 
     #-----------------------------------------------------------------#
 
@@ -201,9 +207,13 @@ def markers_all():
 
     t = Timer()
     t.start()
+
+    g = Timer()
     logger.info(f'Adding markers...')
 
     # Load clustering solutions
+    g.start()
+    logger.info('Begin loading of clustering solutions, create contrasts and jobs')
     if not os.path.exists(path_results + 'clustering_solutions.csv'):
         print('Run without --skip_clustering, first!')
         sys.exit()
@@ -220,9 +230,13 @@ def markers_all():
         for k in clustering_solutions.columns
     }
 
+    logger.info(f'End of loading of clustering solutions, create contrasts and jobs in: {g.stop()} s.')
     # Here we go  
+    g.start()
+    logger.info('Loading the full log-normalized matrix and initialization of Dist_features class')
     adata = sc.read(path_data + 'lognorm.h5ad')   # Full log-normalized matrix required
     D = Dist_features(adata, contrasts, jobs=jobs)   # Job mode here
+    logger.info(f'Lognorm matrix loaded and class initialized: {g.stop()} s.')
     D.run_all_jobs()
 
     # Save markers, as Gene_sets dictionary only
@@ -230,8 +244,11 @@ def markers_all():
     make_folder(path_markers, version, overwrite=False)
     path_markers += f'/{version}/' 
 
+    g.start()
+    logger.info('Saving markers in a pickle file')
     with open(path_markers + 'clusters_markers.pickle', 'wb') as f:
         pickle.dump(D.Results.results, f)
+    logger.info(f'Genearation of clusters_markers.pickle: {g.stop()} s.')
 
     logger.info(f'Finished markers: {t.stop()} s.')
 

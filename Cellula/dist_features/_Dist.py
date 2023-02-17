@@ -27,7 +27,71 @@ from ._Results_app import Results_app
 
 class Dist_features:
     """
-    A class to retrieve (and annotate) gene sets distinguishing cell groups in data.
+    A class to extract features and feature metadata from input adata, 
+    filter genes, select appropriate contrast-feature matrix and 
+    format differential expression (DE) results.
+
+    Parameters
+    ----------
+    adata: AnnData object
+        Annotated data matrix with observations (cells) in rows and features (genes) in columns.
+    contrasts: dict
+        A dictionary of contrast objects containing information on how to compare two groups of cells.
+    jobs: int or None, optional (default: None)
+        The number of parallel jobs to run when computing differential expression. 
+        If None, no parallelization is used.
+    signatures: dict or None, optional (default: None)
+        A dictionary containing gene set signatures to compute enrichment scores.
+    app: bool, optional (default: False)
+        If True, use the Approximate Posterior Probability (APP) method to calculate Bayes Factors.
+        If False, use the Normal/Exact method.
+    n_cores: int, optional (default: 8)
+        The number of CPU cores to use for parallelization.
+    organism: str, optional (default: 'human')
+        The organism for which the data is being analyzed.
+
+    Attributes
+    ----------
+    organism: str
+        The organism for which the data is being analyzed.
+    genes: dict
+        A dictionary containing the original gene matrix and the filtered gene matrices.
+    PCs: pandas DataFrame
+        A DataFrame containing the principal components (PCs) of the data matrix.
+    signatures: pandas DataFrame or None
+        A DataFrame containing the enrichment scores for each gene set signature, if available.
+    features_meta: dict
+        A dictionary containing feature metadata for genes, PCs and gene sets signatures.
+    contrasts: dict
+        A dictionary of contrast objects containing information on how to compare two groups of cells.
+    jobs: int or None
+        The number of parallel jobs to run when computing differential expression.
+    n_cores: int
+        The number of CPU cores to use for parallelization.
+    Results: Results object or None
+        A Results object containing differential expression (DE) results, if computed.
+
+    Methods
+    -------
+    select_genes(self, cell_perc=0.15, no_miribo=True, only_HVGs=False)
+        Filter genes expressed in less than cell_perc cells &| only HVGs &| no MIT or ribosomal genes.
+    get_XY(self, contrast_key=None, feat_type='genes', which='original')
+        Get the appropriate contrast-feature matrix (X), feature names and observation labels (y).
+    format_de(self, de_raw, y, contrast_type)
+        Format Dist_features.compute_DE() results into a human-readable df and into a dictionary of Gene_Sets.
+    compute_DE(self, contrast_key=None, which='perc_0.15_no_miribo'):
+        Compute Wilcoxon test-based DE over some filtered gene matrix for all the specified contrasts.
+        Use super-duper fast MWU test implementation from pegasus.
+    gs_from_ML(self, df, feat_type, n=5):
+        Create a dictionary of Gene_sets from a clasification output between two 
+        groups of cells in certain contrast.
+    compute_ML(self, contrast_key=None, feat_type='PCs', which='original', model='xgboost', mode='fast', n_combos=50, score='f1'):
+        Train and fit a classification with X feature and y labels arrays.
+    run_all_jobs(self):
+        Run all prepared jobs.
+    to_pickle(self, path_results, name='dist_features'):
+        Dump self.Results to path_results.
+
     """
 
     def __init__(self, adata, contrasts, jobs=None, signatures=None, app=False, n_cores=8, organism='human'):

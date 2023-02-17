@@ -31,6 +31,33 @@ def compo_summary(c):
 class Contrast:
     """
     A class to store all info needed to process a certain contrast with Dist_features.
+
+    Parameters
+        ----------
+        meta : pandas.DataFrame
+            The cell metadata.
+        query : str or dict
+            The query to be applied to the metadata. If it is a string, it is treated as a column name in the metadata.
+            If it is a dictionary, it must be of the form {group_name : query_expression}, where query_expression is a 
+            valid Pandas query expression.
+        description : str, optional
+            A description of the contrast.
+
+    Attributes
+    ----------
+    meta : pandas.DataFrame
+        The cell metadata.
+    query : str or dict
+        The query to be applied to the metadata. If it is a string, it is treated as a column name in the metadata.
+        If it is a dictionary, it must be of the form {group_name : query_expression}, where query_expression is a 
+        valid Pandas query expression.
+    description : str, optional
+        A description of the contrast.
+
+    Methods
+    -------
+    __init__(self, meta, query, description=None)
+        Initializes the contrast instance with the provided metadata and query.
     """
 
     def __init__(self, meta, query, description=None):

@@ -86,25 +86,25 @@ def distinguishing_features(path_main):
             list(results.results[job_key]['gs'].keys()), 
             key='comparison'
         )
-        show_genes = form_2.selectbox(
-            'Print enriched pathways gene names in extended mode',
-            [False, True],
-            key='show_genes'
-        )
-        show_contrast = form_2.selectbox(
-            'Print contrast information', 
-            [False, True],
-            key='show_contrast'
-        )
-        n = form_2.selectbox(
-            'n features to show',
-            list(np.arange(5, 55, 5)),
-            key='n'
-        )
         collection = form_2.selectbox(
             'Gene set collections for GSEA/ORA',
             list(gseapy.get_library_name()),
             key='collection'
+        )
+        n = form_2.text_input(
+            'n features to show',
+            value='5',
+            key='n'
+        )
+        show_contrast = form_2.checkbox(
+            'Print contrast information', 
+            value=True,
+            key='show_contrast'
+        )
+        show_genes = form_2.checkbox(
+            'Print enriched pathways gene names in extended mode',
+            value=False,
+            key='show_genes'
         )
         submit_2 = form_2.form_submit_button('Run')
 
@@ -113,7 +113,7 @@ def distinguishing_features(path_main):
                 job_key=job_key, 
                 comparison_key=comparison, 
                 show_genes=show_genes, show_contrast=show_contrast, print_last=False, 
-                n=n, collection=collection
+                n=int(n), collection=collection
             )
 
     ## One job form
@@ -125,18 +125,19 @@ def distinguishing_features(path_main):
             'Analysis',
             list(results.results.keys())
         )
-        show_genes = form_2.selectbox(
-            'Print enriched pathways gene names in extended mode',
-            [False, True]
-        )
-
-        n = form_2.selectbox(
-            'n features to show',
-            list(np.arange(5, 55, 5))
-        )
         collection = form_2.selectbox(
             'Gene set collections for GSEA/ORA',
             list(gseapy.get_library_name()),
+        )
+        n = form_2.text_input(
+            'n features to show',
+            value='5',
+            key='n'
+        )
+        show_genes = form_2.checkbox(
+            'Print enriched pathways gene names in extended mode',
+            value=False,
+            key='show_genes'
         )
 
         submit_2 = form_2.form_submit_button('Run')

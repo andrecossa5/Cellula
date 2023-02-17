@@ -17,6 +17,7 @@ import seaborn as sns
 from statannotations.Annotator import Annotator 
 
 from .._utils import *
+from ._colors import *
 plt.style.use('default')
 
 
@@ -499,3 +500,48 @@ def stem_plot(df, x, ax=None):
     ax.axvline(color="black", linestyle="--")
     ax.invert_yaxis()
     return ax
+
+
+##
+
+
+def bb_plot(df, cov1=None, cov2=None, show_y=True, legend=True, colors=None, 
+    ax=None, with_data=False, **kwargs):
+    """
+    Stacked percentage plot.
+    """
+    # Prep data
+    df[cov1] = pd.Categorical(df[cov1]).remove_unused_categories()
+    df[cov2] = pd.Categorical(df[cov2]).remove_unused_categories()
+    data = pd.crosstab(df[cov1], df[cov2], normalize='index')
+    data_cum = data.cumsum(axis=1)
+    ys = data.index.categories
+    labels = data.columns.categories
+
+    # Ax
+    if colors is None:
+        colors = create_palette(df, cov2, palette='tab10')
+
+    for i, x in enumerate(labels):
+        widths = data.values[:,i]
+        starts = data_cum.values[:,i] - widths
+        ax.barh(ys, widths, left=starts, height=0.95, label=x, color=colors[x])
+
+    # Format
+    ax.set_xlim(-0.01, 1.01)
+    format_ax(
+        ax, 
+        title = f'{cov1} by {cov2}',
+        yticks='' if not show_y else ys, 
+        xlabel='Abundance %'
+    )
+
+    if legend:
+        add_legend(label=cov2, colors=colors, ax=ax, only_top=10, ncols=1,
+            loc='upper left', bbox_to_anchor=(1.01,1), ticks_size=7  
+        )
+    
+    if with_data:
+        return ax, data
+    else:
+        return ax

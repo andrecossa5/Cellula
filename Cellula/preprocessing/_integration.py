@@ -2,6 +2,7 @@
 _integration.py: integration utils. 
 """
 
+
 import pandas as pd 
 import numpy as np 
 import scanpy 
@@ -215,10 +216,6 @@ def summary_metrics(df, df_rankings, evaluation='clustering'):
 
     return df_summary
 
-
-##
-
-
 def parse_integration_options(adata, methods, covariate='seq_run', k=15, n_components=30, 
     categorical_covs=['seq_run'], continuous_covs=['mito_perc', 'nUMIs']
     ):
@@ -255,6 +252,4 @@ def parse_integration_options(adata, methods, covariate='seq_run', k=15, n_compo
                 integration_d[analysis] = [ functions_int[m], adata, kwargs ]
 
     return integration_d
-
-
 

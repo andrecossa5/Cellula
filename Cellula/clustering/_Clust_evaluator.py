@@ -27,14 +27,17 @@ class Clust_evaluator:
         Instantiate the main class attributes, loading preprocessed adata.
         """
         self.adata = adata
-        self.int_method, self.layer = np.unique([ (x.split('|')[0], x.split('|')[1]) for x in adata.obsp ])
-        
+        self.layer, self.int_method = next(iter(adata.obsp)).split('|')[0], next(iter(adata.obsp)).split('|')[1]
+
         if self.int_method != 'original' and self.int_method != 'BBKNN':
             self.space =  adata.obsm[f'{self.layer}|{self.int_method}|X_corrected']
             print(f'Integrated dataset. Found {self.layer}|{self.int_method}|X_corrected representation...')
-        else:
+        elif self.int_method == 'original':
             self.space = adata.obsm[f'{self.layer}|{self.int_method}|X_pca']
             print(f'This dataset was not integrated in the end. Found only {self.layer}|{self.int_method}|X_pca representation...')
+        else:
+            self.space =  adata.obsm[f'{self.layer}|original|X_pca']
+            print(f'Integrated dataset with BBKNN. Found {self.layer}|original|X_pca representation...')
 
         self.solutions = clustering_solutions
         self.scores = {}

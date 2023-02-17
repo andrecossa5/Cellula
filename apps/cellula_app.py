@@ -1,16 +1,30 @@
+"""
+Multipage app.
+"""
+
 import streamlit as st
 from apps.dist_feat_app import distinguishing_features
 from apps.embs_viz_app import embeddings_visualization
 from apps.scorer_app import gene_sets
 import sys
 
+
+##
+
+
 def main():
+
+    #st.set_page_config(layout="wide")
+
     path_main = sys.argv[1]
     st.sidebar.title("Navigation menu")
-    app_mode = st.sidebar.selectbox("Choose a task to perform", ["Homepage", "Distinguishing features", "Embeddings visualization","Gene Sets"])
+    app_mode = st.sidebar.selectbox(
+        "Choose one app:",
+        ["Home", "Distinguishing features", "Embeddings visualization","Gene Sets"]
+    )
 
-    if app_mode == "Homepage":
-        st.header("Homepage")
+    if app_mode == "Home":
+        st.header("Cellula")
         st.write("Welcome to the Cellula visualization app")
 
     elif app_mode == "Distinguishing features":

@@ -16,107 +16,114 @@ import streamlit as st
 
 ##
 
-def gene_sets(path_main):
-    # Utils
-    def load_data(path_data, version):
-        """
-        Load data.
-        """
-        adata = sc.read(path_data + f'/{version}/clustered.h5ad')
-        with open(path_data + f'/{version}/signatures.pickle', 'rb') as f:
-            signatures = pickle.load(f)
 
-        return adata, signatures
+# path_data = '/Users/IEO5505/Desktop/dataset_prova/data/'
+# version = 'default'
 
 
-    ##
+@st.cache
+def load_data(path_data, version):
+    """
+    Load data.
+    """
+    adata = sc.read(path_data + f'/{version}/clustered.h5ad')
+    with open(path_data + f'/{version}/signatures.pickle', 'rb') as f:
+        signatures = pickle.load(f)
+
+    return adata, signatures
 
 
-    def viz(embs, feature, adata, q1, q2):
-        """
-        Vizualization.
-        """
+##
 
-        # Data prep
-        df_ = embs.join(adata.obs).assign(feature=feature)
 
-        # Prep covariates
+def viz(embs, feature, adata, q1, q2):
+    """
+    Vizualization.
+    """
+    # Prep df_
+    df_ = embs.join(adata.obs).assign(feature=feature)
 
-        # Cat
-        df_['group'] = 'others'
-        df_.loc[df_.query(q1).index, 'group'] = 'q1'
+    # Prep group covariate
+    df_['group'] = 'others'
+    df_.loc[df_.query(q1).index, 'group'] = 'q1'
+
+    if q2 != 'rest':
         df_.loc[df_.query(q2).index, 'group'] = 'q2'
+        df_['group'] = pd.Categorical(df_['group'], categories=['q1', 'q2', 'others'])
+    else:
+        df_.loc[df_['group'] != 'q1', 'group'] = 'q2'
+        df_['group'] = pd.Categorical(df_['group'], categories=['q1', 'q2'])
+    query_others = 'group == "others"'
 
-        query = 'group != "others"'
-        if df_.query(query).shape[0] == 0:
-            query = None
+    if df_.query(query_others).shape[0] == 0:
+        query = None
+    else:
+        query = query_others.replace('==', '!=')
 
-        # fig
+    fig, axs = plt.subplots(1,3,figsize=(16, 5))
 
-        fig, axs = plt.subplots(1,3,figsize=(16, 5))
+    # Cat
+    draw_embeddings(
+        df_, 
+        cat='group', 
+        ax=axs[0], 
+        query=query, 
+        legend_kwargs={
+            'bbox_to_anchor' : (0.0,1),
+            'loc' : 'upper right',
+            'only_top' : 30
+        }
+    )
 
-        # Cat
-        draw_embeddings(
-            df_, 
-            cat='group', 
-            ax=axs[0], 
-            query=query, 
-            legend_kwargs={
-                'bbox_to_anchor' : (0.0,1),
-                'loc' : 'upper right',
-                'only_top' : 30
-            }
-        )
-
-        # Expression
-        draw_embeddings(
-            df_, 
-            cont='feature', 
-            ax=axs[1], 
-            query=query,
-            cbar_kwargs={
-                'pos' : 2
-            }
-        )
+    # Expression
+    draw_embeddings(
+        df_, 
+        cont='feature', 
+        ax=axs[1], 
+        query=query,
+        cbar_kwargs={
+            'pos' : 2
+        }
+    )
     
-        # Violin
+    # Violin
+    if query is not None:
         c = {
-            **create_palette(df_.query(query), 'group', sc.pl.palettes.vega_20_scanpy), 
+            **create_palette(df_.query(query_others.replace('==', '!=')), 'group', sc.pl.palettes.vega_20_scanpy), 
             **{'others':'darkgrey'}
         }
         order = ['q1', 'q2', 'others']
-        violin(df_, x='group', y='feature', c=c, ax=axs[2], order=order)
-        format_ax(axs[2], title='q1 vs q2', title_size=10, xticks=order)
-        add_wilcox(df_, 'group', 'feature', [['q1', 'q2']], axs[2], order=order)
-        axs[2].spines.right.set_visible(False)
-        axs[2].spines.top.set_visible(False)
-        plt.subplots_adjust(left=0.15, top=0.85, right=0.85, bottom=0.15)
+    else:
+        c = create_palette(df_.query(query_others.replace('==', '!=')), 'group', sc.pl.palettes.vega_20_scanpy)
+        order = ['q1', 'q2']
 
-        # Report medians and pval
-        from scipy.stats import mannwhitneyu
-        x = df_.loc[df_.query(q1).index,:]['feature']
-        x_median = x.median()
+    violin(df_, x='group', y='feature', c=c, ax=axs[2], order=order)
+    format_ax(axs[2], title='q1 vs q2', title_size=10, xticks=order)
+    add_wilcox(df_, 'group', 'feature', [['q1', 'q2']], axs[2], order=order)
+    axs[2].spines.right.set_visible(False)
+    axs[2].spines.top.set_visible(False)
+    plt.subplots_adjust(left=0.15, top=0.85, right=0.85, bottom=0.15)
+
+    # Report medians and pval
+    from scipy.stats import mannwhitneyu
+    x = df_.loc[df_.query(q1).index,:]['feature']
+    x_median = x.median()
+    if q2 != 'rest':
         y = df_.loc[df_.query(q2).index,:]['feature']
-        y_median = y.median()
+    else:
+        y = df_.loc[df_['group'] != 'q1',:]['feature']
+    y_median = y.median()
+    p = round(mannwhitneyu(x, y)[1], 3)
 
-        p = round(mannwhitneyu(x, y)[1], 3)
-
-        return p, x_median, y_median, fig
-
-
-    ##
+    return p, x_median, y_median, fig
 
 
-    ##############################################################
-
-    # Title
-    st.title('Gene Sets')
+##
 
 
-    ##
+def gene_sets(path_main):
 
-
-    # Message
+    st.sidebar.header('Gene Sets options')
     st.markdown(    
         '''
         This is an app to explore the __expression__ of both __pre-computed__ 
@@ -125,20 +132,11 @@ def gene_sets(path_main):
         '''
     )
 
-
-    ##
-
-
-    # Choose data to load, from path_main
-
     # Paths
     path_main = sys.argv[1]
     path_data = path_main + '/data/'
 
-    # Choose a version
-    st.write(f'Choose a Cellula version.')
-
-    form_data = st.form(key='Data object')
+    form_data = st.sidebar.form(key='Data object')
     version = form_data.selectbox(
         'Choose data from a Cellula version',
         [ x for x in os.listdir(path_data) if x != '.DS_Store' and len(os.listdir(f'{path_data}/{x}/')) > 0 ],
@@ -178,20 +176,16 @@ def gene_sets(path_main):
 
 
     # Mode
-    st.markdown(f'Choose mode.')
-    form = st.form(key='Mode')
-    query = form.radio(
+    form = st.sidebar.form(key='Gene set type')
+    gs_type = form.radio(
         'Mode',
-        ['pre-computed', 'user-defined', ]
+        ['pre-computed', 'user-defined']
     )
     submit = form.form_submit_button('Choose')
-    if submit:
-        st.write(f'{query} chosen.')
 
     # Precomp
-    if query == 'pre-computed':
-        st.markdown('Choose a pre-computed gene set:')
-        form_options = st.form(key='Signature')
+    if gs_type == 'pre-computed':
+        form_options = st.sidebar.form(key='Signature')
         g = form_options.selectbox(
             'Signature',
             signatures['scores'].columns.to_list(), 
@@ -199,14 +193,12 @@ def gene_sets(path_main):
         )
         q1 = form_options.text_input('Query 1', '')
         q2 = form_options.text_input('Query 2', '')
-        q3 = form_options.selectbox(
+        q3 = form_options.checkbox(
             'Gene Set Enrichment',
-            [True, False], 
-            key='GSA'
+            value=False
         )
         submit = form_options.form_submit_button('Run')
         if submit:
-            st.markdown(f'__{g}__ chosen.')
             feature = signatures['scores'][g].values
             gs = signatures['gene_sets'][g]
             if q3:
@@ -219,16 +211,15 @@ def gene_sets(path_main):
                     st.dataframe(gs.ORA['Default_ORA'].head(10))
             plot = True
 
-    elif query == 'user-defined':
+    elif gs_type == 'user-defined':
         st.markdown('Input gene or gene set (e.g., MYC for single genes or MYC;HES1;...; for a gene set.)')
         st.markdown('Input queries to define cell groups (e.g., query_1 (q1): leiden == "1"; query_2 (q1): rest)')
-        form_options = st.form(key='Gene(s)')
-        g = form_options.text_input('Gene(s)', '')
-        q1 = form_options.text_input('Query 1', '')
+        form_options = st.sidebar.form(key='Gene(s)')
+        g = form_options.text_input('Gene(s)', '') #g = 'IFI6;MYC'
+        q1 = form_options.text_input('Query 1', '') #q1 = 'sample == "a"' q2 = "rest"
         q2 = form_options.text_input('Query 2', '')
         submit = form_options.form_submit_button('Run')
         if submit:
-            st.markdown(f'{g} chosen.')
             g = g.split(';')
             if len(g) > 1:
                 feature = scanpy_score(adata, g, n_bins=50) # Deafault method
@@ -241,8 +232,6 @@ def gene_sets(path_main):
 
     # Report
     if plot:
-        # q1 = 'sample == "a"'
-        # q2 = 'sample == "b"'
         p, x_median, y_median, fig = viz(embs, feature, adata, q1, q2)
         st.markdown('Compute DE among selected cells...')
         st.pyplot(fig)
@@ -256,5 +245,10 @@ def gene_sets(path_main):
             * pvalue: __{p:.3f}__
             """
         )
+
+
+##
+
+
 if __name__ == "__main__":
     gene_sets()

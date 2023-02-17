@@ -443,7 +443,7 @@ def draw_embeddings(
 
 def faceted_draw_embedding(
     df, x='UMAP1', y='UMAP2', figsize=None, n_cols=None,
-    cont=None, cat=None, query=None, facet=None, **kwargs):
+    cont=None, cat=None, query=None, facet=None, legend=True, **kwargs):
     """
     Draw embeddings with faceting.
     """
@@ -457,9 +457,13 @@ def faceted_draw_embedding(
     n_rows, n_cols = find_n_rows_n_cols(n_axes, n_cols=n_cols)
 
     for i, (idx, name) in enumerate(zip(idxs, names)):
-
-        draw_legend = True if i == 0 else False
-        draw_cbar = True if i == 0 else False
+        
+        if legend:
+            draw_legend = True if i == 0 else False
+            draw_cbar = True if i == 0 else False
+        else:
+            draw_legend = False
+            draw_cbar = True if i == 0 else False
 
         ax = plt.subplot(n_rows, n_cols, i+1)
         draw_embeddings(

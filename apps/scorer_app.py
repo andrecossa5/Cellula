@@ -1,4 +1,6 @@
-#/usr/bin/python
+"""
+scorer_app. An interface to signature scores and DE.
+"""
 
 import sys
 import os
@@ -17,10 +19,6 @@ import streamlit as st
 ##
 
 
-# path_data = '/Users/IEO5505/Desktop/dataset_prova/data/'
-# version = 'default'
-
-
 @st.cache
 def load_data(path_data, version):
     """
@@ -31,6 +29,47 @@ def load_data(path_data, version):
         signatures = pickle.load(f)
 
     return adata, signatures
+
+
+##
+
+
+#@st.cache(allow_output_mutation=True)
+def draw_covs(adata, embs, signatures, cats):
+    """
+    Draw covariates, cats and conts.
+    """
+    scores = signatures['scores']
+    cats = cats.columns.to_list()
+    conts = scores.columns.to_list()
+    covs = cats + conts
+    nrow, ncol = find_n_rows_n_cols(len(covs), n_cols=4)
+    fig = plt.figure(figsize=(17,4*nrow))
+    df_ = adata.obs.join(embs)
+    df_ = df_.join(scores.loc[:, [ x for x in conts if x not in df_.columns]])
+    for i, cov in enumerate(covs):
+        ax = plt.subplot(nrow,ncol,i+1)
+        if cov in cats:
+            draw_embeddings(
+                df_, 
+                cat=cov, 
+                ax=ax, 
+                query=None, 
+                legend_kwargs={
+                    'bbox_to_anchor' : (1,1),
+                    'loc' : 'upper left',
+                    'only_top' : 30
+                }
+            )
+        elif cov in conts:
+            draw_embeddings(
+                df_, 
+                cont=cov, 
+                ax=ax, 
+                query=None
+            )
+
+    return fig
 
 
 ##
@@ -171,6 +210,18 @@ def gene_sets(path_main):
             to_show = cats[x].value_counts().head().index.to_list()
             st.markdown(f'__{x}__ : {to_show} + others {len(cs)-20}')
 
+    # Show cats and scores
+    draw_covariates_beginning = st.sidebar.checkbox('Draw covariates', value=False)
+    if draw_covariates_beginning:
+        st.markdown(
+            '''
+            These are their visualization, along with the one for curated and data-driven gene signatures:
+            '''
+        )
+        fig = draw_covs(adata, embs, signatures, cats)
+        fig.tight_layout()
+        st.pyplot(fig)
+    
 
     ##
 

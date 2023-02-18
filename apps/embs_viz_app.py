@@ -105,6 +105,7 @@ def embeddings_visualization(path_main):
     query = query if query != 'None' else None
     width = form_draw.text_input('Enter a floating point number for figure width:', value='7')
     height = form_draw.text_input('Enter a floating point number for figure height:', value='6.5')
+    size = form_draw.text_input('Enter a floating point number for figure point size:', value='1')
     only_top = form_draw.text_input('Maximum number of elements to display in the legend:', value='20')
     legend = form_draw.checkbox('Draw legend', value=True)
 
@@ -134,7 +135,7 @@ def embeddings_visualization(path_main):
                     n_cols=n_cols, figsize=figsize
                 )
 
-            fig.tight_layout()
+            #fig.tight_layout()
             st.pyplot(fig)
 
     
@@ -162,12 +163,13 @@ def embeddings_visualization(path_main):
                     cont=covariate, 
                     ax=ax, 
                     query=query,
+                    s=float(size),
                     cbar_kwargs={
                         'pos' : 'outside'
                     }
                 )
-
-            fig.subplots_adjust(right=0.8, bottom=0.15, left=0.15)
+                
+            #fig.subplots_adjust(right=0.8, bottom=0.15, left=0.15)
             st.pyplot(fig) 
 
 

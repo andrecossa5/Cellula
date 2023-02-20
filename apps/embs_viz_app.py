@@ -148,6 +148,7 @@ def embeddings_visualization(path_main):
                     cat=covariate, 
                     ax=ax, 
                     query=query,
+                    s=float(size),
                     legend_kwargs={
                         'bbox_to_anchor' : (1.05,1),
                         'loc' : 'upper left',

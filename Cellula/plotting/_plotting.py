@@ -389,8 +389,8 @@ def draw_embeddings(
     axes_params['cbar_params'] = cbar_params
     axes_params['legend_params'] = legend_params
 
-    if size is None:
-        size = 12000 / df.shape[0] # as in scanpy
+    if s is None:
+        s = 12000 / df.shape[0] # as in scanpy
 
     if cat is not None and cont is None:
 

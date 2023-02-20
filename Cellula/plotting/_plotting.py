@@ -352,7 +352,7 @@ def handle_colors(df, cat, legend_params, query=None):
 
 
 def draw_embeddings(
-    df, x='UMAP1', y='UMAP2', cat=None, cont=None, ax=None, s=3, query=None, title=None,
+    df, x='UMAP1', y='UMAP2', cat=None, cont=None, ax=None, s=None, query=None, title=None,
     cbar_kwargs={}, legend_kwargs={}, axes_kwargs={}):
     """
     Draw covariates on embeddings plot.
@@ -388,6 +388,9 @@ def draw_embeddings(
     axes_params = update_params(axes_params, axes_kwargs)
     axes_params['cbar_params'] = cbar_params
     axes_params['legend_params'] = legend_params
+
+    if size is None:
+        size = 12000 / df.shape[0] # as in scanpy
 
     if cat is not None and cont is None:
 

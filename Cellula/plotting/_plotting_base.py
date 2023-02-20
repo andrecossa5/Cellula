@@ -266,16 +266,16 @@ def scatter(df, x, y, by=None, c='r', s=1.0, a=1, l=None, ax=None, scale_x=None,
         size = size * scale_x
 
     if isinstance(c, str) and by is None:
-        ax.scatter(df[x], df[y], color=c, label=l, marker='o', s=size, alpha=a)
+        ax.scatter(df[x], df[y], color=c, label=l, marker='.', s=size, alpha=a)
 
     elif isinstance(c, str) and by is not None:
-        ax.scatter(df[x], df[y], c=df[by], label=l, marker='o', s=size, 
+        ax.scatter(df[x], df[y], c=df[by], label=l, marker='.', s=size, 
             cmap=c, alpha=a)
 
     elif isinstance(c, dict) and by is not None:
         assert all([ x in c for x in df[by].unique() ])
         colors = [ c[x] for x in df[by] ]
-        ax.scatter(df[x], df[y], c=colors, label=l, marker='o', s=size, alpha=a)
+        ax.scatter(df[x], df[y], c=colors, label=l, marker='.', s=size, alpha=a)
 
     else:
         raise ValueError('c needs to be specified as a dict of colors with "by" of a single color.')

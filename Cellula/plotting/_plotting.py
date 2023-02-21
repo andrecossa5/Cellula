@@ -261,19 +261,24 @@ def plot_embeddings(adata, layer=None, rep='original', k=15, n_components=30):
     """
     Plot QC covariates in the UMAP embeddings obtained from original or original and integrated data.
     """
-
-    # Prep data
-    umap = embeddings(adata, paga_groups='sample', rep=rep, layer=layer, 
-    umap_only=True, k=k, n_components=n_components)
-    umap = umap.join(adata.obs)
+    # Prep embedding
+    df = embeddings(
+        adata, 
+        paga_groups='sample', 
+        rep=rep, 
+        layer=layer, 
+        k=k, 
+        n_components=n_components, 
+        umap_only=True
+    )
 
     covariates = ['seq_run', 'sample', 'nUMIs', 'cycle_diff']
-    fig, axs = plt.subplots(1, len(covariates), figsize=(6 * len(covariates), 6))
+    fig, axs = plt.subplots(1, len(covariates), figsize=(4.5*len(covariates), 5))
     for i, c in enumerate(covariates):
         if c == 'nUMIs' or c == 'cycle_diff':
-            draw_embeddings(umap, cont=c, ax=axs[i])
+            draw_embeddings(df, cont=c, ax=axs[i])
         else:
-            draw_embeddings(umap, cat=c, ax=axs[i])
+            draw_embeddings(df, cat=c, ax=axs[i])
     # Fig
     fig.tight_layout()
 

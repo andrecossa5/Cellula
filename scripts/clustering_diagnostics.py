@@ -380,12 +380,15 @@ def clustering_diagnostics():
         adata.obsm['X_reduced'] = pp.obsm[f'{layer}|original|X_pca'] if int_method == 'BBKNN' else pp.obsm[f'{layer}|{int_method}|{space}']
         adata.obsm['X_umap'] = X_umap
         adata.obsm['kNN_index'] = pp.obsm[f'{layer}|{int_method}|{space}|{k}_NN_{n_components}_comp_idx']
-        adata.obsp['connectivities'] = pp.obsp[f'{layer}|{int_method}|{space}|{k}_NN_{n_components}_comp_conn']
+        adata.obsp['kNN_connectivities'] = pp.obsp[f'{layer}|{int_method}|{space}|{k}_NN_{n_components}_comp_conn']
+        adata.obsp['kNN_distances'] = pp.obsp[f'{layer}|{int_method}|{space}|{k}_NN_{n_components}_comp_dist']
        
         # Put all chosen options in a dictionary
         adata.uns['final_pp_clustering_options'] = {
             'layer' : layer,
             'representation' : int_method,
+            'n_comps' : n_components,
+            'k': k,
             'chosen_solution' : chosen
         }
         logger.info(f'Final adata in: {g.stop()} s.')

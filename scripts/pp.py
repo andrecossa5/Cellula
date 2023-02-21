@@ -146,6 +146,9 @@ from Cellula.plotting._colors import create_colors
 #-----------------------------------------------------------------#
 
 # Set other paths 
+path_main = '/Users/IEO5505/Desktop/cellula_example/'
+version = 'default'
+
 path_data = path_main + '/data/'
 path_results = path_main + '/results_and_plots/pp/'
 path_runs = path_main + '/runs/'
@@ -228,7 +231,7 @@ def preprocessing():
     logger.info('Begin the following preprocessing steps: Log-normalization, hvg selection, signatures scoring')
     adata = pp(
         adata, 
-        mode=normalization_method,  
+        mode=normalization_method,  #normalization_method='scanpy' n_HVGs=2000 scoring_method='scanpy' organism='human'
         target_sum=50*1e4, 
         n_HVGs=n_HVGs, 
         score_method=scoring_method,
@@ -342,14 +345,14 @@ def preprocessing():
 
         with PdfPages(path_viz + f'original_embeddings.pdf') as pdf:
             for layer in adata_red.layers:
-                g.start()
-                logger.info(f'Begin KNN computation for pp={layer}')
+                #g.start()
+                #logger.info(f'Begin KNN computation for pp={layer}')
                 adata_red = compute_kNN(adata_red, layer=layer, int_method='original')
-                logger.info(f'End of KNN computation for pp={layer}: {g.stop()} s.')
-                g.start()
-                logger.info(f'Begin plotting embedding for pp={layer}')
+                #logger.info(f'End of KNN computation for pp={layer}: {g.stop()} s.')
+                #g.start()
+                #logger.info(f'Begin plotting embedding for pp={layer}')
                 fig = plot_embeddings(adata_red, layer=layer)
-                logger.info(f'End of plotting embedding for pp={layer}: {g.stop()} s.')
+                #logger.info(f'End of plotting embedding for pp={layer}: {g.stop()} s.')
                 fig.suptitle(layer)
                 pdf.savefig()  
                 plt.close()

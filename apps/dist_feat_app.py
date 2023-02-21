@@ -144,7 +144,7 @@ def distinguishing_features(path_main):
         if submit_2:
             result_.summary_one_job(
                 job_key=job_key, 
-                n=n, 
+                n=int(n), 
                 show_genes=show_genes, 
                 collection=collection
             )

@@ -83,7 +83,7 @@ def prep_archive():
     for v in versions:
         make_folder(os.getcwd(), v)
         os.system(f'cp {path_results}/dist_features/{v}/* ./{v}/')
-        os.system(f'rm ./{v}/clusters_markers.txt')
+        os.system(f'rm ./{v}/clusters_markers.pickle')
 
     # data: make and fill
     os.chdir('..')
@@ -92,8 +92,11 @@ def prep_archive():
     for v in versions:
         make_folder(os.getcwd(), v)
         os.system(f'cp {path_data}/{v}/clustered.h5ad ./{v}/')
-        os.system(f'cp {path_data}/{v}/embeddings.csv ./{v}/')
-        os.system(f'cp {path_results}/signatures/{v}/signatures.txt ./{v}/')
+        #os.system(f'cp {path_data}/{v}/integration.h5ad ./{v}/')
+        #os.system(f'cp {path_data}/{v}/lognorm.h5ad ./{v}/')
+        #os.system(f'cp {path_data}/{v}/embeddings.csv ./{v}/')
+        #os.system(f'cp {path_results}/clustering/{v}/clustering_solutions.csv ./{v}/')
+        os.system(f'cp {path_results}/signatures/{v}/signatures.pickle ./{v}/')
 
     # Tar and gzip
     os.chdir(path_main)
@@ -101,6 +104,9 @@ def prep_archive():
 
     # rm to_share
     os.system(f'rm -r {name}')
+    
+
+
 
 ########################################################################
 

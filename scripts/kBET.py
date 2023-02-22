@@ -47,7 +47,7 @@ my_parser.add_argument(
 
 # n_pcs
 my_parser.add_argument( 
-    '--n_pcs', 
+    '--n_comps', 
     type=int,
     default=30,
     help='n_pcs for kNN indices computation. Default: 30.'
@@ -61,56 +61,46 @@ my_parser.add_argument(
     help='The covariate for which kNN-mixing needs to be checked. Default: seq_run.'
 )
 
-# Skip
-my_parser.add_argument(
-    '--skip', 
-    action='store_true',
-    help='Skip analysis. Default: False.'
-)
-
 # Parse arguments
 args = my_parser.parse_args()
-
 path_main = args.path_main
 version = args.version
-n_pcs = args.n_pcs
+n_comps = args.n_comps
 covariate = args.covariate
 
 ########################################################################
 
 # Preparing run: import code, prepare directories, set logger
-if not args.skip:
 
-    # Code
-    import pickle
-    from Cellula._utils import *
-    from Cellula.preprocessing._Int_evaluator import Int_evaluator
-    from Cellula.preprocessing._metrics import choose_K_for_kBET
 
-    #-----------------------------------------------------------------#
+# Code
+import scanpy as sc
+from Cellula._utils import *
+from Cellula.preprocessing._metrics import *
+from Cellula.preprocessing._neighbors import *
 
-    # Set other paths 
-    path_data = path_main + f'/data/{version}/' # Set here, do not overwrite
-    path_results = path_main + '/results_and_plots/pp/'
-    path_runs = path_main + '/runs/'
-    path_viz = path_main + '/results_and_plots/vizualization/pp/'
+#-----------------------------------------------------------------#
 
-    # Update paths
-    path_results += f'/{version}/'
-    path_runs += f'/{version}/' 
-    path_viz += f'/{version}/' 
+# Set other paths 
+path_data = path_main + f'/data/{version}/' # Set here, do not overwrite
+path_results = path_main + '/results_and_plots/pp/'
+path_runs = path_main + '/runs/'
+path_viz = path_main + '/results_and_plots/vizualization/pp/'
 
-    # Check if the ./runs/step_{i}/logs_1_pp.txt are present, 
-    # along with the GE_space dictionary in path_data
-    to_check = [ (path_data, 'GE_spaces.txt'), (path_runs, 'logs_pp.txt') ]
-    if not all([ os.path.exists(path) for path in [ ''.join(x) for x in to_check ] ]):
-        print('Run pp.py beforehand!')
-        sys.exit()
+# Update paths
+path_results += f'/{version}/'
+path_runs += f'/{version}/' 
+path_viz += f'/{version}/' 
 
-    #-----------------------------------------------------------------#
-    
-    # Set logger 
-    logger = set_logger(path_runs, 'logs_kBET.txt')
+# Check if reduced.h5ad is present in folder 
+if not os.path.exists(path_data + 'reduced.h5ad'):
+    print('Run pp or integration algorithm(s) beforehand!')
+    sys.exit()
+
+#-----------------------------------------------------------------#
+
+# Set logger 
+logger = set_logger(path_runs, 'logs_kBET.txt')
 
 ########################################################################
 
@@ -124,32 +114,45 @@ def kBET():
     t = Timer()
     t.start()
 
-    logger.info(f'Execute kBET: --n_pcs {n_pcs} --covariate {covariate}')
+    logger.info(f'Execute kBET: --n_pcs {n_comps} --covariate {covariate}')
 
-    # Load pickled GE_spaces
-    with open(path_data + 'GE_spaces.txt', 'rb') as f:
-        GE_spaces = pickle.load(f) 
-
-    # Instantiate int_evaluator class
-    I = Int_evaluator(GE_spaces)
-    del GE_spaces
-
+    # Load reduced adata
+    adata = sc.read(path_data + 'reduced.h5ad')
+    
     logger.info(f'Data loading and preparation: {t.stop()} s.')
 
     #-----------------------------------------------------------------#
 
     # Run kBET (for each preprocessed dataset across a range of 7 Ks, 6 default, 
     # and 1 found using the heuristic specified in Buttner et al. 2018.
-
+    g = Timer()
+    s = Timer()
     # Define k_range
-    k_range = [ 15, 30, 50, 100, 250, 500, choose_K_for_kBET(I.GE_spaces['red'].matrix.obs, covariate) ]
+    k_range = [ 15, 30, 50, 100, 250, 500 ]
 
-    # Compute kNN indices and kBET 
+    # Compute kNN indices and kBET
+    kbet_computation = {}
     for k in k_range:
         t.start()
-        logger.info(f'Begin operations on all GE_spaces, for k {k}...')
-        I.compute_all_kNN_graphs(k=k, n_components=n_pcs)
-        I.compute_metric(metric='kBET', covariate=covariate)
+        logger.info(f'Begin operations on all representations, for k {k}...')
+        for layer in adata.layers:
+            g.start()
+            s.start()
+            logger.info(f'KNN computation for k = {k} and pp = {layer}')
+            adata = compute_kNN(adata, layer=layer, int_method='original', k=k, n_components=n_comps)
+            logger.info(f'End of KNN computation for  k = {k} and pp = {layer}: {g.stop()} s.')
+            logger.info(f'kBET computation for k = {k} and pp = {layer}')
+            score = kBET_score(
+                adata, 
+                covariate=covariate, 
+                method='original', 
+                layer=layer,
+                k=k, 
+                n_components=n_comps
+            )
+            kbet_computation.update(score)
+            logger.info(f'End of kBET computation for k = {k} and pp = {layer}: {s.stop()} s.')
+        
         logger.info(f'kBET calculations finished for k {k}: {t.stop()} s.')
 
     # Extract results and take the integration decision
@@ -157,7 +160,7 @@ def kBET():
     logger.info(f'Extract results and take the integration decision...')
 
     # Create df
-    df = pd.DataFrame().from_dict(I.batch_removal_scores['kBET'], 
+    df = pd.DataFrame().from_dict(kbet_computation, 
             orient='index'
         ).reset_index().rename(columns={'index':'rep', 0:'acceptance_rate'})
     df['pp_option'] = df['rep'].map(lambda x: x.split('|')[0])
@@ -165,7 +168,8 @@ def kBET():
     df['k'] = df['kNN'].map(lambda x: x.split('_')[:1][0]).astype(int)
     df.pop('rep')
     df.sort_values(by='acceptance_rate', ascending=False).to_excel(path_results + 'kBET_df.xlsx')
-
+    
+    logger.info(f'kBET_df.xlsx finished in: {t.stop()} s.')
     #-----------------------------------------------------------------#
 
     # Calculate results summary, and make a (temporary) integration 
@@ -192,7 +196,6 @@ def kBET():
 
 # Run program
 if __name__ == "__main__":
-    if not args.skip:
-        kBET()
+    kBET()
 
-#######################################################################
+######################################################################

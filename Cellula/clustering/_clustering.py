@@ -4,9 +4,41 @@ _clusterign.py: utils for clustering
 
 import numpy as np
 import pandas as pd
+import leidenalg
+import scanpy as sc
 from scipy.spatial.distance import cdist
+from sklearn.metrics import davies_bouldin_score, silhouette_score
 
-from ..preprocessing._metrics import custom_ARI
+from .._utils import *
+
+
+##
+
+
+def leiden_clustering(A, res=0.5):
+    """
+    Performs Leiden clustering on an adjacency matrix A (connectivities matrix) using the specified resolution coefficient.
+
+    Parameters:
+        A : numpy.ndarray
+            An adjacency matrix of a network.
+        res : float, optional (default: 0.5)
+            The resolution coefficient for Leiden clustering.
+
+    Returns:
+        labels : numpy.ndarray
+            An array of cluster labels assigned to each node.
+    """
+    g = sc._utils.get_igraph_from_adjacency(A, directed=True)
+    part = leidenalg.find_partition(
+        g,
+        leidenalg.RBConfigurationVertexPartition,
+        resolution_parameter=res,
+        seed=1234
+    )
+    labels = np.array(part.membership)
+
+    return labels
 
 
 ##
@@ -54,7 +86,22 @@ def ARI_among_all_solutions(solutions, path):
 
 def compute_inertia(space, solution, metric='euclidean'):
     """
-    Calculate wss for one partitioning.
+    Calculate Within-Cluster Sum of Squares (WSS) for one partitioning.
+
+    Parameters:
+    -----------
+    space : numpy.ndarray
+        A numpy array that is the original or integrated latent space.
+    solution : pandas.Series
+        A pandas series containing the cluster assignments for each cell.
+    metric : str, optional (default='euclidean')
+        The distance metric to be used when calculating distances between points.
+
+    Returns:
+    --------
+    inertia : float
+        The sum of squared distances within each cluster.
+
     """
     w = []
     for cluster in solution.cat.categories:
@@ -70,9 +117,24 @@ def compute_inertia(space, solution, metric='euclidean'):
 ##
 
 
-def kNN_purity(index, solution):
+def kNN_purity(index, solution, **kwargs):
     """
-    Calculate kNN_purity for one partitioning.
+    Calculates kNN_purity for one partitioning.
+
+    Parameters:
+    -----------
+    index: numpy array
+        An array of shape (n_cells, n_neighbors) representing the indices of the nearest neighbors
+        of each cell in the matrix index of KNN.
+    solution: pandas Series
+        A pandas Series object of length n_cells containing the ground truth labels for each cell.
+    **kwargs: keyword arguments
+        Additional arguments to be passed to the function.
+
+    Returns:
+    --------
+    float:
+        The median kNN_purity score for the given partitioning.
     """
     purity = []
     for i in range(index.shape[0]):
@@ -81,3 +143,14 @@ def kNN_purity(index, solution):
         purity.append(np.sum(labels == ref) / labels.size)
     
     return np.median(purity)
+
+
+##
+
+
+all_functions = {
+    'inertia' : compute_inertia,
+    'DB' : davies_bouldin_score,
+    'silhouette' : silhouette_score,
+    'kNN_purity' : kNN_purity
+}

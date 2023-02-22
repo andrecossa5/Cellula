@@ -1,1 +1,1 @@
-from . import _qc, _pp, _embeddings, _integration, _neighbors, _metrics, _GE_space, _Int_evaluator
+from . import _qc, _pp, _embeddings, _integration, _neighbors, _metrics, _Int_evaluator

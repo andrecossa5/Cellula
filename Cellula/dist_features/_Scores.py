@@ -2,6 +2,7 @@
 _Scores.py: The Scores class
 """
 
+import re
 import numpy as np
 import pandas as pd
 from scipy.sparse import csc_matrix
@@ -10,17 +11,91 @@ from hotspot import Hotspot
 
 from ._Gene_set import Gene_set
 from ._signatures import create_filtered_list, cluster_gene_sets, create_GMs, scanpy_score, wot_rank, wot_zscore
+from .._utils import *
 
 
 ##
 
 
 class Scores():
+    """
+    A class to compute gene set scores for a single-cell RNA-seq dataset.
+    
+    Parameters
+    ----------
+    adata : AnnData object
+        Annotated data matrix containing gene expression data for single cells.
+    clusters : pandas.core.series.Series
+        A series containing cluster assignments for each cell.
+    markers : dict
+        A dictionary containing the gene markers used for each cluster.
+    curated : dict, optional (default: None)
+        A dictionary containing curated gene sets.
+    organism : str, optional (default: 'human')
+        The organism of the data.
+    methods : str or list, optional (default: 'all')
+        The methods to compute gene sets with. If 'all', use all available methods. If a list, 
+        only use the specified methods. Available methods: 'wu', 'Hotspot', and 'barkley'.
 
-    def __init__(self, adata, clusters, markers, curated=None, organism='human'):
+    Attributes
+    ----------
+    organism : str
+        The organism of the data.
+    matrix : AnnData object
+        Annotated data matrix containing gene expression data for single cells.
+    clusters : pandas.core.series.Series
+        A series containing cluster assignments for each cell.
+    markers : dict
+        A dictionary containing the gene markers used for each cluster.
+    Hotspot : dict
+        A dictionary containing the Hotspot gene sets.
+    curated : dict
+        A dictionary containing curated gene sets.
+    wu : dict
+        A dictionary containing gene sets computed using the method from Wu et al., 2021.
+    barkley : dict
+        A dictionary containing gene sets computed using the method from Barkley et al., 2021.
+    gene_sets : dict
+        A dictionary containing all gene sets computed by the class.
+    scores : pd.DataFrame or None
+        A pandas dataframe containing gene set scores. None by default.
+
+    Methods:
+    --------
+    __init__(self, adata, clusters, markers, curated=None, organism='human', methods='all'): 
+        Instantiate the main class attributes.
+    compute_Hotspot(self, only_HVGs=True):
+        Compute Hotspot modules.
+    compute_wu(self, n_cells=50, m_genes=50, ji_treshold=0.75, n=10, n_gene_per_gm=100):
+        GMs like in Wu et al., 2021.
+    compute_barkley(self):
+        Compute GMs like in Wu et al., 2021.
+    compute_GMs(self):
+        Compute GMs of some kind. Three kinds implemented ( Hotspot, wu and barkley)
+    compute_scanpy(self):
+        sc.tl.score_genes modified to return a pd.DataFrame with cols Gene_sets.
+    compute_wot_rank(self):
+        wot rank method,  modified to return a pd.DataFrame with cols Gene_sets.
+    compute_wot_zscore(self):
+        wot zscore method,  modified to return a pd.DataFrame with cols Gene_sets.
+    score_signatures(self, method='scanpy'):
+        Compute GMs of some kind. Three kinds implemented. Default: scanpy.
+    format_results(self):
+        Output results.
+
+    Notes
+    -----
+    TO DO: docstring for the principal methods of Scores class
+    
+    """
+
+    def __init__(self, adata, clusters, markers, curated=None, organism='human', methods='all'):
         """
         Args initialization.
         """
+        # All available meethods so far
+        methods_ = [ f'compute_{x}' for x in ['wu', 'Hotspot', 'barkley'] ]
+
         self.organism = organism
         self.matrix = adata
         self.clusters = clusters
@@ -30,7 +105,19 @@ class Scores():
         self.wu = {}
         self.barkley = {}
         self.gene_sets = {}
-        self.scores = None
+        self.scores = None 
+
+        if methods == 'all':
+            self.methods = {
+                x.split('_')[1] : getattr(self, x) for x in dir(self) if x in methods_ 
+            }
+        else:
+            self.methods = { 
+                x : getattr(self, f'compute_{x}') \
+                for x in methods if f'compute_{x}' in dir(self) 
+            }
+            print(f'Passed methods: {str(methods).strip("[]")}')
+            print(f'Scores will used methods: {str(list(self.methods.keys())).strip("[]")}.')
 
     ##
 
@@ -47,7 +134,7 @@ class Scores():
             self.matrix,
             layer_key='raw',
             model='danb', 
-            latent_obsm_key='X_pca', 
+            latent_obsm_key='X_reduced', 
             umi_counts_obs_key='nUMIs'
         )
 
@@ -96,27 +183,24 @@ class Scores():
 
     ##
 
-    def compute_GMs(self, kind=['Hotspot', 'wu', 'barkley']):
+    def compute_GMs(self):
         """
         Compute GMs of some kind. Three kinds implemented.
         """
-        Hotspot = True if 'Hotspot' in kind else False
-        wu2021 = True if 'wu' in kind else False
-        barkley2022 = True if 'barkley' in kind else False
-
-        if wu2021:
-            self.compute_wu()
-        if barkley2022:
-            self.compute_barkley() 
-        if Hotspot:
-            self.compute_Hotspot()
+        logger = logging.getLogger("my_logger") 
+        g = Timer()
+        for method in self.methods:
+            g.start()
+            logger.info(f'Begin the computation for the following method:{method}') 
+            print(f'Run method: {method}...')
+            self.methods[method]()
+            logger.info(f'End of {method} computation: {g.stop()} s.') 
 
         d = {**self.wu, **self.barkley, **self.Hotspot, **self.curated}
         d = { k : Gene_set(v, self.matrix.var, name=k, organism=self.organism) for k, v in d.items() }
-
         self.gene_sets = d
 
-        print('Finished ' + str(kind).strip('[]') + ' GMs calculation')
+        print(f'Finished GMs calculation')
 
     ##
 
@@ -125,7 +209,7 @@ class Scores():
         sc.tl.score_genes modified to return a pd.DataFrame with cols Gene_sets.
         """
         scores = pd.concat(
-            [ scanpy_score(self.matrix.copy(), v) for k, v in self.gene_sets.items() ], 
+            [ scanpy_score(self.matrix.copy(), self.gene_sets[k]) for k in self.gene_sets ], 
             axis=1
         )
         scores.columns = self.gene_sets.keys()
@@ -138,7 +222,7 @@ class Scores():
         wot rank method,  modified to return a pd.DataFrame with cols Gene_sets.
         """
         scores = pd.concat(
-            [ wot_rank(self.matrix.copy(), v) for k, v in self.gene_sets.items() ], 
+            [ wot_rank(self.matrix.copy(), self.gene_sets[k]) for k in self.gene_sets ], 
             axis=1
         )
         scores.columns = self.gene_sets.keys()
@@ -151,7 +235,7 @@ class Scores():
         wot zscore method,  modified to return a pd.DataFrame with cols Gene_sets.
         """
         scores = pd.concat(
-            [ wot_zscore(self.matrix.copy(), v) for k, v in self.gene_sets.items() ], 
+            [ wot_zscore(self.matrix.copy(), self.gene_sets[k]) for k in self.gene_sets ], 
             axis=1
         )
         scores.columns = self.gene_sets.keys()
@@ -159,15 +243,15 @@ class Scores():
 
     ##
 
-    def score_signatures(self, kind='scanpy'):
+    def score_signatures(self, method='scanpy'):
         """
         Compute GMs of some kind. Three kinds implemented. Default: scanpy.
         """
-        if kind == 'scanpy':
+        if method == 'scanpy':
             self.compute_scanpy()
-        if kind == 'rank':
+        elif method == 'rank':
             self.compute_wot_rank()
-        if kind == 'z_score':
+        elif method == 'z_score':
             self.compute_wot_zscore() 
         
         return self.scores

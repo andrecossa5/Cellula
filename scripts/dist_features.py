@@ -25,7 +25,7 @@ my_parser = argparse.ArgumentParser(
 # Add arguments
 
 # Path_main
-my_parser.add_argument(
+my_parser.add_argument( 
     '-p', 
     '--path_main', 
     type=str,
@@ -138,13 +138,16 @@ def main():
 
     T = Timer()
     T.start()
-
+    g = Timer()
+    g.start()
     # Load adata, singatures and prep contrasts and jobs
+    logger.info('Loading adata, singatures and prep contrasts and jobs')
     adata = sc.read(path_data + 'clustered.h5ad')
 
-    with open(path_signatures + 'signatures.txt', 'rb') as f:
+    with open(path_signatures + 'signatures.pickle', 'rb') as f:
         signatures = pickle.load(f)
     jobs, contrasts = prep_jobs_contrasts(adata, path_main + 'contrasts/', contrasts_name)
+    logger.info(f'Data preparated before computation in: {g.stop()} s.')
 
     # Here we go
     if not args.skip_computation:
@@ -158,7 +161,7 @@ def main():
     else:
 
         #Read results 
-        with open(path_results + f'{contrasts_name}.txt', 'rb') as f:
+        with open(path_results + f'{contrasts_name}.pickle', 'rb') as f:
             results = pickle.load(f)
 
     # Write final exec time

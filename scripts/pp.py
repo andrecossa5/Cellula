@@ -14,19 +14,19 @@ import argparse
 my_parser = argparse.ArgumentParser(
     prog='pp',
     description=
-        '''
-        Pre-processing operations.
-        Starting from the $path_main/data/step/QC.h5ad AnnData, (filtered and concatenated raw matrices)
-        this tool performs log-normalization, Hyper-variable Genes selection (HVGs) and scoring of gene sets 
-        useful to inspect cells quality (i.e., apoptosis, cell cycle, ribosomal genes...). 
-        Then, it creates 4 pre-processed version of the original, full gene expression matrix: 
-        i) reduced (HVGs only); ii) reduced and scaled (HVGs expression is z-scored); 
-        iii) reduced and regressed (the contribute of nUMIs and mitochondrial percentage is 
-        regressed out from HVGs expression); iv) reduced, regressed and scaled (same as iii), but with
-        additional scaling of resulting values). 
-        The dimensionality of these matrices is reduced with PCA, and the resulting, alternative 
-        gene expression spaces are saved for later use. Visualization is produced along the way.
-        '''
+    '''
+    Pre-processing operations.
+    Starting from the $path_main/data/step/QC.h5ad AnnData, (filtered and concatenated raw matrices)
+    this tool performs log-normalization, Hyper-variable Genes selection (HVGs) and scoring of gene sets 
+    useful to inspect cells quality (i.e., apoptosis, cell cycle, ribosomal genes...). 
+    Then, it creates 4 pre-processed version of the original, full gene expression matrix: 
+    i) reduced (HVGs only); ii) reduced and scaled (HVGs expression is z-scored); 
+    iii) reduced and regressed (the contribute of nUMIs and mitochondrial percentage is 
+    regressed out from HVGs expression); iv) reduced, regressed and scaled (same as iii), but with
+    additional scaling of resulting values). 
+    The dimensionality of these matrices is reduced with PCA, and the resulting, alternative 
+    gene expression spaces are saved for later use. Visualization is produced along the way.
+    '''
 )
 
 # Add arguments
@@ -80,6 +80,14 @@ my_parser.add_argument(
     help='Number of HVGs to select. Default: 2000.'
 )
 
+# n_comps
+my_parser.add_argument(
+    '--n_comps', 
+    type=int,
+    default=30,
+    help='Number of PCs to select. Default: 30.'
+)
+
 # Organism
 my_parser.add_argument(
     '--organism', 
@@ -107,69 +115,63 @@ my_parser.add_argument(
     '--custom_meta', 
     action='store_true',
     help=
-    '''Use the newly formatted cells_meta.csv file in ./data/version.
-    Default: False. Note: at least sample and seq_run columns must be provided'''
-)
-
-# Skip
-my_parser.add_argument(
-    '--skip', 
-    action='store_true',
-    help='Skip analysis. Default: False.'
+    '''
+    Use the newly formatted cells_meta.csv file in ./data/version.
+    Default: False. Note: at least sample and seq_run columns must be provided
+    '''
 )
 
 # Parse arguments
 args = my_parser.parse_args()
-
 path_main = args.path_main
 version = args.version
 normalization_method = args.norm
 scoring_method = args.score
 n_HVGs = args.n_HVGs
 organism = args.organism
+n_comps = args.n_comps
 
 ########################################################################
 
 # Preparing run: import code, prepare directories, set logger
-if not args.skip:
 
-    # Code
-    import pickle
-    import Cellula.plotting._plotting_base
-    from glob import glob
-    from Cellula._utils import *
-    from Cellula.preprocessing._pp import *
-    from Cellula.preprocessing._GE_space import GE_space
-    from Cellula.preprocessing._embeddings import *
-    from Cellula.plotting._plotting import *
-    from Cellula.plotting._colors import create_colors
+# Code
+from Cellula._utils import *
+from Cellula.preprocessing._pp import *
+from Cellula.preprocessing._embeddings import *
+from Cellula.preprocessing._neighbors import *
+from Cellula.plotting._plotting import *
+from Cellula.plotting._colors import create_colors
 
-    #-----------------------------------------------------------------#
+#-----------------------------------------------------------------#
 
-    # Set other paths 
-    path_data = path_main + '/data/'
-    path_results = path_main + '/results_and_plots/pp/'
-    path_runs = path_main + '/runs/'
-    path_viz = path_main + '/results_and_plots/vizualization/pp/'
+# Set other paths 
+path_main = '/Users/IEO5505/Desktop/cellula_example/'
+version = 'default'
 
-    # Create step_{i} folders. Overwrite, if they have already been created
-    to_make = [ (path_runs, version), (path_results, version), (path_viz, version), (path_data, version) ]
-    for x, y in to_make:
-        if x == path_data or x == path_runs:
-            make_folder(x, y, overwrite=False)
-        else:
-            make_folder(x, y, overwrite=True)
+path_data = path_main + '/data/'
+path_results = path_main + '/results_and_plots/pp/'
+path_runs = path_main + '/runs/'
+path_viz = path_main + '/results_and_plots/vizualization/pp/'
 
-    # Update paths
-    path_data += f'/{version}/'
-    path_runs += f'/{version}/'
-    path_results += f'/{version}/' 
-    path_viz += f'/{version}/' 
+# Create step_{i} folders. Overwrite, if they have already been created
+to_make = [ (path_runs, version), (path_results, version), (path_viz, version), (path_data, version) ]
+for x, y in to_make:
+    if x == path_data or x == path_runs:
+        make_folder(x, y, overwrite=False)
+    else:
+        make_folder(x, y, overwrite=True)
 
-    #-----------------------------------------------------------------#
+# Update paths
+path_data += f'/{version}/'
+path_runs += f'/{version}/'
+path_results += f'/{version}/' 
+path_viz += f'/{version}/' 
 
-    # Set logger 
-    logger = set_logger(path_runs, 'logs_pp.txt')
+#-----------------------------------------------------------------#
+
+# Set logger 
+logger = set_logger(path_runs, 'logs_pp.txt')
 
 ########################################################################
 
@@ -183,7 +185,7 @@ def preprocessing():
     t = Timer()
     t.start()
 
-    logger.info(f'Execute pp: -v {version} --norm {normalization_method} --scoring_method {scoring_method} --n_HVGs {n_HVGs} --custom_meta {args.custom_meta} --organism {organism}')
+    logger.info(f'Execute pp: -v {version} --norm {normalization_method} --scoring_method {scoring_method} --n_HVGs {n_HVGs} --custom_meta {args.custom_meta} --organism {organism} --n_comps {n_comps}')
 
     # Read QC
     adata = sc.read(path_data + 'QC.h5ad')
@@ -191,22 +193,22 @@ def preprocessing():
     # Remove cells, if necessary
     if args.remove:
         path_cells = path_main + '/data/removed_cells/'
-        removed = [ y for x in os.walk(path_cells) for y in glob(os.path.join(x[0], '*.csv'))]
-        cells_to_remove = pd.concat([ pd.read_csv(x, index_col=0) for x in removed ], axis=0)['cell'].to_list()
-        adata = adata[~adata.obs_names.isin(cells_to_remove), :]
+        removed = pd.concat([ pd.read_csv(path_cells + x, index_col=0) for x in os.listdir(path_cells) ], axis=0)
+        removed_cells = removed['cell'].to_list()
+        adata = adata[~adata.obs_names.isin(removed_cells), :]
 
     # Format adata.obs
     if args.custom_meta:
         try:
+        # Format cols as pd.Categoricals
             meta = pd.read_csv(path_data + 'cells_meta.csv', index_col=0)
-            # Format cols as pd.Categoricals
             for x in meta.columns:
                 test = meta[x].dtype in ['int64', 'int32', 'int8'] and meta[x].unique().size < 50
                 if meta[x].dtype == 'object' or test:
                     meta[x] = pd.Categorical(meta[x])
-            adata.obs = meta
+            adata.obs = meta        
         except:
-            logger.info('Cannot read cells_meta.csv. Format .csv file correctly!')
+            logger.info('Cannot read cells_meta file. Format .csv or .tsv file correctly!')
             sys.exit()
     else:
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.startswith('passing')]
@@ -222,16 +224,20 @@ def preprocessing():
     #-----------------------------------------------------------------#
 
     # Log-normalization, hvg selection, signatures scoring
+    g = Timer()
     t.start()
     adata.raw = adata.copy()
+    g.start()
+    logger.info('Begin the following preprocessing steps: Log-normalization, hvg selection, signatures scoring')
     adata = pp(
         adata, 
-        mode=normalization_method, 
+        mode=normalization_method,  #normalization_method='scanpy' n_HVGs=2000 scoring_method='scanpy' organism='human'
         target_sum=50*1e4, 
         n_HVGs=n_HVGs, 
         score_method=scoring_method,
         organism=organism
     )
+    logger.info(f'End of preprocessing steps in: {g.stop()} s.')
 
     # Save 
     adata.write(path_data + 'lognorm.h5ad')
@@ -241,6 +247,9 @@ def preprocessing():
     # Cell QC on merged samples
 
     # Create a summary of median QC metrics per sample 
+    s = Timer()
+    s.start()
+    logger.info('Start Cell QC on merged samples and generate the following files: QC_results.xlsx and QC.pdf')
     QC_covariates = [
                         'nUMIs', 'detected_genes', 'mito_perc', \
                         'cell_complexity', 'cycle_diff', 'cycling', \
@@ -253,6 +262,7 @@ def preprocessing():
     # Visualize QC metrics 
     fig = QC_plot(adata.obs, 'sample', QC_covariates, colors, labels=False, figsize=(12, 10))
     fig.savefig(path_viz + 'QC.pdf')
+    logger.info(f'End of Cell QC on merged samples and files generation: {s.stop()} s.')
     logger.info(f'Adata gene filtering, log-normalization, HVGs ({n_HVGs}) selection, cc_scores calculation, and QC: {t.stop()} s.')
 
     #-----------------------------------------------------------------#
@@ -260,8 +270,6 @@ def preprocessing():
     # Matrix maipulation and linear dimensionality reduction (PCA)
 
     '''
-    Create a dictionary of GE_space() instances (each GE_space store a differentially pre-processed matrix and all its related 
-    reduced-dimension representations).
     4 pre-processing schemes are evaluated here: 
     1. HVGs subsetting
     2. HVGs subsetting and scaling
@@ -274,34 +282,55 @@ def preprocessing():
 
     t.start()
 
-    GE_spaces = {
-        'red' : GE_space(adata).red().pca(),
-        'red_s' : GE_space(adata).red().scale().pca(),
-        'red_reg' : GE_space(adata).red().regress().pca(),
-        'red_reg_s' : GE_space(adata).red().regress().scale().pca()
-    }
+    g = Timer()
+    g.start()
+    logger.info('Begin matrix maipulation and linear dimensionality reduction')
+    logger.info('HVGs subsetting')
+    adata_red = red(adata)
+    logger.info(f'End of HVGs subsetting: {g.stop()} s.')
+    g.start()
+    logger.info('HVGs subsetting and scaling')
+    adata_red = scale(adata_red)
+    logger.info(f'End of HVGs subsetting and scaling: {g.stop()} s.')
+    g.start()
+    logger.info('HVGs subsetting, regressing out of technical covariates')
+    adata_red = regress(adata_red)
+    logger.info(f'End of HVGs subsetting, regressing out of technical covariates: {g.stop()} s.')
+    g.start()
+    logger.info('HVGs subsetting, regressing out of technical covariates and scaling')
+    adata_red = regress_and_scale(adata_red)
+    logger.info(f'End of HVGs subsetting, regressing out of technical covariates and scaling: {g.stop()} s.')
+    logger.info('Begin linear dimensionality reduction for each previous step')
+    for layer in adata_red.layers:
+        g.start()
+        logger.info(f'Begin linear dimensionality reduction for pp={layer}')
+        adata_red = pca(adata_red, n_pcs=n_comps, layer=layer)
+        logger.info(f'End of linear dimensionality reduction for pp={layer}: {g.stop()} s.')
 
-    # Save
-    with open(path_data + 'GE_spaces.txt', 'wb') as f:
-        pickle.dump(GE_spaces, f)
+    adata_red.write(path_data + 'reduced.h5ad')
 
     #-----------------------------------------------------------------#
 
     # Visualize % explained variance of top50 PCs, for each PCA space
-    fig = explained_variance_plot(GE_spaces, figsize=(10,7))
+    g.start()
+    logger.info('Visualize percentage explained variance of top30 PCs, for each PCA space')
+    fig = explained_variance_plot(adata_red, figsize=(12,8))
     fig.savefig(path_viz + 'explained_variance.pdf')
+    logger.info(f'Generation of explained_variance.pdf: {g.stop()} s.')
 
     #-----------------------------------------------------------------#
 
     # Visualize sample biplots, top5 PCs 
     if not args.no_biplot:
-        for k in GE_spaces:
-            g = GE_spaces[k]
-            with PdfPages(path_viz + f'PCs_{k}.pdf') as pdf:
+        for layer in adata_red.layers:
+            with PdfPages(path_viz + f'PCs_{layer}.pdf') as pdf:
+                g.start()
+                logger.info(f'Visualize sample biplots, top5 PCs for pp={layer} for the following covariates:seq_run,sample,nUMIs,cycle_diff')
                 for cov in ['seq_run', 'sample', 'nUMIs', 'cycle_diff']:
-                    fig = plot_biplot_PCs(g, covariate=cov, colors=colors)
+                    fig = plot_biplot_PCs(adata_red, layer=layer, covariate=cov, colors=colors)
                     pdf.savefig()  
                     plt.close()
+                logger.info(f'Generation of PCs_{layer}.pdf: {g.stop()} s.')
 
     logger.info(f'Matrix manipulation and PCA vizualization: {t.stop()} s.')
     
@@ -315,14 +344,23 @@ def preprocessing():
         logger.info(f'Begin cell embeddings vizualization...')
 
         with PdfPages(path_viz + f'original_embeddings.pdf') as pdf:
-            for k in GE_spaces:
-                g = GE_spaces[k]
-                g.compute_kNNs(k=15) # Default here
-                fig = plot_embeddings(g, rep='original', colors=colors)
+            for layer in adata_red.layers:
+                #g.start()
+                #logger.info(f'Begin KNN computation for pp={layer}')
+                adata_red = compute_kNN(adata_red, layer=layer, int_method='original')
+                #logger.info(f'End of KNN computation for pp={layer}: {g.stop()} s.')
+                #g.start()
+                #logger.info(f'Begin plotting embedding for pp={layer}')
+                fig = plot_embeddings(adata_red, layer=layer)
+                #logger.info(f'End of plotting embedding for pp={layer}: {g.stop()} s.')
+                fig.suptitle(layer)
                 pdf.savefig()  
                 plt.close()
 
         logger.info(f'Original cell embeddings vizualization: {t.stop()} s.')
+
+    # Sava
+    adata_red.write(path_data + 'reduced.h5ad')
 
     #-----------------------------------------------------------------#
 
@@ -333,8 +371,6 @@ def preprocessing():
 
 # Run program
 if __name__ == "__main__":
-    if not args.skip:
-        preprocessing()
+    preprocessing()
 
 #######################################################################
-

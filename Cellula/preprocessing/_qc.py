@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages 
 
 from ..plotting._plotting_base import scatter, format_ax
+from .._utils import *
 
 
 ##
@@ -37,12 +38,32 @@ def adata_name_formatter(adata):
 
 def read_matrices(path, mode='filtered'):
     """
-    Read all .mtx matrices from a path to 'raw' or 'filtered' matrix, the STARsolo or CellRanger
-    output. If mode == 'raw', it will search filter the summary_sheet_cells.csv file to filter 
-    'good' CBC-GBC combinations, retrieved with the CBC_GBC_classification script. 
-    Otherwise, it just read the filtered matrix, reformatting its cell names. 
-    Returns a dictionary of sample_name : original_sample_adata.
-    """  
+    Reads 10x Genomics matrices from a specified path and returns a dictionary of AnnData objects.
+
+    Parameters
+    ----------
+    path : str
+        Path to the directory containing the matrices.
+    mode : str, optional
+        Specifies the type of matrix to read. Default is 'filtered'.
+        If set to 'raw', reads the raw gene-barcode matrices.
+
+    Returns
+    -------
+    adatas : dict
+        A dictionary where each key represents a sample name and each value is an AnnData object containing the
+        gene-barcode matrix and additional information (cell metadata, sample name, etc.).
+
+    Examples
+    --------
+    To read filtered gene-barcode matrices from a directory and get a dictionary of AnnData objects:
+
+    >>> adatas = read_matrices('/path/to/matrices')
+
+    To read raw gene-barcode matrices instead, set the `mode` parameter to 'raw':
+
+    >>> adatas = read_matrices('/path/to/matrices', mode='raw')
+    """
     adatas = {}
     if mode == 'raw':
         for s in os.listdir(path):
@@ -106,7 +127,7 @@ def QC_plot(adata, ax, title=None):
     biplot, at different stages of cell QC.
     """
     scatter(adata.obs, 'nUMIs', 'detected_genes', by='mito_perc', c='viridis', ax=ax)
-    format_ax(adata.obs, ax, title=title, xlabel='nUMIs', ylabel='detected_genes')
+    format_ax(ax, title=title, xlabel='nUMIs', ylabel='detected_genes')
 
 
 ##  
@@ -114,16 +135,47 @@ def QC_plot(adata, ax, title=None):
 
 def QC(adatas, mode='seurat', min_cells=3, min_genes=200, nmads=5, path_viz=None, tresh=None):
     """
-    Perform Quality Control on a adata dictionary (one by sample).
-    Merge matrices to a single adata.
-    """
+    Perform quality control on a dictionary of AnnData objects.
+    
+    This function calculates several QC metrics, including mitochondrial percentage, nUMIs, 
+    and detected genes, and produces several plots visualizing the QC metrics for each sample. 
+    The function performs doublet detection using scrublet and filtering using either 
+    Seurat or MADs. The function returns a merged AnnData object with cells that passed QC filters
+    and a list of cells that did not pass QC on all samples.
 
+    Parameters
+    ----------
+    adatas : dict
+        A dictionary of AnnData objects, one for each sample.
+    mode : str, optional
+        The filtering method to use. Valid options are 'seurat' and 'mads'. Default is 'seurat'.
+    min_cells : int, optional
+        The minimum number of cells for a sample to pass QC. Default is 3.
+    min_genes : int, optional
+        The minimum number of genes for a cell to pass QC. Default is 200.
+    nmads : int, optional
+        The number of MADs to use for MADs filtering. Default is 5.
+    path_viz : str, optional
+        The path to save the QC plots. Default is None.
+    tresh : dict, optional
+        A dictionary of QC thresholds. The keys should be 'mito_perc', 'nUMIs', and 'detected_genes'.
+        Only used if mode is 'seurat'. Default is None.
+
+    Returns
+    -------
+    adata : AnnData
+        An AnnData object containing cells that passed QC filters.
+    removed_cells : list
+        List of cells that did not pass QC on all samples.
+    """
+    t = Timer()
     # Logging 
     logger = logging.getLogger("my_logger")  
     
     # For each adata, produce a figure
     with PdfPages(path_viz + 'original_QC_by_sample.pdf') as pdf:
-
+        
+        removed_cells = []
         for s, adata in adatas.items():
 
             fig, axs = plt.subplots(1,3,figsize=(15,5))
@@ -131,12 +183,15 @@ def QC(adatas, mode='seurat', min_cells=3, min_genes=200, nmads=5, path_viz=None
             logger.info(f'Sample {s} QC...')
 
             # QC metrics
+            t.start()
+            logger.info('Calculate QC metrics')
             adata.var_names_make_unique()
             adata.var["mt"] = adata.var_names.str.startswith("MT-")
             adata.obs['nUMIs'] = adata.X.toarray().sum(axis=1)  
             adata.obs['mito_perc'] = adata[:, adata.var["mt"]].X.toarray().sum(axis=1) / adata.obs['nUMIs'].values
             adata.obs['detected_genes'] = (adata.X.toarray() > 0).sum(axis=1)  
             adata.obs['cell_complexity'] = adata.obs['detected_genes'] / adata.obs['nUMIs']
+            logger.info(f'End calculation of QC metrics: {t.stop()} s.')
 
             # Original QC plot
             n0 = adata.shape[0]
@@ -145,16 +200,23 @@ def QC(adatas, mode='seurat', min_cells=3, min_genes=200, nmads=5, path_viz=None
             axs[0].text(np.quantile(adata.obs['nUMIs'], 0.992), 1000, f'n:{n0}')
 
             # Post doublets removal QC plot
+            t.start()
+            logger.info('Begin of post doublets removal and QC plot')
             sc.external.pp.scrublet(adata, random_state=1234)
+            adata_remove = adata[adata.obs['predicted_doublet'], :]
+            removed_cells.extend(list(adata_remove.obs_names))
             adata = adata[~adata.obs['predicted_doublet'], :].copy()
             n1 = adata.shape[0]
             logger.info(f'Cells retained after scrublet: {n1}, {n0-n1} removed.')
             QC_plot(adata, axs[1], title='After scublet')
             axs[1].text(np.quantile(adata.obs['nUMIs'], 0.992), 1000, f'n:{n1}')
+            logger.info(f'End of post doublets removal and QC plot: {t.stop()} s.')
 
             # Post seurat or mads filtering QC plot
 
             # Filters
+            t.start()
+            logger.info('Filters application (seurat or mads)')
             if mode == 'seurat':
                 adata.obs['passing_mt'] = adata.obs['mito_perc'] < tresh['mito_perc']
                 adata.obs['passing_nUMIs'] = adata.obs['nUMIs'] > tresh['nUMIs']
@@ -177,9 +239,11 @@ def QC(adatas, mode='seurat', min_cells=3, min_genes=200, nmads=5, path_viz=None
                 logger.info(f'Tresholds used, nUMIs: ({nUMIs_t[0]}, {nUMIs_t[1]}); filtered-out-cells: {n1-np.sum(adata.obs["passing_nUMIs"])}')
                 logger.info(f'Tresholds used, n genes: ({n_genes_t[0]}, {n_genes_t[1]}); filtered-out-cells: {n1-np.sum(adata.obs["passing_ngenes"])}')
                 logger.info(f'Lower treshold, mito %: {tresh["mito_perc"]}; filtered-out-cells: {n1-np.sum(adata.obs["passing_mt"])}')
-
+            logger.info(f'Filters applicated: {t.stop()} s.')
             # QC plot
             QC_test = (adata.obs['passing_mt']) & (adata.obs['passing_nUMIs']) & (adata.obs['passing_ngenes'])
+            removed = QC_test.loc[lambda x : x == False]
+            removed_cells.extend(list(removed.index.values))
             logger.info(f'Total cell filtered out with this last --mode {mode} QC (and its chosen options): {n1-np.sum(QC_test)}')
             adata = adata[QC_test, :].copy()
             n2 = adata.shape[0]
@@ -219,4 +283,4 @@ def QC(adatas, mode='seurat', min_cells=3, min_genes=200, nmads=5, path_viz=None
     sc.pp.filter_cells(adata, min_genes=min_genes)
     sc.pp.filter_genes(adata, min_cells=min_cells)
 
-    return adata
+    return adata, removed_cells

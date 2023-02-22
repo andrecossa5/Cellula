@@ -42,27 +42,6 @@ my_parser.add_argument(
     help='The pipeline step to run. Default: default.'
 )
 
-# Hotspot
-my_parser.add_argument( 
-    '--Hotspot', 
-    action='store_true',
-    help='Compute Hotspot GMs and their signature scores. Default: False.'
-)
-
-# Barkley
-my_parser.add_argument( 
-    '--barkley', 
-    action='store_true',
-    help='Compute barkley2022 GMs and their signature scores. Default: False.'
-)
-
-# Wu
-my_parser.add_argument( 
-    '--wu', 
-    action='store_true',
-    help='Compute wu2021 GMs and their signature scores. Default: False.'
-)
-
 # Curated
 my_parser.add_argument( 
     '--curated', 
@@ -85,6 +64,14 @@ my_parser.add_argument(
     default='scanpy',
     help='The scoring method. Default: scanpy. Other options: z_score, rank.'
 )
+#Methods
+my_parser.add_argument( 
+    '-m',
+    '--method', 
+    type=str,
+    default='all',
+    help='Method to run. Default: all.'
+)
 
 # Skip
 my_parser.add_argument(
@@ -95,16 +82,10 @@ my_parser.add_argument(
 
 # Parse arguments
 args = my_parser.parse_args()
-
 path_main = args.path_main
 version = args.version
-Hotspot = 'Hotspot' if args.Hotspot else None
-wu = 'wu' if args.wu else None
-barkley = 'barkley' if args.barkley else None
 scoring = args.scoring
 organism = args.organism
-
-which = [ Hotspot, wu, barkley ]
 
 ########################################################################
 
@@ -122,8 +103,8 @@ if not args.skip:
 
     # Set other paths 
     path_data = path_main + f'/data/{version}/'
-    path_clusters = path_main + f'results_and_plots/clustering/{version}/'
-    path_markers = path_main + f'results_and_plots/dist_features/{version}/'
+    path_clusters = path_main + f'/results_and_plots/clustering/{version}/'
+    path_markers = path_main + f'/results_and_plots/dist_features/{version}/'
     path_results = path_main + '/results_and_plots/signatures/'
     path_runs = path_main + '/runs/'
 
@@ -152,37 +133,59 @@ def Signatures():
     t = Timer()
     t.start()
 
-    logger.info(f'Begin signatures: --Hotspot {args.Hotspot} --wu {args.wu} --barkley {args.barkley} --curated {args.curated} --scoring {scoring} --organism {organism}')
+    g = Timer()
+
+    logger.info(f'Begin signatures: --curated {args.curated} --scoring {scoring} --organism {organism}')
 
     # Load adata, clusters, markers and curated
+    g.start()
+    logger.info('Begin loading adata, clusters, markers and curated')
     adata = sc.read(path_data + 'clustered.h5ad')
     clusters = pd.read_csv(path_clusters + 'clustering_solutions.csv', index_col=0)
-    with open(path_markers + 'clusters_markers.txt', 'rb') as f:
+    with open(path_markers + 'clusters_markers.pickle', 'rb') as f:
         markers = pickle.load(f)
+    
+    #Selected integration methods
+    if args.method == 'all':
+        methods = ['wu', 'Hotspot', 'barkley']
+    else:
+        methods = args.method.split(':')  
+
     # Handle curated
     if args.curated:
         curated = format_curated(path_main)
     else:
         curated = None
+    logger.info(f'End of loading in: {g.stop()} s.')
 
     ##
 
     # Retrieve gene_sets and score them
-    S = Scores(adata, clusters, markers, curated=curated, organism=organism)
+    S = Scores(
+        adata, 
+        clusters, 
+        markers, 
+        curated=curated, 
+        organism=organism, 
+        methods=methods
+    )
 
     logger.info('Begin GMs retrieval...')
-    S.compute_GMs(kind=which)#  
+    S.compute_GMs()
     logger.info(f'GMs retrieval: {t.stop()} s.')
 
     t.start()
     logger.info('Begin signatures scoring...')
-    S.score_signatures(kind=scoring) # Default, scanpy
+    S.score_signatures(method=scoring) # Default, scanpy
     logger.info(f'Signatures scoring: {t.stop()} s.')
     
     # Save scores
+    g.start()
+    logger.info('Saving scores in a pickle file')
     signatures = S.format_results()
-    with open(path_results + 'signatures.txt', 'wb') as f:
+    with open(path_results + 'signatures.pickle', 'wb') as f:
         pickle.dump(signatures, f)
+    logger.info(f'Generated signatures.pickle file in: {g.stop()} s.')
 
     # Write final exec time
     logger.info(f'Execution was completed successfully in total {T.stop()} s.')

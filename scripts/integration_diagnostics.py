@@ -51,14 +51,6 @@ my_parser.add_argument(
     help='k used for kNN computations. Default: 15.'
 )
 
-# Resolution
-my_parser.add_argument( 
-    '--resolution', 
-    type=int,
-    default=0.2,
-    help='Resolution used for coarse grained Leiden clustering. Default: 0.2.'
-)
-
 # Step
 my_parser.add_argument( 
     '-v',
@@ -91,13 +83,6 @@ my_parser.add_argument(
     help='Number of latent embeddings components to compute kNNs on. Default: 30.'
 )
 
-# Skip
-my_parser.add_argument(
-    '--skip', 
-    action='store_true',
-    help='Skip analysis. Default: False.'
-)
-
 # Parse arguments
 args = my_parser.parse_args()
 
@@ -105,7 +90,6 @@ path_main = args.path_main
 version = args.version
 k = args.k
 covariate = args.covariate
-resolution = args.resolution
 delete = args.delete
 chosen = args.chosen
 n_comps = args.n_comps
@@ -113,40 +97,36 @@ n_comps = args.n_comps
 ########################################################################
 
 # Preparing run: import code, prepare directories, set logger
-if not args.skip:
 
-    # Code
-    import pickle
-    from Cellula._utils import *
-    from Cellula.plotting._plotting import *
-    from Cellula.plotting._colors import create_colors
-    from Cellula.preprocessing._integration import fill_from_integration_dirs
-    from Cellula.preprocessing._Int_evaluator import Int_evaluator
+# Code
+from Cellula._utils import *
+from Cellula.plotting._plotting import *
+from Cellula.preprocessing._Int_evaluator import *
+from Cellula.preprocessing._pp import *
+from Cellula.preprocessing._integration import *
+from Cellula.preprocessing._neighbors import *
 
-    #-----------------------------------------------------------------#
+#-----------------------------------------------------------------#
 
-    # Set other paths
-    path_data = path_main + f'/data/{version}/'
-    path_results = path_main + '/results_and_plots/pp/'
-    path_runs = path_main + '/runs/'
-    path_viz = path_main + '/results_and_plots/vizualization/pp/'
+# Set other paths
+path_data = path_main + f'/data/{version}/'
+path_results = path_main + '/results_and_plots/pp/'
+path_runs = path_main + '/runs/'
+path_viz = path_main + '/results_and_plots/vizualization/pp/'
 
-    # Update paths
-    path_runs += f'/{version}/'
-    path_results += f'/{version}/' 
-    path_viz += f'/{version}/' 
+# Update paths
+path_runs += f'/{version}/'
+path_results += f'/{version}/' 
+path_viz += f'/{version}/' 
+if not os.path.exists(path_data + 'integration.h5ad') and chosen is None:
+    print('Run pp or integration algorithm(s) beforehand!')
+    sys.exit()
 
-    if not os.path.exists(path_data + 'GE_spaces.txt'):
-        print('Run pp or integration algorithm(s) beforehand!')
-        sys.exit()
-    else:
-        path_results += '/integration/'
+#-----------------------------------------------------------------#
 
-    #-----------------------------------------------------------------#
-    
-    # Set logger 
-    mode = 'a' if chosen is not None else 'w'
-    logger = set_logger(path_runs, 'logs_integration_diagnostics.txt', mode=mode)
+# Set logger 
+mode = 'a' if chosen is not None else 'w'
+logger = set_logger(path_runs, 'logs_integration_diagnostics.txt', mode=mode)
 
 ########################################################################
 
@@ -160,55 +140,44 @@ def integration_diagnostics():
     t = Timer()
     t.start()
     
-    logger.info(f'Execute 3_integration_diagnostics: --k {k} --covariate {covariate} --resolution {resolution} --n_comps {n_comps}')
+    logger.info(f'Execute 3_integration_diagnostics: --k {k} --covariate {covariate} --n_comps {n_comps}')
 
-    # Load pickled (original) GE_spaces
-    with open(path_data + 'GE_spaces.txt', 'rb') as f:
-        GE_spaces = pickle.load(f) 
+    # Load Integration.h5ad and instantiate an Int_evaluator class
+    adata = sc.read(path_data + 'integration.h5ad')
+    I = Int_evaluator(adata)
 
-    # Add integration results
-    GE_spaces = fill_from_integration_dirs(GE_spaces, path_results)
-
-    # Instantiate the Int_evaluator class
-    I = Int_evaluator(GE_spaces)
-    logger.info(f'Int_evaluator initialized: {t.stop()} s.')
-
-    # Free disk memory and clean integration folders (if requested)
-    del GE_spaces
+    logger.info(f'Loading data: {t.stop()} s.')
         
     #-----------------------------------------------------------------#
 
     # Here we go
 
-    # Compute kNN graphs for all (original and integrated) representation
-    t.start()
-    I.compute_all_kNN_graphs(k=15) # k=15, default from scib
-    logger.info(f'kNN calculations: {t.stop()} s.')
-
     # Compute and compare embeddings
-    colors = create_colors(I.GE_spaces['red'].matrix.obs)
+    methods = pd.Series([ x.split('|')[1] for x in adata.obsp.keys()]).unique()
+    G = Timer()
+    G.start()
+    logger.info(f'Begin embeddings visualization:')
+    for layer in adata.layers:
+        with PdfPages(path_viz + f'orig_int_embeddings_{layer}.pdf') as pdf:
+            t.start()
+            logger.info(f'Start the visualization of the embedding for all integration methods (for raw there are only scVI and original) on the following pp:{layer}')
+            for int_rep in methods:
+                try:
+                    fig = plot_embeddings(adata, layer=layer, rep=int_rep)  
+                    tot = layer +'_'+int_rep
+                    fig.suptitle(tot)
+                    pdf.savefig() 
+                    plt.close()
+                except:
+                    print(f'Embedding {int_rep} is not available for layer {layer}')
+            logger.info(f'End of the visualization on all methods on the following pp {layer}: {t.stop()} s.')
+    logger.info(f'Embeddings visualization completed: {G.stop()} s.')
 
+    # Compute diagnostics metrics
     t.start()
-    for pp in I.GE_spaces:
-        g = I.GE_spaces[pp]
-        with PdfPages(path_viz + f'orig_int_embeddings_{pp}.pdf') as pdf:
-            for int_rep in g.int_methods:
-                fig = plot_orig_int_embeddings(g, rep_1='original', rep_2=int_rep, colors=colors)
-                pdf.savefig()  
-                plt.close()
-    logger.info(f'Embeddings visualization: {t.stop()} s.')
-
-    # Batch removal metrics
-    t.start()
-    for m in I.batch_metrics:
-        I.compute_metric(m, covariate=covariate)
-    logger.info(f'Batch removal metrics calculations: {t.stop()} s.')
-
-    # Bio conservation metrics
-    t.start()
-    for m in I.bio_metrics:
-        I.compute_metric(m, covariate=covariate, resolution=resolution)
-    logger.info(f'Biological conservation metrics calculations: {t.stop()} s.')
+    I.parse_options(covariate=covariate) 
+    I.compute_metrics()
+    logger.info(f'Metrics calculations: {t.stop()} s.')
 
     # Integration runs evaluation
     t.start()
@@ -218,7 +187,7 @@ def integration_diagnostics():
 
     # Plotting and saving outputs
     t.start()
-    fig = I.viz_results(df, df_summary, df_rankings, feature='score', by='ranking', figsize=(8,5))
+    fig = I.viz_results(df, df_summary, df_rankings)
     fig.savefig(path_viz + 'integration_diagnostics.pdf')
     logger.info(f'Plotting and saving: {t.stop()} s.')
     
@@ -234,37 +203,43 @@ def choose_preprocessing_option():
 
     T = Timer()
     T.start()
+    t = Timer()
 
     # Data loading and preparation
     pp, chosen_int = chosen.split(':') 
     logger.info('Choose preprocessing option: ' + '|'.join([pp, chosen_int]))
-    
-    # Understand which integration output needs to be picked up
-    path_chosen = path_data + 'GE_spaces.txt' if chosen_int == 'original' else path_results + f'/{chosen_int}/{chosen_int}.txt'
-    # Check if the chosen integration output is available
-    if not os.path.exists(path_chosen):
-        print('Run this integration method first!')
-        sys.exit()
+    logger.info(f'Execute for: --covariate {covariate} --n_comps {n_comps}')
 
-    # Pick the chosen pp output
-    with open(path_chosen, 'rb') as f:
-        pp_out = pickle.load(f) 
-    
-    # Assemble adata
-    g = pp_out[pp] if chosen_int != 'scVI' else pp_out
-    only_int = True if chosen_int != 'original' else False
+    if not os.path.exists(path_data + 'integration.h5ad') and chosen is not None:
+        adata = sc.read(path_data + 'reduced.h5ad')
+    elif os.path.exists(path_data + 'integration.h5ad') and chosen is not None:
+        adata = sc.read(path_data + 'integration.h5ad')
+    else:
+        raise ValueError('No reduced or integration available.')
+
+    # Pick the chosen pp and integration method
+    new_adata = sc.AnnData(X=adata.X, obs=adata.obs, var=adata.var)
+    new_adata.layers[pp] = adata.layers[pp]
+
+    if chosen_int != 'original' and chosen_int != 'BBKNN':
+        new_adata.obsm[f'{pp}|{chosen_int}|X_corrected'] = get_representation(adata, layer=pp, method=chosen_int)
+    else:
+        new_adata.obsm[f'{pp}|original|X_pca'] = get_representation(adata, layer=pp)
+
+    # k calculation
     for k in [5, 10, 15, 30, 50, 100]:
-        g.compute_kNNs(k=k, n_components=n_comps) # 6 kNN graphs
+        t.start()
+        if chosen_int != 'BBKNN':
+            logger.info(f'Begin the KNN computation for {chosen_int} and k = {k}')
+            new_adata = compute_kNN(new_adata, layer=pp, int_method=chosen_int, k=k, n_components=n_comps) # 6 kNN graphs
+        else:
+            logger.info(f'Begin the KNN computation for {chosen_int} and k = {k}')
+            new_adata = compute_BBKNN(new_adata, layer=pp, covariate=covariate, k=k, n_components=n_comps, trim=None)
+        logger.info(f'End of computation for {chosen_int} and k = {k}: {t.stop()} s.')
 
     # Save
-    adata = g.to_adata()
-    adata.write(path_data + 'preprocessed.h5ad')
+    new_adata.write(path_data + 'preprocessed.h5ad')
 
-    # Free disk memory and clean integration folders (if requested)
-    if delete:
-        os.chdir(path_results)
-        rmtree()
-       
     # Write final exec time
     logger.info(f'Assemble the definitive preprocessed adata took total {T.stop()} s.')
 
@@ -272,11 +247,9 @@ def choose_preprocessing_option():
 
 # Run program(s)
 if __name__ == "__main__":
-    if not args.skip:
-        if chosen is None:
-            integration_diagnostics()
-        else:
-            choose_preprocessing_option()
+    if chosen is None:
+        integration_diagnostics()
+    else:
+        choose_preprocessing_option()
 
 #######################################################################
-

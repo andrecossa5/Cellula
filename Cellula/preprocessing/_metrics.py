@@ -2,16 +2,18 @@
 _metrics.py: integration metrics functions.
 """
 
-import gc
+
+import sys
 from joblib import cpu_count, parallel_backend, Parallel, delayed
 import numpy as np
 import pandas as pd
 import scanpy as sc
 from scipy.stats import chi2
-from scipy.special import binom
 from scipy.sparse.csgraph import connected_components
+from sklearn.metrics import normalized_mutual_info_score
 
-from .._utils import chunker
+from .._utils import *
+from ..clustering._clustering import leiden_clustering
 
 
 ##
@@ -47,31 +49,49 @@ def kbet_one_chunk(index, batch, null_dist):
 ##
 
 
-def choose_K_for_kBET(meta, covariate):
-    """
-    Use the heuristic set in Buttner et al. 2018 to choose the optimal number of NN (K)
-    to evaluate the kBET metric.
-    """
-
-    # Check 'seq_run' is in meta
-    try:
-        meta[covariate]
-    except:
-        print(f'No {covariate} in cells meta! Reformat.')
-        sys.exit()
-
-    # Calculate K 
-    K = np.min(pd.Series(meta['seq_run'].value_counts()).values) // 4
-
-    return K
+# def choose_K_for_kBET(adata, covariate):
+#     """
+#     Use the heuristic set in Buttner et al. 2018 to choose the optimal number of NN (K)
+#     to evaluate the kBET metric.
+#     """
+# 
+#     # Check 'seq_run' is in meta
+#     try:
+#         adata.obs[covariate]
+#     except:
+#         print(f'No {covariate} in cells meta! Reformat.')
+#         sys.exit()
+# 
+#     # Calculate K 
+#     K = np.min(pd.Series(adata.obs['seq_run'].value_counts()).values) // 4
+# 
+#     return K
     
 
 ##
 
 
-def kbet(index, batch, alpha=0.05):
+def kbet(index, batch, alpha=0.05, only_score=True):
     """
-    Re-implementation of pegasus kBET, to start from a pre-computed kNN index.
+    Computes the kBET metric to assess batch effects for an index matrix of a KNN graph.
+
+    Parameters
+    ----------
+    index : numpy.ndarray
+        An array of shape (n_cells, n_neighbors) containing the indices of the k nearest neighbors for each cell.
+    batch : pandas.Series
+        A categorical pandas Series of length n_cells indicating the batch for each cell.
+    alpha : float, optional (default : 0.05)
+        The significance level of the test.
+    only_score : bool, optional (default : True)
+        Whether to return only the accept rate or the full kBET results.
+
+    Returns
+    -------
+    float or tuple of floats
+        If only_score is True, returns the accept rate of the test as a float between 0 and 1.
+        If only_score is False, returns a tuple of three floats: the mean test statistic, the mean p-value, and the
+        accept rate.
     """
     # Prepare batch
     if batch.dtype.name != "category":
@@ -101,54 +121,82 @@ def kbet(index, batch, alpha=0.05):
     stat_mean, pvalue_mean = kBET_arr.mean(axis=0)
     accept_rate = (kBET_arr[:, 1] >= alpha).sum() / len(batch)
 
-    return (stat_mean, pvalue_mean, accept_rate)
+    if only_score:
+        return accept_rate
+    else:
+        return (stat_mean, pvalue_mean, accept_rate)
 
 
 ##
 
 
-def graph_conn(adata, conn, labels=None, resolution=0.2):
+def graph_conn(A, labels=None, resolution=0.2):
     """
-    Compute the graph connectivity metric of some kNN representation (conn).
+    Calculates the graph connectivity of a network based on its adjacency matrix A (connectivities matrix of KNN).
+
+    Parameters:
+    -----------
+    A : ndarray of shape (n, n)
+        The adjacency matrix of the KNN graph.
+    labels : pandas.Categorical, optional
+        A categorical array specifying the cluster label for each cell. If not provided,
+        the Leiden algorithm is used to cluster the cells into groups with resolution parameter
+        `resolution`.
+    resolution : float, optional (default : 0.2)
+        The resolution parameter to be used with the Leiden algorithm for clustering nodes into
+        groups. Ignored if `labels` is provided.
+
+    Returns:
+    --------
+    mean_conn : float
+        The mean graph connectivity of the network, computed as the average of the maximum
+        fraction of cells that are mutually connected within each group of cells defined by the
+        input `labels`.
     """
-    # Prep adata
-    adata.uns['neighbors'] = {}
-    adata.obsp['connectivities'] = conn
-    
     # Compute the graph connectivity metric, for each separate cluster
     per_group_results = []
-    
     # Labels 
-    if labels is None:
-        sc.tl.leiden(adata, resolution=resolution, key_added='groups') # Dataset-specific tuning
-        labels = adata.obs['groups']
+    if labels is None:    
+        labels = leiden_clustering(A, res=resolution) #A e' la matrice di connectivities
+        labels = pd.Categorical(labels)
     else:
-        adata.obs['groups'] = pd.Series(labels).astype('category')
-
+        pass
     # Here we go
-    for g in labels.cat.categories:
-        adata_sub = adata[adata.obs['groups'].isin([g]), :]
+    for g in labels.categories:
+        test = labels == g
         # Calculate connected components labels
         _, l = connected_components(
-            adata_sub.obsp["connectivities"], connection="strong"
+           A[np.ix_(test, test)], connection="strong"
         )
         tab = pd.value_counts(l)
         per_group_results.append(tab.max() / sum(tab))
     
     return np.mean(per_group_results)
 
-
 ##
-
 
 def entropy_bb(index, batch):
     """
-    Calculate the median (over cells) batches Shannon Entropy.
+    Calculate the median (over cells) batches Shannon Entropy given an index matrix of a KNN graph.
+
+    Parameters:
+    -----------
+    index : ndarray of shape (n, m)
+        An array of shape (n_cells, n_neighbors) containing the indices of the k nearest neighbors for each cell.
+    batch : pandas.Series
+        A categorical pandas Series of length n_cells indicating the batch for each cell.
+
+    Returns:
+    --------
+    median_entropy : float
+        The entropy is computed as the negative sum of the frequencies of each category multiplied by the logarithm 
+        of the frequency, with a small offset to avoid division by zero. The median is taken over the
+        entropy values computed for each batch.
     """
     SH = []
     for i in range(index.shape[0]):
         freqs = batch[index[i, :]].value_counts(normalize=True).values
-        SH.append( - np.sum(freqs * np.log(freqs + 0.00001))) # Avoid 0 division
+        SH.append(-np.sum(freqs * np.log(freqs + 0.00001))) # Avoid 0 division
     
     return np.median(SH)
 
@@ -159,6 +207,22 @@ def entropy_bb(index, batch):
 def kNN_retention_perc(original_idx, int_idx):
     """
     Calculate the median (over cells) kNN purity of each cell neighborhood.
+
+    Parameters:
+    -----------
+    original_idx : ndarray of shape (n, m)
+        An array of shape (n_cells, n_neighbors) containing the indices of the k nearest neighbors for each cell (original).
+    int_idx : ndarray of shape (n, m)
+        An array of shape (n_cells, n_neighbors) containing the indices of the k nearest neighbors for each cell (integrated).
+
+    Returns:
+    --------
+    median_retention_perc : float
+        The median percentage of nearest neighbors that are retained after the integration. For
+        each point in the original dataset, the function compares its k nearest neighbors to the
+        k nearest neighbors of the corresponding point in the integrated representation, and computes the
+        fraction of neighbors that are shared between the two representations. The median is taken over all
+        points in the dataset.
     """
     # Sanity check
     try:
@@ -179,49 +243,121 @@ def kNN_retention_perc(original_idx, int_idx):
 ##
 
 
-def leiden_from_kNN(adata, conn, resolution=0.2):
+def compute_NMI(original_conn, integrated_conn, labels=None, resolution=0.2):
     """
-    Compute Leiden clustering from an adata and an already pre-computed kNN connectivity matrix.
-    """
-    M = adata.copy() # Do not overwrite
-    M.uns['neighbors'] = {}
-    M.obsp['connectivities'] = conn
-    sc.tl.leiden(M, resolution=resolution, random_state=1234)
-    leiden = M.obs['leiden'].values
-    del M
-    gc.collect()
+    Computes the normalized mutual information (NMI) score between the clustering results of the
+    original and integrated connectivities matrices of KNN graph.
 
-    return leiden
+    Parameters:
+    -----------
+    original_conn : ndarray of shape (n, n)
+        The original adjacency matrix of the KNN graph.
+    integrated_conn : ndarray of shape (n, n)
+        The integrated adjacency matrix of the KNN graph.
+    labels : ndarray of shape (n,), optional (default=None)
+        An array of integers representing the ground-truth labels for the cells in the original
+        adjacency matrix. If not provided, the function will use the Leiden algorithm to cluster the cells
+        in the original adjacency matrix.
+    resolution : float, optional (default=0.2)
+        The resolution parameter to use when clustering the cells in the original adjacency matrix. This
+        parameter controls the level of granularity in the clustering.
+
+    Returns:
+    --------
+    nmi_score : float
+        The NMI score between the clustering results of the original and integrated adjacency matrices. The
+        NMI score measures the mutual information between the two sets of labels and normalizes it
+        by the average entropy of the two sets. A higher NMI score indicates a better alignment of
+        the clustering results.
+    """
+    # Check if ground truth is provided and compute original and integrated labels 
+    if labels is None:
+        g1 = leiden_clustering(original_conn, res=resolution)
+    else:
+        g1 = labels
+    g2 = leiden_clustering(integrated_conn, res=resolution)
+
+    # Compute NMI score
+    score = normalized_mutual_info_score(g1, g2, average_method='arithmetic')
+
+    return score
+    
+
+##
+
+
+def compute_ARI(original_conn, integrated_conn, labels=None, resolution=0.2):
+    """
+    Computes the adjusted Rand index (ARI) score between the clustering results of the original and
+    integrated datasets.
+
+    Parameters:
+    -----------
+    original_conn : ndarray of shape (n, n)
+        The original adjacency matrix of the KNN graph.
+    integrated_conn : ndarray of shape (n, n)
+        The integrated adjacency matrix of the KNN graph.
+    labels : ndarray of shape (n,), optional (default=None)
+        An array of integers representing the ground-truth labels for the cells in the original
+        adjacency matrix. If not provided, the function will use the Leiden algorithm to cluster the cells
+        in the original adjacency matrix.
+    resolution : float, optional (default=0.2)
+        The resolution parameter to use when clustering the cells in the original adjacency matrix. This
+        parameter controls the level of granularity in the clustering.
+
+    Returns:
+    --------
+    ari_score : float
+        The ARI score between the clustering results of the original and integrated adjacency matrices. The
+        ARI score measures the similarity between the two sets of labels and adjusts for chance
+        agreement. A higher ARI score indicates a better alignment of the clustering results.
+    """
+    # Check if ground truth is provided and compute original and integrated labels 
+    if labels is None:
+        g1 = leiden_clustering(original_conn, res=resolution)
+    else:
+        g1 = labels
+    g2 = leiden_clustering(integrated_conn, res=resolution)
+
+    # Compute ARI score
+    score = custom_ARI(g1, g2)
+
+    return score
 
 
 ##
 
 
-def binom_sum(x, k=2):
-    return binom(x, k).sum()
+def kBET_score(adata, covariate='seq_run', method='original', layer='lognorm', k=15, n_components=30):
+    """
+    Function to calculate the kBET score for a given layer, method, k and n_components 
+    and store it in a dictionary for use in the kBET script prior to integration.
+    """
+    score = {}
 
+    KNN_index = get_representation(
+        adata, 
+        layer=layer, 
+        method=method, 
+        k=k, 
+        n_components=n_components, 
+        only_index=True
+    )
+
+    batch = adata.obs[covariate]
+    score_kbet = kbet(KNN_index, batch)
+    key = f'{layer}|{method}|{k}_NN_{n_components}_comp'
+    score = {key:score_kbet}
+
+    return score
 
 ##
 
-
-def custom_ARI(g1, g2):
-    """
-    Compute scib modified ARI.
-    """
-
-    # Contingency table
-    n = len(g1)
-    contingency = pd.crosstab(g1, g2)
-
-    # Calculate and rescale ARI
-    ai_sum = binom_sum(contingency.sum(axis=0))
-    bi_sum = binom_sum(contingency.sum(axis=1))
-    index = binom_sum(np.ravel(contingency))
-    expected_index = ai_sum * bi_sum / binom_sum(n, 2)
-    max_index = 0.5 * (ai_sum + bi_sum)
-
-    return (index - expected_index) / (max_index - expected_index)
-
-
-
-  
+all_functions = {
+    'kBET' : kbet,
+    'entropy_bb' : entropy_bb,
+    'graph_conn' : graph_conn,
+    'kNN_retention_perc' : kNN_retention_perc,
+    'NMI': compute_NMI, 
+    'ARI': compute_ARI
+}

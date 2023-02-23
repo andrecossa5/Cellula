@@ -12,7 +12,9 @@ from sklearn.cluster import KMeans
 from ..dist_features._signatures import scanpy_score, wot_zscore, wot_rank
 from .._utils import *
 
+
 ##
+
 
 def _sig_scores(adata, score_method='scanpy', organism='human'):
     """
@@ -55,7 +57,58 @@ def _sig_scores(adata, score_method='scanpy', organism='human'):
 ##
 
 
-def pp(adata, mode='scanpy', target_sum=50*1e4, n_HVGs=2000, score_method='scanpy', organism='human'):
+def corr2_coeff(A, B):
+    """
+    Calculate Pearson correlation between matrix A and B
+    A and B are allowed to have different shapes. Taken from Cospar, Wang et al., 2023.
+    """
+    resol = 10 ** (-15)
+
+    A_mA = A - A.mean(1)[:, None]
+    B_mB = B - B.mean(1)[:, None]
+    ssA = (A_mA ** 2).sum(1)
+    ssB = (B_mB ** 2).sum(1)
+
+    corr = np.dot(A_mA, B_mB.T) / (np.sqrt(np.dot(ssA[:, None], ssB[None])) + resol)
+
+    return corr
+
+
+##
+
+
+def remove_cc_genes(adata, organism='human', corr_threshold=0.1):
+    """
+    Update adata.var['highly_variable_features'] discarding cc correlated genes. 
+    Taken from Cospar, Wang et al., 2023.
+    """
+    # Get cc genes
+    cycling_genes = load_signatures_from_file(predefined_signatures[f'cell_cycle_{organism}'])
+    cc_genes = list(set(cycling_genes['G1/S']) | set(cycling_genes['G2/M']))
+    cc_genes = [ x for x in cc_genes if x in adata.var_names ]
+   
+    # Compute corr
+    cc_expression = adata[:, cc_genes].X.A.T
+    HVGs = adata.var_names[adata.var['highly_variable_features']]
+    hvgs_expression = adata[:, HVGs].X.A.T
+    cc_corr = corr2_coeff(hvgs_expression, cc_expression)
+
+    # Discard genes having the maximum correlation with one of the cc > corr_threshold
+    max_corr = np.max(abs(cc_corr), 1)
+    HVGs_no_cc = HVGs[max_corr < corr_threshold]
+    print(
+        f'Number of selected non-cycling highly variable genes: {HVGs_no_cc.size}\n'
+        f'{np.sum(max_corr > corr_threshold)} cell cycle correlated genes will be removed...'
+    )
+    # Update 
+    adata.var['highly_variable_features'] = adata.var_names.isin(HVGs_no_cc)
+
+
+##
+
+
+def pp(adata, mode='scanpy', target_sum=50*1e4, n_HVGs=2000, score_method='scanpy', 
+    organism='human', no_cc=False):
     """
     Preprocesses the AnnData object adata using either a scanpy or a pearson residuals workflow for size normalization
     and highly variable genes (HVGs) selection, and calculates signature scores if necessary. 
@@ -80,6 +133,8 @@ def pp(adata, mode='scanpy', target_sum=50*1e4, n_HVGs=2000, score_method='scanp
         calculates scores using the 'cell_cycle' gene set from msigdb.
     organism: str, default 'human'
         The organism of the data. It can be either 'human' or 'mouse'. 
+    no_cc: bool, default False
+        Whether to remove cc-correlated genes from HVGs.
 
     Returns:
     -------
@@ -107,11 +162,15 @@ def pp(adata, mode='scanpy', target_sum=50*1e4, n_HVGs=2000, score_method='scanp
         )
         sc.pp.log1p(adata)
         pg.highly_variable_features(adata, batch='sample', n_top=n_HVGs)
-
-    elif mode == 'pearson': # Perason residuals workflow
+        if no_cc:
+            remove_cc_genes(adata, organism=organism, corr_threshold=0.1)
+    elif mode == 'pearson':
+        # Perason residuals workflow
         sc.experimental.pp.highly_variable_genes(
                 adata, flavor="pearson_residuals", n_top_genes=n_HVGs
         )
+        if no_cc:
+            remove_cc_genes(adata, organism=organism, corr_threshold=0.1)
         sc.experimental.pp.normalize_pearson_residuals(adata)
         adata.var = adata.var.drop(columns=['highly_variable_features'])
         adata.var['highly_variable_features'] = adata.var['highly_variable']
@@ -119,6 +178,7 @@ def pp(adata, mode='scanpy', target_sum=50*1e4, n_HVGs=2000, score_method='scanp
         adata.var = adata.var.rename(columns={'means':'mean', 'variances':'var'})
 
     logger.info(f'End of size normalization and pegasus batch aware HVGs selection or Perason residuals workflow: {g.stop()} s.')
+   
     # Calculate signature scores, if necessary
     if not any([ 'cycling' == x for x in adata.obs.columns ]):
         scores = _sig_scores(adata, score_method=score_method, organism=organism)

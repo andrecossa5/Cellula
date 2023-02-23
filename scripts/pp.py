@@ -112,6 +112,17 @@ my_parser.add_argument(
 
 # custom
 my_parser.add_argument(
+    '--no_cc', 
+    action='store_true',
+    help=
+    '''
+    Remove cc-correlated genes from HVGs.
+    Default: False. 
+    '''
+)
+
+# custom
+my_parser.add_argument(
     '--custom_meta', 
     action='store_true',
     help=
@@ -146,9 +157,6 @@ from Cellula.plotting._colors import create_colors
 #-----------------------------------------------------------------#
 
 # Set other paths 
-path_main = '/Users/IEO5505/Desktop/cellula_example/'
-version = 'default'
-
 path_data = path_main + '/data/'
 path_results = path_main + '/results_and_plots/pp/'
 path_runs = path_main + '/runs/'
@@ -235,7 +243,8 @@ def preprocessing():
         target_sum=50*1e4, 
         n_HVGs=n_HVGs, 
         score_method=scoring_method,
-        organism=organism
+        organism=organism,
+        no_cc=args.no_cc
     )
     logger.info(f'End of preprocessing steps in: {g.stop()} s.')
 
@@ -261,7 +270,7 @@ def preprocessing():
 
     # Visualize QC metrics 
     fig = QC_plot(adata.obs, 'sample', QC_covariates, colors, labels=False, figsize=(12, 10))
-    fig.savefig(path_viz + 'QC.pdf')
+    fig.savefig(path_viz + 'QC.png')
     logger.info(f'End of Cell QC on merged samples and files generation: {s.stop()} s.')
     logger.info(f'Adata gene filtering, log-normalization, HVGs ({n_HVGs}) selection, cc_scores calculation, and QC: {t.stop()} s.')
 
@@ -315,7 +324,7 @@ def preprocessing():
     g.start()
     logger.info('Visualize percentage explained variance of top30 PCs, for each PCA space')
     fig = explained_variance_plot(adata_red, figsize=(12,8))
-    fig.savefig(path_viz + 'explained_variance.pdf')
+    fig.savefig(path_viz + 'explained_variance.png')
     logger.info(f'Generation of explained_variance.pdf: {g.stop()} s.')
 
     #-----------------------------------------------------------------#
@@ -323,14 +332,12 @@ def preprocessing():
     # Visualize sample biplots, top5 PCs 
     if not args.no_biplot:
         for layer in adata_red.layers:
-            with PdfPages(path_viz + f'PCs_{layer}.pdf') as pdf:
-                g.start()
-                logger.info(f'Visualize sample biplots, top5 PCs for pp={layer} for the following covariates:seq_run,sample,nUMIs,cycle_diff')
-                for cov in ['seq_run', 'sample', 'nUMIs', 'cycle_diff']:
-                    fig = plot_biplot_PCs(adata_red, layer=layer, covariate=cov, colors=colors)
-                    pdf.savefig()  
-                    plt.close()
-                logger.info(f'Generation of PCs_{layer}.pdf: {g.stop()} s.')
+            g.start()
+            logger.info(f'Visualize sample biplots, top5 PCs for pp={layer} for the following covariates:seq_run, sample, nUMIs, cycle_diff')
+            for cov in ['seq_run', 'sample', 'nUMIs', 'cycle_diff']:
+                fig = plot_biplot_PCs(adata_red, layer=layer, covariate=cov, colors=colors)
+            fig.savefig(path_viz + f'PCs_{layer}.png')
+            logger.info(f'Generation of PCs_{layer}: {g.stop()} s.')
 
     logger.info(f'Matrix manipulation and PCA vizualization: {t.stop()} s.')
     
@@ -342,20 +349,17 @@ def preprocessing():
         # Visualize QC covariates in cell embeddings (umap only here)
         t.start()
         logger.info(f'Begin cell embeddings vizualization...')
-
-        with PdfPages(path_viz + f'original_embeddings.pdf') as pdf:
-            for layer in adata_red.layers:
-                #g.start()
-                #logger.info(f'Begin KNN computation for pp={layer}')
-                adata_red = compute_kNN(adata_red, layer=layer, int_method='original')
-                #logger.info(f'End of KNN computation for pp={layer}: {g.stop()} s.')
-                #g.start()
-                #logger.info(f'Begin plotting embedding for pp={layer}')
-                fig = plot_embeddings(adata_red, layer=layer)
-                #logger.info(f'End of plotting embedding for pp={layer}: {g.stop()} s.')
-                fig.suptitle(layer)
-                pdf.savefig()  
-                plt.close()
+        for layer in adata_red.layers:
+            g.start()
+            logger.info(f'Begin KNN computation for pp={layer}')
+            adata_red = compute_kNN(adata_red, layer=layer, int_method='original')
+            logger.info(f'End of KNN computation for pp={layer}: {g.stop()} s.')
+            g.start()
+            logger.info(f'Begin plotting embedding for pp={layer}')
+            fig = plot_embeddings(adata_red, layer=layer)
+            logger.info(f'End of plotting embedding for pp={layer}: {g.stop()} s.')
+            fig.suptitle(layer)
+            fig.savefig(path_viz + f'{layer}_original_embeddings.png')
 
         logger.info(f'Original cell embeddings vizualization: {t.stop()} s.')
 

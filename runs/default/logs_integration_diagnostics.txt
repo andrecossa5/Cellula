@@ -1,2 +1,0 @@
-2023-02-21 13:42:07,862 - my_logger - INFO - Choose preprocessing option: original|scaled
-2023-02-21 13:42:07,862 - my_logger - INFO - Execute for: --covariate seq_run --n_comps 30

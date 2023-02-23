@@ -120,7 +120,6 @@ class Clust_evaluator:
 
                 if self.solutions[solution].unique().size == 1:
                     print(f'Skipping evaluation for clustering solution {solution} with only 1 partiton...')
-                    pass
                 else:
                     l = []
                     l.append(metric)
@@ -137,8 +136,7 @@ class Clust_evaluator:
 
                     l.append(args)
                     l.append(kwargs)
-
-                d_options[f'{metric}|{solution}'] = l
+                    d_options[f'{metric}|{solution}'] = l
 
         self.d_options = d_options
 

@@ -94,6 +94,8 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set other paths 
+    path_main = '/Users/IEO5505/Desktop/cellula_example/'
+    version = 'default'
     path_data = path_main + f'/data/{version}/'
     path_results = path_main + '/results_and_plots/clustering/'
     path_runs = path_main + '/runs/'
@@ -204,7 +206,7 @@ def clustering_diagnostics():
             legend=True, 
             labels=True,
         )
-        fig.savefig(path_viz + f'QC_{chosen}.pdf')
+        fig.savefig(path_viz + f'QC_{chosen}.png')
 
         logger.info(f'Adding {chosen} solution QC vizualization: {t.stop()} s.')
 
@@ -227,7 +229,7 @@ def clustering_diagnostics():
             annot_size=3,
             figsize=(11, 10)
         )
-        fig.savefig(path_viz + 'ARI_among_solutions.pdf')
+        fig.savefig(path_viz + 'ARI_among_solutions.png')
 
         logger.info(f'ARI among solutions: total {t.stop()} s.')
 
@@ -251,7 +253,7 @@ def clustering_diagnostics():
 
         # Overall solution rankings 
         fig = C.viz_results(df, df_summary, df_rankings)
-        fig.savefig(path_viz + 'clustering_solutions_rankings.pdf')
+        fig.savefig(path_viz + 'clustering_solutions_rankings.png')
 
         # Clusters separation metrics trends
 
@@ -265,7 +267,7 @@ def clustering_diagnostics():
         # Plots
         g = Timer()
         g.start()
-        logger.info('Generation of clusters_separation.pdf')
+        logger.info('Generation of clusters_separation.png')
         with PdfPages(path_viz + 'clusters_separation.pdf') as pdf:
             for k in sorted(df['NN'].unique()):
                 df_kNN = df.loc[df['NN'] == k]
@@ -273,7 +275,7 @@ def clustering_diagnostics():
                 fig.suptitle(f'{k} NN')
                 pdf.savefig()  
                 plt.close()
-        logger.info(f'Generated clusters_separation.pdf in: {g.stop()} s.')
+        logger.info(f'Generated clusters_separation plots in: {g.stop()} s.')
         logger.info(f'Vizualization cluster separation and purity: {t.stop()} s.')
 
     #-----------------------------------------------------------------#
@@ -288,9 +290,13 @@ def clustering_diagnostics():
         # Load markers
         g = Timer()
         g.start()
-        logger.info('Begin loading for markers and getting the full matrix with a subset of clustering solutions')
-        with open(path_main + f'results_and_plots/dist_features/{version}/clusters_markers.pickle', mode='rb') as f:
-            markers = pickle.load(f)
+        logger.info('Begin loading markers and getting the full matrix with a subset of clustering solutions')
+        
+        if os.path.exists(path_main + f'results_and_plots/dist_features/{version}/clusters_markers.pickle'):
+            with open(path_main + f'results_and_plots/dist_features/{version}/clusters_markers.pickle', mode='rb') as f:
+                markers = pickle.load(f)
+        else:
+            sys.exit('Compute markers first!')
 
         # Subset 
         sol = clustering_solutions.loc[:, top_3]

@@ -6,13 +6,16 @@ NB: The params section have to be re-built.
 import numpy as np
 import pandas as pd
 from joblib import cpu_count
+from scipy.sparse import issparse
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from lightgbm import LGBMClassifier
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import StratifiedShuffleSplit, RandomizedSearchCV
-from sklearn.metrics import f1_score, balanced_accuracy_score, accuracy_score
-from scipy.sparse import issparse
+from sklearn.metrics import f1_score, balanced_accuracy_score, accuracy_score, precision_score, recall_score
+import shap
 
 from .._utils import rescale
 
@@ -20,7 +23,7 @@ from .._utils import rescale
 ##
 
 
-def classification(X, y, features_names, key='xgboost', GS=True, n_combos=5, 
+def classification(X, y, feature_names, key='logit', GS=True, n_combos=5, 
                 score='f1', cores_model=8, cores_GS=1):
     """
     Given some input data X y, run a classification analysis in several flavours.
@@ -33,7 +36,14 @@ def classification(X, y, features_names, key='xgboost', GS=True, n_combos=5,
         LogisticRegression(penalty='l2', n_jobs=cores_model, max_iter=10000),
 
         'xgboost' : 
-        LGBMClassifier(n_jobs=cores_model, learning_rate=0.01)
+        LGBMClassifier(n_jobs=cores_model, learning_rate=0.01),
+
+        'SVM' : 
+        SVC(),
+
+        'kNN' :
+        KNeighborsClassifier(n_jobs=cores_model)
+
     }
 
     params = {
@@ -48,9 +58,24 @@ def classification(X, y, features_names, key='xgboost', GS=True, n_combos=5,
         'xgboost' : 
 
         {
-            "xgboost__n_estimators": np.arange(100, 600, 100),
-            "xgboost__max_depth": [4, 5, 6, 7, 8, 10],
-            "xgboost__importance_type": ["gain", "split"]
+            "xgboost__n_estimators" : np.arange(100, 600, 100),
+            "xgboost__max_depth" : [4, 5, 6, 7, 8, 10],
+            "xgboost__importance_type" : ["gain", "split"]
+        },
+
+        'SVM':
+
+        {
+            "SVM__kernel" : ["linear", "rbf", "poly"],
+            "SVM__gamma" : [0.1, 1, 10, 100],
+            "SVM__C" : [0.1, 1, 10, 100, 1000],
+            "SVM__degree" : [0, 1, 2, 3, 4, 5, 6]
+        },
+
+        'kNN' :
+
+        {
+            "kNN__n_neighbors" : np.arange(5, 100, 25)
         }
 
     }
@@ -63,7 +88,7 @@ def classification(X, y, features_names, key='xgboost', GS=True, n_combos=5,
     sss = StratifiedShuffleSplit(n_splits=2, test_size=0.2, random_state=rng)
 
     if issparse(X):
-        X = X.toarray() # Densify if genes as features
+        X = X.A # Densify if genes as features
 
     for train_index, test_index in sss.split(X, y):
         X_train, X_test = X[train_index], X[test_index]
@@ -95,20 +120,15 @@ def classification(X, y, features_names, key='xgboost', GS=True, n_combos=5,
         )
         model.fit(X_train, y_train)
 
-        if key == 'xgboost':
-            effect_size = model.best_estimator_[1].feature_importances_
-        elif key == 'logit':
-            effect_size = model.best_estimator_[1].coef_.reshape(len(features_names), 1)
-
-    # Simple: once, on all training set, default hyperparameters
     else:
         model = pipe
         model.fit(X_train, y_train)
 
-        if key == 'xgboost':
-            effect_size = model.steps[1][1].feature_importances_
-        elif key == 'logit':
-            effect_size = model.steps[1][1].coef_.reshape(len(features_names), 1)
+    # Calculate (mean) SHAP values
+    X_background = shap.utils.sample(X_train, round(X_train.shape[0]*0.2))
+    explainer = shap.Explainer(model.predict, X_background, seed=1234)
+    shap_values = explainer(X_train, max_evals=10000000)
+    mean_values = shap_values.values.mean(axis=0)
 
     # Test: N.B. X_test should be scaled as X_train
     scaler = StandardScaler()
@@ -116,21 +136,19 @@ def classification(X, y, features_names, key='xgboost', GS=True, n_combos=5,
 
     # Scores
     y_pred = model.predict(X_test)
-    if score == 'accuracy':
-        evidence = accuracy_score(y_test, y_pred)
-    elif score == 'balanced_accuracy':
-        evidence = balanced_accuracy_score(y_test, y_pred)
-    elif score == 'f1':
-        evidence = f1_score(y_test, y_pred)
-    else:
-        raise ValueError('Unknown score for classification.')
+    scores = {
+        'accuracy' : [accuracy_score(y_test, y_pred)] * len(feature_names),
+        'balanced_accuracy' : [balanced_accuracy_score(y_test, y_pred)] * len(feature_names),
+        'precision' : [precision_score(y_test, y_pred)] * len(feature_names),
+        'recall' : [recall_score(y_test, y_pred)] * len(feature_names),
+        'evidence' : [f1_score(y_test, y_pred)] * len(feature_names)
+    }
 
     # Format and return 
-    df = pd.DataFrame({'evidence': evidence}, index=features_names).assign(
-        evidence_type=score,
-        effect_size=effect_size,
-        es_rescaled=rescale(effect_size),
-        effect_type='importance' if key == 'xgboost' else 'LM_coef'
+    df = pd.DataFrame(scores, index=feature_names).assign(
+        evidence_type='f1',
+        effect_size=mean_values,
+        effect_type='SHAP'
     )
     df = df.sort_values(by='effect_size', ascending=False).assign(
         rank=[ i for i in range(1, df.shape[0]+1) ]

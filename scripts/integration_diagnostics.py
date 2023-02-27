@@ -158,19 +158,17 @@ def integration_diagnostics():
     G.start()
     logger.info(f'Begin embeddings visualization:')
     for layer in adata.layers:
-        with PdfPages(path_viz + f'orig_int_embeddings_{layer}.pdf') as pdf:
-            t.start()
-            logger.info(f'Start the visualization of the embedding for all integration methods (for raw there are only scVI and original) on the following pp:{layer}')
-            for int_rep in methods:
-                try:
-                    fig = plot_embeddings(adata, layer=layer, rep=int_rep)  
-                    tot = layer +'_'+int_rep
-                    fig.suptitle(tot)
-                    pdf.savefig() 
-                    plt.close()
-                except:
-                    print(f'Embedding {int_rep} is not available for layer {layer}')
-            logger.info(f'End of the visualization on all methods on the following pp {layer}: {t.stop()} s.')
+        t.start()
+        logger.info(f'Start the visualization of the embedding for all integration methods (for raw there are only scVI and original) on the following pp:{layer}')
+        for int_rep in methods:
+            try:
+                fig = plot_embeddings(adata, layer=layer, rep=int_rep)  
+                tot = layer + '_' + int_rep
+                fig.suptitle(tot)
+                fig.savefig(path_viz + f'orig_int_{layer}_{int_rep}.png') 
+            except:
+                print(f'Embedding {int_rep} is not available for layer {layer}')
+        logger.info(f'End of the visualization on all methods on the following pp {layer}: {t.stop()} s.')
     logger.info(f'Embeddings visualization completed: {G.stop()} s.')
 
     # Compute diagnostics metrics
@@ -188,7 +186,7 @@ def integration_diagnostics():
     # Plotting and saving outputs
     t.start()
     fig = I.viz_results(df, df_summary, df_rankings)
-    fig.savefig(path_viz + 'integration_diagnostics.pdf')
+    fig.savefig(path_viz + 'integration_diagnostics.png')
     logger.info(f'Plotting and saving: {t.stop()} s.')
     
     #-----------------------------------------------------------------#

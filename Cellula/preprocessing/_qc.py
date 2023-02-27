@@ -173,103 +173,102 @@ def QC(adatas, mode='seurat', min_cells=3, min_genes=200, nmads=5, path_viz=None
     logger = logging.getLogger("my_logger")  
     
     # For each adata, produce a figure
-    with PdfPages(path_viz + 'original_QC_by_sample.pdf') as pdf:
-        
-        removed_cells = []
-        for s, adata in adatas.items():
+    # with PdfPages(path_viz + 'original_QC_by_sample.pdf') as pdf: 
+    removed_cells = []
+    for s, adata in adatas.items():
 
-            fig, axs = plt.subplots(1,3,figsize=(15,5))
+        fig, axs = plt.subplots(1,3,figsize=(15,5))
 
-            logger.info(f'Sample {s} QC...')
+        logger.info(f'Sample {s} QC...')
 
-            # QC metrics
-            t.start()
-            logger.info('Calculate QC metrics')
-            adata.var_names_make_unique()
-            adata.var["mt"] = adata.var_names.str.startswith("MT-")
-            adata.obs['nUMIs'] = adata.X.toarray().sum(axis=1)  
-            adata.obs['mito_perc'] = adata[:, adata.var["mt"]].X.toarray().sum(axis=1) / adata.obs['nUMIs'].values
-            adata.obs['detected_genes'] = (adata.X.toarray() > 0).sum(axis=1)  
-            adata.obs['cell_complexity'] = adata.obs['detected_genes'] / adata.obs['nUMIs']
-            logger.info(f'End calculation of QC metrics: {t.stop()} s.')
+        # QC metrics
+        t.start()
+        logger.info('Calculate QC metrics')
+        adata.var_names_make_unique()
+        adata.var["mt"] = adata.var_names.str.startswith("MT-")
+        adata.obs['nUMIs'] = adata.X.toarray().sum(axis=1)  
+        adata.obs['mito_perc'] = adata[:, adata.var["mt"]].X.toarray().sum(axis=1) / adata.obs['nUMIs'].values
+        adata.obs['detected_genes'] = (adata.X.toarray() > 0).sum(axis=1)  
+        adata.obs['cell_complexity'] = adata.obs['detected_genes'] / adata.obs['nUMIs']
+        logger.info(f'End calculation of QC metrics: {t.stop()} s.')
 
-            # Original QC plot
-            n0 = adata.shape[0]
-            logger.info(f'Original cell number: {n0}')
-            QC_plot(adata, axs[0], title='Original')
-            axs[0].text(np.quantile(adata.obs['nUMIs'], 0.992), 1000, f'n:{n0}')
+        # Original QC plot
+        n0 = adata.shape[0]
+        logger.info(f'Original cell number: {n0}')
+        QC_plot(adata, axs[0], title='Original')
+        axs[0].text(np.quantile(adata.obs['nUMIs'], 0.992), 1000, f'n:{n0}')
 
-            # Post doublets removal QC plot
-            t.start()
-            logger.info('Begin of post doublets removal and QC plot')
-            sc.external.pp.scrublet(adata, random_state=1234)
-            adata_remove = adata[adata.obs['predicted_doublet'], :]
-            removed_cells.extend(list(adata_remove.obs_names))
-            adata = adata[~adata.obs['predicted_doublet'], :].copy()
-            n1 = adata.shape[0]
-            logger.info(f'Cells retained after scrublet: {n1}, {n0-n1} removed.')
-            QC_plot(adata, axs[1], title='After scublet')
-            axs[1].text(np.quantile(adata.obs['nUMIs'], 0.992), 1000, f'n:{n1}')
-            logger.info(f'End of post doublets removal and QC plot: {t.stop()} s.')
+        # Post doublets removal QC plot
+        t.start()
+        logger.info('Begin of post doublets removal and QC plot')
+        sc.external.pp.scrublet(adata, random_state=1234)
+        adata_remove = adata[adata.obs['predicted_doublet'], :]
+        removed_cells.extend(list(adata_remove.obs_names))
+        adata = adata[~adata.obs['predicted_doublet'], :].copy()
+        n1 = adata.shape[0]
+        logger.info(f'Cells retained after scrublet: {n1}, {n0-n1} removed.')
+        QC_plot(adata, axs[1], title='After scublet')
+        axs[1].text(np.quantile(adata.obs['nUMIs'], 0.992), 1000, f'n:{n1}')
+        logger.info(f'End of post doublets removal and QC plot: {t.stop()} s.')
 
-            # Post seurat or mads filtering QC plot
+        # Post seurat or mads filtering QC plot
 
-            # Filters
-            t.start()
-            logger.info('Filters application (seurat or mads)')
-            if mode == 'seurat':
-                adata.obs['passing_mt'] = adata.obs['mito_perc'] < tresh['mito_perc']
-                adata.obs['passing_nUMIs'] = adata.obs['nUMIs'] > tresh['nUMIs']
-                adata.obs['passing_ngenes'] = adata.obs['detected_genes'] > tresh['detected_genes']
-            elif mode == 'mads':
-                adata.obs['passing_mt'] = adata.obs['mito_perc'] < tresh['mito_perc']
-                adata.obs['passing_nUMIs'] = mads_test(adata.obs, 'nUMIs', nmads=nmads, lt=tresh)
-                adata.obs['passing_ngenes'] = mads_test(adata.obs, 'detected_genes', nmads=nmads, lt=tresh)  
+        # Filters
+        t.start()
+        logger.info('Filters application (seurat or mads)')
+        if mode == 'seurat':
+            adata.obs['passing_mt'] = adata.obs['mito_perc'] < tresh['mito_perc']
+            adata.obs['passing_nUMIs'] = adata.obs['nUMIs'] > tresh['nUMIs']
+            adata.obs['passing_ngenes'] = adata.obs['detected_genes'] > tresh['detected_genes']
+        elif mode == 'mads':
+            adata.obs['passing_mt'] = adata.obs['mito_perc'] < tresh['mito_perc']
+            adata.obs['passing_nUMIs'] = mads_test(adata.obs, 'nUMIs', nmads=nmads, lt=tresh)
+            adata.obs['passing_ngenes'] = mads_test(adata.obs, 'detected_genes', nmads=nmads, lt=tresh)  
 
-            # Report 
-            if mode == 'seurat':
-                logger.info(f'Lower treshold, nUMIs: {tresh["nUMIs"]}; filtered-out-cells: {n1-np.sum(adata.obs["passing_nUMIs"])}')
-                logger.info(f'Lower treshold, n genes: {tresh["detected_genes"]}; filtered-out-cells: {n1-np.sum(adata.obs["passing_ngenes"])}')
-                logger.info(f'Lower treshold, mito %: {tresh["mito_perc"]}; filtered-out-cells: {n1-np.sum(adata.obs["passing_mt"])}')
-                axs[2].axvline(tresh["nUMIs"], color='r')
-                axs[2].axhline(tresh["detected_genes"], color='r')
-            elif mode == 'mads':
-                nUMIs_t = mads(adata.obs, 'nUMIs', nmads=nmads, lt=tresh)
-                n_genes_t = mads(adata.obs, 'detected_genes', nmads=nmads, lt=tresh)
-                logger.info(f'Tresholds used, nUMIs: ({nUMIs_t[0]}, {nUMIs_t[1]}); filtered-out-cells: {n1-np.sum(adata.obs["passing_nUMIs"])}')
-                logger.info(f'Tresholds used, n genes: ({n_genes_t[0]}, {n_genes_t[1]}); filtered-out-cells: {n1-np.sum(adata.obs["passing_ngenes"])}')
-                logger.info(f'Lower treshold, mito %: {tresh["mito_perc"]}; filtered-out-cells: {n1-np.sum(adata.obs["passing_mt"])}')
-            logger.info(f'Filters applicated: {t.stop()} s.')
-            # QC plot
-            QC_test = (adata.obs['passing_mt']) & (adata.obs['passing_nUMIs']) & (adata.obs['passing_ngenes'])
-            removed = QC_test.loc[lambda x : x == False]
-            removed_cells.extend(list(removed.index.values))
-            logger.info(f'Total cell filtered out with this last --mode {mode} QC (and its chosen options): {n1-np.sum(QC_test)}')
-            adata = adata[QC_test, :].copy()
-            n2 = adata.shape[0]
-            QC_plot(adata, axs[2], title='Final')
-            axs[2].text(np.quantile(adata.obs['nUMIs'], 0.992), 1000, f'n:{n2}')
+        # Report 
+        if mode == 'seurat':
+            logger.info(f'Lower treshold, nUMIs: {tresh["nUMIs"]}; filtered-out-cells: {n1-np.sum(adata.obs["passing_nUMIs"])}')
+            logger.info(f'Lower treshold, n genes: {tresh["detected_genes"]}; filtered-out-cells: {n1-np.sum(adata.obs["passing_ngenes"])}')
+            logger.info(f'Lower treshold, mito %: {tresh["mito_perc"]}; filtered-out-cells: {n1-np.sum(adata.obs["passing_mt"])}')
+            axs[2].axvline(tresh["nUMIs"], color='r')
+            axs[2].axhline(tresh["detected_genes"], color='r')
+        elif mode == 'mads':
+            nUMIs_t = mads(adata.obs, 'nUMIs', nmads=nmads, lt=tresh)
+            n_genes_t = mads(adata.obs, 'detected_genes', nmads=nmads, lt=tresh)
+            logger.info(f'Tresholds used, nUMIs: ({nUMIs_t[0]}, {nUMIs_t[1]}); filtered-out-cells: {n1-np.sum(adata.obs["passing_nUMIs"])}')
+            logger.info(f'Tresholds used, n genes: ({n_genes_t[0]}, {n_genes_t[1]}); filtered-out-cells: {n1-np.sum(adata.obs["passing_ngenes"])}')
+            logger.info(f'Lower treshold, mito %: {tresh["mito_perc"]}; filtered-out-cells: {n1-np.sum(adata.obs["passing_mt"])}')
+        logger.info(f'Filters applicated: {t.stop()} s.')
+
+        # QC plot
+        QC_test = (adata.obs['passing_mt']) & (adata.obs['passing_nUMIs']) & (adata.obs['passing_ngenes'])
+        removed = QC_test.loc[lambda x : x == False]
+        removed_cells.extend(list(removed.index.values))
+        logger.info(f'Total cell filtered out with this last --mode {mode} QC (and its chosen options): {n1-np.sum(QC_test)}')
+        adata = adata[QC_test, :].copy()
+        n2 = adata.shape[0]
+        QC_plot(adata, axs[2], title='Final')
+        axs[2].text(np.quantile(adata.obs['nUMIs'], 0.992), 1000, f'n:{n2}')
             
 
-            if mode == 'seurat':
-                axs[2].axvline(tresh["nUMIs"], color='r')
-                axs[2].axhline(tresh["detected_genes"], color='r')
-            elif mode == 'mads':
-                axs[2].axvline(nUMIs_t[0], color='r')
-                axs[2].axvline(nUMIs_t[1], color='r')
-                axs[2].axhline(n_genes_t[0], color='r')
-                axs[2].axhline(n_genes_t[1], color='r')
+        if mode == 'seurat':
+            axs[2].axvline(tresh["nUMIs"], color='r')
+            axs[2].axhline(tresh["detected_genes"], color='r')
+        elif mode == 'mads':
+            axs[2].axvline(nUMIs_t[0], color='r')
+            axs[2].axvline(nUMIs_t[1], color='r')
+            axs[2].axhline(n_genes_t[0], color='r')
+            axs[2].axhline(n_genes_t[1], color='r')
 
-            # Store cleaned adata
-            logger.info(f'Cells retained after scrublet and {mode} filtering: {n2}, {n0-n2} removed.')
-            adatas[s] = adata
-            print(adatas[s])
+        # Store cleaned adata
+        logger.info(f'Cells retained after scrublet and {mode} filtering: {n2}, {n0-n2} removed.')
+        adatas[s] = adata
+        print(adatas[s])
 
-            # Close current fig
-            fig.suptitle(s)
-            fig.tight_layout()
-            pdf.savefig()  
-            plt.close()
+        # Close current fig
+        fig.suptitle(s)
+        fig.tight_layout()
+        fig.savefig(path_viz + f'QC_{s}.png')
 
     # Concenate
     universe = sorted(

@@ -367,11 +367,10 @@ class Dist_features:
 
                 df = classification(X, y_, feature_names, key=model, GS=GS, 
                         score=score, n_combos=n_combos, cores_model=self.n_cores, cores_GS=1)
-
                 df = df.assign(comparison=comparison, feature_type=feat_type)          
                 df = df.loc[:,
-                    ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'es_rescaled',
-                    'effect_type', 'comparison']
+                    ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'effect_size_rescaled',
+                    'effect_type', 'comparison', 'precision', 'recall', 'accuracy', 'balanced_accuracy']
                 ]
                 d = self.gs_from_ML(df, feat_type)
 
@@ -388,8 +387,8 @@ class Dist_features:
 
             df = df.assign(comparison=comparison_ab, feature_type=feat_type)
             df = df.loc[:,
-                ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'es_rescaled',
-                'effect_type', 'comparison']
+                ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'effect_size_rescaled',
+                'effect_type', 'comparison', 'precision', 'recall', 'accuracy', 'balanced_accuracy']
             ]
             d = self.gs_from_ML(df, feat_type)
 
@@ -404,8 +403,8 @@ class Dist_features:
 
             df = df.assign(comparison=comparison_ba, feature_type=feat_type)
             df = df.loc[:,
-                ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'es_rescaled',
-                    'effect_type', 'comparison']
+                ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'effect_size_rescaled',
+                'effect_type', 'comparison', 'precision', 'recall', 'accuracy', 'balanced_accuracy']
             ]
             d = self.gs_from_ML(df, feat_type)
 
@@ -433,7 +432,6 @@ class Dist_features:
         self.select_genes(only_HVGs=True)
 
         # Here, no multithreading. Needs to be implemented if we want to take advantage of the 'full' ML mode...
-        
         i = 1
         n_jobs = len([ 0 for k in self.jobs for x in self.jobs[k] ])
 
@@ -443,9 +441,8 @@ class Dist_features:
 
             # All jobs
             for x in self.jobs[k]: 
-
+                
                 job_key = '|'.join([k, x['features'], x['model']])
-
                 logger.info(f'Beginning with job {job_key}: {i}/{n_jobs}')
 
                 t = Timer()
@@ -460,7 +457,7 @@ class Dist_features:
                     ML_results, gene_set_dict = self.compute_ML(contrast_key=k, 
                                     feat_type=x['features'], which='perc_0.15_no_miribo_only_HVGs', 
                                     model=x['model'], mode=x['mode']
-                                    )
+                                )
                     self.Results.add_job_results(ML_results, gene_set_dict, job_key=job_key)
 
                 logger.info(f'Finished with job {job_key}: {t.stop()} s')

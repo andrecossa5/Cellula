@@ -111,6 +111,9 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set other paths 
+    #path_main = '/Users/IEO5505/Desktop/cellula_example/'
+    #version = 'default'
+    # contrasts_name = 'sample_and_leiden'
     path_data = path_main + f'/data/{version}/'
     path_results = path_main + '/results_and_plots/dist_features/'
     path_runs = path_main + '/runs/'

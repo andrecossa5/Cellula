@@ -1,6 +1,5 @@
 """
 ML.py: functions for Machine Learning models training and evaluation. 
-NB: The params section have to be re-built.
 """
 
 import numpy as np
@@ -11,19 +10,22 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from lightgbm import LGBMClassifier
 from sklearn.svm import SVC
-from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import StratifiedShuffleSplit, RandomizedSearchCV
-from sklearn.metrics import f1_score, balanced_accuracy_score, accuracy_score, precision_score, recall_score
-import shap
+from sklearn.metrics import *
 
 from .._utils import rescale
 
 
 ##
 
+# from sklearn.datasets import make_classification
+# X, y = make_classification(1000, 30, n_informative=10, weights=[0.9,0.1])
+# feature_names = [ f'f{i}' for i in range(X.shape[1]) ]
 
-def classification(X, y, feature_names, key='logit', GS=True, n_combos=5, 
+##
+
+def classification(X, y, feature_names, key='logit', GS=False, n_combos=5, 
                 score='f1', cores_model=8, cores_GS=1):
     """
     Given some input data X y, run a classification analysis in several flavours.
@@ -36,16 +38,9 @@ def classification(X, y, feature_names, key='logit', GS=True, n_combos=5,
         LogisticRegression(penalty='l2', n_jobs=cores_model, max_iter=10000),
 
         'xgboost' : 
-        LGBMClassifier(n_jobs=cores_model, learning_rate=0.01),
-
-        'SVM' : 
-        SVC(),
-
-        'kNN' :
-        KNeighborsClassifier(n_jobs=cores_model)
+        LGBMClassifier(n_jobs=cores_model, learning_rate=0.01)
 
     }
-
     params = {
 
         'logit' : 
@@ -61,21 +56,6 @@ def classification(X, y, feature_names, key='logit', GS=True, n_combos=5,
             "xgboost__n_estimators" : np.arange(100, 600, 100),
             "xgboost__max_depth" : [4, 5, 6, 7, 8, 10],
             "xgboost__importance_type" : ["gain", "split"]
-        },
-
-        'SVM':
-
-        {
-            "SVM__kernel" : ["linear", "rbf", "poly"],
-            "SVM__gamma" : [0.1, 1, 10, 100],
-            "SVM__C" : [0.1, 1, 10, 100, 1000],
-            "SVM__degree" : [0, 1, 2, 3, 4, 5, 6]
-        },
-
-        'kNN' :
-
-        {
-            "kNN__n_neighbors" : np.arange(5, 100, 25)
         }
 
     }
@@ -99,7 +79,7 @@ def classification(X, y, feature_names, key='logit', GS=True, n_combos=5,
         steps=[ 
             
             ('pp', StandardScaler()), # Always scale expression features
-            (key, models[key])
+            (key, models[key]) 
         ]
     )
 
@@ -119,23 +99,36 @@ def classification(X, y, feature_names, key='logit', GS=True, n_combos=5,
             verbose=True
         )
         model.fit(X_train, y_train)
+        print(model.best_params_)
 
     else:
         model = pipe
         model.fit(X_train, y_train)
 
-    # Calculate (mean) SHAP values
-    X_background = shap.utils.sample(X_train, round(X_train.shape[0]*0.2))
-    explainer = shap.Explainer(model.predict, X_background, seed=1234)
-    shap_values = explainer(X_train, max_evals=10000000)
-    mean_values = shap_values.values.mean(axis=0)
+    # Feature importance
+    f = model.best_estimator_[key] if GS else model[key]
+    if key == 'logit':
+        effect_type = f'{key}_coef'
+        effect_size = f.coef_.flatten()
+
+    elif key == 'xgboost':
+        effect_type = f'{key}_feature_importance'
+        effect_size = f.feature_importances_.flatten()
+
+    # Decision treshold tuning
+    precisions, recalls, tresholds = precision_recall_curve(
+        y_train, f.predict_proba(X_train)[:,1], 
+    )
+    f1_scores = 2 * (precisions * recalls) / (precisions + recalls)
+    alpha = tresholds[np.argmax(f1_scores)]
 
     # Test: N.B. X_test should be scaled as X_train
     scaler = StandardScaler()
     X_test = scaler.fit_transform(X_test)
 
-    # Scores
-    y_pred = model.predict(X_test)
+    # Scoring
+    y_pred_probabilities = f.predict_proba(X_test)[:,1]
+    y_pred = [ 1 if y >= alpha else 0 for y in y_pred_probabilities ]
     scores = {
         'accuracy' : [accuracy_score(y_test, y_pred)] * len(feature_names),
         'balanced_accuracy' : [balanced_accuracy_score(y_test, y_pred)] * len(feature_names),
@@ -147,10 +140,11 @@ def classification(X, y, feature_names, key='logit', GS=True, n_combos=5,
     # Format and return 
     df = pd.DataFrame(scores, index=feature_names).assign(
         evidence_type='f1',
-        effect_size=mean_values,
-        effect_type='SHAP'
+        effect_size=effect_size,
+        effect_size_rescaled=rescale(effect_size),
+        effect_type=effect_type
     )
-    df = df.sort_values(by='effect_size', ascending=False).assign(
+    df = df.sort_values(by='effect_size_rescaled', ascending=False).assign(
         rank=[ i for i in range(1, df.shape[0]+1) ]
     )
 

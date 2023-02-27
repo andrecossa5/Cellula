@@ -1,6 +1,6 @@
 # Cellula
 
-Seamless single-cell analysis in python (soon a Nextflow pipeline. * denote features which are still pending in the current codebase).
+Single-cell and single-cell lineage tracing analysis in python (soon a Nextflow pipeline.
 
 Aim of this project is to provide a toolkit for the exploration of scRNA-seq. These tools perform common single-cell analysis tasks (i.e., data pre-processing and integration, cell clustering and annotation (*)) with the following features:
 
@@ -20,14 +20,12 @@ For the time being, the main Cellula workflow implements the following tasks:
 
 * (By sample) cell and gene quality Control (QC), followed by expression matrices merging (`qc.py`),
 data pre-processing (`pp.py`) and batch effects assessment (`kBET.py`)
-* (Optional, if needed) correction of batch effects (`Harmony.py`, `Scanorama.py`, `scVI.py`, and `BBKNN.py` scripts) followed by the assembly of the final pre-processed data (`integration_evaluation.py`)
+* (Optional, if needed) correction of batch effects (`integration.py`) followed by the assembly of the final pre-processed data (`integration_evaluation.py`)
 * (Leiden) cell clustering at multiple, tunable resolutions, coupled to cluster markers computation (`clustering.py`)
 * Clustering solutions evaluation and choice (`clustering_diagnostics.py`)
 * Signatures (i.e., gene sets, either defined by the user or retrieved by data-driven approaches) scoring (`signatures.py`)
 * Distinguishing features ranking, through Differential Expression (DE) and classification methods (`dist_features.py`)
-* Interactive:
-    * visualization of gene expression programs (`Scorer_app.py`) 
-    * distinguishing features interpetation (Gene Set Enrichment and Over-Representation analysis, `Dist_features_app.py`)
+* Interactive exploration of the results (`cellula_app.py`) 
 
 `Cellula` has been designed for command-line usage. However, individual functions and classes can be imported individually by users that look for even more flexibility.
 A complete documentation (with nice tutorials and so on) will be provided when the project will reach sufficient stability for being packaged and released (we will get there soon :)).
@@ -45,7 +43,7 @@ git clone git@github.com:andrecossa5/Cellula.git
 # or git clone https://github.com/andrecossa5/Cellula.git
 ```
 
-Then, `cd` to `./Cellula/envs` and create the conda environment for your operating system (N.B.: Cellula has been tested only on Linux and macOS machines. In `Cellula/envs` you can find two _.yml_ files, storing receipts for both environments. `mamba` is used here for performance reasons, but `conda` works fine as well). 
+Then, `cd` to `./Cellula/envs` and create the conda environment for your operating system (N.B.: Cellula has been tested only on Linux and macOS machines. In `Cellula/envs` you can find different OSX and Linux _.yml_ files, storing receipts for both OS environments. `mamba` is used here for performance reasons, but `conda` works fine as well). 
 For a Linux machine:
 
 ```bash
@@ -79,8 +77,7 @@ If you are not seeing any errors, you are ready to go.
 To begin a new single-cell analysis, `cd` to a location of choice on your machine, and create a new folder, This folder will host all data and results of your project. We will refer to this __main folder__ with its absolute path, and we will assign this path to a bash environment variable, `$path_main`.
 
 ```bash
-export main_folder_name=choose your name
-cd #-- your choice here --#
+cd <your_coince_here>
 mkdir $main_folder_name
 cd $main_folder_name
 path_main=`pwd`/
@@ -146,7 +143,7 @@ With $path_main correctly configured, we can proceed with the analysis.
 
 We will first perform Quality Control and matrix pre-processing.
 
-__Note 1__ In a single Cellula workflow (i.e., its CLIs calls and results) one choose a unique set of options for each task. These options will likely affect the final results. Therefore, one is commonly interested in varying them and compare their results without loosing previously precomputed analysis. In order to do this, all `Cellula` CLIs all have a `--version` (or `-v`) argument to __activate and write on a__ specific _version_ folder. This way, a single place (i.e., the main folder) can store and organize all the results obtained on the same data with different, user-defined strategies. Run the same task changing `-v` and see how the `$path_main` folder structure is modified.
+__Note 1__ In a single Cellula workflow (i.e., its CLIs calls and results) one choose a unique set of options for each task. These options will likely affect the final results. Therefore, one is commonly interested in varying them and compare their results without loosing previously precomputed analysis. In order to do this, all `Cellula` CLIs all have a `--version` (or `-v`) argument to __activate and write on a__ specific _version_ folder. This way, a single place (i.e., the main folder) can store and organize all the results obtained on the same data with different, user-defined strategies. Run the same task changing `-v` and see how the `$path_main` folder structure is modified. We are currently implementing a new CLI to create a new branche starting from another, existing one (i.e., wihtout having the re-run all the steps from qc.py on).
 
 __Note 2__ One might want to inspect every output of a Cellula CLI before running the next one, or might want to run an entire analysis with the least number of CLIs calls possible, inspecting results only at the end. In this quickstart, we propose a recipe for the second scenario, but human inspection is always encouraged (expecially at this stage of the project).
 
@@ -173,15 +170,15 @@ python pp.py -p $path_main -v default --norm scanpy --n_HVGs 2000 --score scanpy
 After pre-processing, in this case we will skip batch effects evaluation and data integration sections, as _a_ and _b_ samples come from the same experiment, lab and sequencing run (tutorials on how to handle more complicated situations leveraging `Cellula` functionalities at full will be soon available). Here, we will choose to retain the original 'PCA' embedding obtained by reducing (and scaling) the full gene expression matrix to the top 2000 hyper-variable genes (HVGs), a common choice in single_cell analysis (see `pp.py`, `kBET.py` and integration scripts for further details and alternatives). This data representation will be used for kNN construction, multiple resolution clustering and markers computation. All clustering solutions will be then evaluated for their quality. These three steps (i.e., choice of a cell representation to go with, clustering and initial clustering diagnostics) can be obtained by running:
 
 ```bash
-python integration_diagnostics.py -p $path_main -v default --chosen red_s:original 
+python integration_diagnostics.py -p $path_main -v default --chosen scaled:original 
 python clustering.py -p $path_main -v default --range 0.2:1.0 --markers
 python clustering_diagnostics.py -p $path_main -v default
 ```
 
-The user can inspects the clustering and clustering visualization folder to visualize properties of the "best" clustering solutions obtained, and then choose one to perform the last steps of Cellula workflow. In this case we will select the 30_NN_30_0.29 solution, and we will embed its kNN graph into UMAP space with
+The user can inspects the clustering and clustering visualization folder to visualize properties of the "best" clustering solutions obtained, and then choose one to perform the last steps of Cellula workflow. In this case we will select the 30_NN_30_0.29 solution.
 
 ```bash
-python clustering_diagnostics.py -p $path_main -v default --chosen 30_NN_30_0.29 --kNN 30_NN_30_components --rep original
+python clustering_diagnostics.py -p $path_main -v default --chosen 30_NN_30_0.29
 ```
 
 Lastly, we will retrieve and score potentially meaningful gene sets in our data, and we will search for features (i.e., single genes, Principal Components or Gene Sets scores) able to distinguishing groups of cells in our data. First, we will retrieve and score Gene Sets with
@@ -200,7 +197,7 @@ For this demo, we will pass the example configuration file stored in `test_data/
 and run
 
 ```bash
-python dist_features.py -p $path_main -v default --contrasts sample_and_leiden.yml
+python dist_features.py -p $path_main -v default --contrasts sample_and_leiden
 ```
 
 If you want to explore other distinguishing features, just create and pass your own file. Arbitrary analyses can be specified by changing the provided .yml file.
@@ -249,16 +246,10 @@ rm <your-project-name-here>.tar.gz
 3. In the same environment, `cd` to the locally cloned `Cellula` repo, `cd` to `apps` and launch one of the two GUIs by running:
 
 ```bash 
-streamlit run scorer_app.py <some-path-here>
+streamlit run cellula_app.py <some-path-here>
 ```
 
-or 
-
-```bash 
-streamlit run dist_feat_app.py <some-path-here>
-```
-
-Each GUIs will automatically starts on your web browser.
+A multi-page GUI will automatically starts on your web browser.
 
 ## Repo organization, for whoever wants to contribute :) 
 

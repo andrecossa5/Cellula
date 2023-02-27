@@ -47,6 +47,38 @@ my_parser.add_argument(
     help='The number of core to allocate for a given model.'
 )
 
+# rep
+my_parser.add_argument( 
+    '--rep', 
+    type=str,
+    default='reduced',
+    help='Latent space onto which one one want to learn the principal curve and graph. Default: reduced'
+)
+
+# n_comps
+my_parser.add_argument( 
+    '--n_comps', 
+    type=int,
+    default=30,
+    help='Number of components to consider. Default: 30.'
+)
+
+# coord
+my_parser.add_argument( 
+    '--coord', 
+    type=str,
+    default='FA_diff',
+    help='Embeddings onto which the DPT trajectory is visualized. Default: FA_diff.'
+)
+
+# cov
+my_parser.add_argument( 
+    '--cov', 
+    type=str,
+    default='Stemness',
+    help='Covariate used to find the pseudotime root. Default: Stemness.'
+)
+
 # Skip
 my_parser.add_argument(
     '--skip', 
@@ -60,6 +92,10 @@ args = my_parser.parse_args()
 path_main = args.path_main
 version = args.version
 n_cores = args.n_cores
+n_comps = args.n_comps
+coord = args.coord
+cov = args.cov
+rep = args.rep
 
 ########################################################################
 
@@ -122,6 +158,8 @@ def main():
     with open(path_main + f'results_and_plots/signatures/{version}/signatures.pickle', 'rb') as f:
         signatures = pickle.load(f)
     logger.info(f'Loading adata, full-embeddings, signatures finished: {t.stop()} s')
+    # Subset latent space, if necessary
+    adata.obsm[f'X_{rep}'] = adata.obsm[f'X_{rep}'][:,:n_comps]
 
     # First seed embeddings solution
     df_ = d['sol_0'].join(signatures['scores'])
@@ -140,43 +178,67 @@ def main():
     # Plot curve
     t.start()
     logger.info('Principal curves...')
-    scf.tl.curve(adata, Nodes=30, use_rep="X_reduced")
-    adata.obsm['X_fle'] = df_.loc[:, ['FA_diff1', 'FA_diff2']].values
+    scf.tl.curve(adata, Nodes=30, use_rep=f'X_{rep}')
+    adata.obsm['X_space'] = df_.loc[:, [f'{coord}1', f'{coord}2']].values
     fig, ax = plt.subplots(figsize=(5,5))
-    scf.pl.graph(adata, basis="fle", ax=ax)
-    format_ax(ax, xlabel='FA_diff1', ylabel='FA_diff2')
-    fig.savefig(path_viz + 'principal_curve.png')
+    scf.pl.graph(adata, basis="space", ax=ax)
+    format_ax(ax, xlabel=f'{coord}1', ylabel=f'{coord}2')
+    fig.savefig(path_viz + f'principal_curve_{rep}_{n_comps}_{coord}_{cov}.png')
 
     # Soft assignments
     scf.tl.convert_to_soft(adata, 1, 1000)
     fig, ax = plt.subplots(figsize=(5,5))
-    scf.pl.graph(adata, basis="fle", ax=ax)
-    format_ax(ax, xlabel='FA_diff1', ylabel='FA_diff2')
-    fig.savefig(path_viz + 'principal_curve_soft.png')
+    scf.pl.graph(adata, basis="space", ax=ax)
+    format_ax(ax, xlabel=f'{coord}1', ylabel=f'{coord}2')
+    fig.savefig(path_viz + f'principal_curve_soft_{rep}_{n_comps}_{coord}_{cov}.png')
     logger.info(f'Finished with principal curves: {t.stop()} s')
 
-    # Ad stemness
-    #...#
+    # Add covariate for trajectory calculation
+    if cov in adata.var_names and not cov in df_.columns:
+        logger.info(f'Using {cov} gene expression to find DPT root')
+    elif cov not in adata.var_names and cov in df_.columns:
+        adata.obs[cov] = df_[cov]
+        logger.info(f'Using {cov} activation score to find DPT root')
+    else:
+        sys.exit(f'Could not find {cov} in expressed genes or pre-computed signatures...')
+
+    # Draw covariate
+    fig, ax = plt.subplots(figsize=(5,5))
+    df_[cov] = adata.obs[cov]
+    draw_embeddings(
+        df_,
+        x=f'{coord}1',
+        y=f'{coord}2',
+        cont=cov,
+        ax=ax,
+        title=cov
+    )
+    fig.savefig(path_viz + f'{coord}s_{cov}.png')
 
     # Find root
     t.start()
-    logger.info('Computing pseudotime')
-    scf.tl.root(adata, 'CD34')
-    scf.tl.pseudotime(adata, n_jobs=n_cores, n_map=10, seed=1234)
+    logger.info('Computing pseudotime...')
+    scf.tl.root(adata, cov)
+    scf.tl.pseudotime(adata, n_jobs=n_cores, n_map=50, seed=1234)
     logger.info(f'Finished computing pseudotime: {t.stop()} s')
     
     # Plot pseudotime trajectory
     t.start()
     logger.info('Visualize and save...')
     fig, ax = plt.subplots(figsize=(5,5))
-    scf.pl.trajectory(adata, basis='fle', arrows=True, arrow_offset=3, ax=ax)
-    format_ax(ax, xlabel='FA_diff1', ylabel='FA_diff2')
-    fig.savefig(path_viz + f'dpt.png')
+    scf.pl.trajectory(adata, basis='space', arrows=True, arrow_offset=3, ax=ax)
+    format_ax(ax, xlabel=f'{coord}1', ylabel=f'{coord}2')
+    fig.savefig(path_viz + f'dpt_{rep}_{n_comps}_{coord}_{cov}.png')
 
     # Save TI data
+    TI_outs = {}
     for x in ['epg', 'pseudotime_list', 'milestones_colors', 'seg_colors']:
+        TI_outs[x] = adata.uns[x]
         del adata.uns[x]
-    adata.write(path_main + f'data/{version}/TI.h5ad')
+    with open(path_results + f'dpt_{rep}_{n_comps}_{coord}_{cov}.pickle', 'wb') as f:
+        pickle.dump(TI_outs, f)
+
+    adata.write(path_data + 'TI.h5ad')
     logger.info(f'Finished pseudotime viz: {t.stop()} s')
 
     #-----------------------------------------------------------------#

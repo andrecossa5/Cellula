@@ -94,8 +94,6 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set other paths 
-    path_main = '/Users/IEO5505/Desktop/cellula_example/'
-    version = 'default'
     path_data = path_main + f'/data/{version}/'
     path_results = path_main + '/results_and_plots/clustering/'
     path_runs = path_main + '/runs/'

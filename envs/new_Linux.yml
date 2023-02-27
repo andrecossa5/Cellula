@@ -3,6 +3,8 @@ channels:
   - bioconda
   - defaults
 dependencies:
+  - cxx-compiler
+  - conda-build
   - arpack=3.7.0=hdefa2d7_2
   - c-ares=1.18.1=h7f98852_0
   - c-blosc2=2.6.1=hf91038e_0
@@ -42,7 +44,7 @@ dependencies:
   - scanpy=1.9.1=pyhd8ed1ab_0
   - scikit-image=0.19.3=py310h769672d_2
   - scikit-learn=1.1.2=py310h0c3af53_0
-  - scikit-misc==0.1.4
+  - scikit-misc=0.1.4
   - scipy=1.9.0=py310hdfbd76f_0
   - scrublet=0.2.3=pyh5e36f6f_1
   - seaborn=0.12.0=hd8ed1ab_0
@@ -81,5 +83,6 @@ dependencies:
     - statannotations
     - gseapy==0.13.0
     - cospar
+    - scFates
     - fastcluster
     - scarches

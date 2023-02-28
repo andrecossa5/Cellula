@@ -44,9 +44,19 @@ class Timer:
         if self._start_time is None:
             raise TimerError(f"Timer is not running. Use .start() to start it")
         elapsed_time = time.perf_counter() - self._start_time
+
+        if elapsed_time > 100:
+            unit = 'min'
+            elapsed_time = elapsed_time / 60
+        elif elapsed_time > 1000:
+            unit = 'h'
+            elapsed_time = elapsed_time / 3600
+        else:
+            unit = 's'
+
         self._start_time = None
 
-        return round(elapsed_time, 2)
+        return f'{round(elapsed_time, 2)} {unit}'
 
 
 ##
@@ -71,7 +81,7 @@ def set_logger(path_runs, name, mode='w'):
     """
     A function to open a logs.txt file for a certain script, writing its trace at path_main/runs/step/.
     """
-    logger = logging.getLogger("my_logger")
+    logger = logging.getLogger("Cellula_logs")
     handler = logging.FileHandler(path_runs + name, mode=mode)
     handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
     logger.setLevel(logging.INFO)

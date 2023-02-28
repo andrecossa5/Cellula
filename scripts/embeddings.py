@@ -36,17 +36,17 @@ my_parser.add_argument(
 )
 
 my_parser.add_argument( 
-    '--n_random_states', 
+    '--random_state', 
     type=int,
-    default=3,
-    help='Number of random states to compute embeddings.'
+    default=1234,
+    help='Random state for different initializations. Default: 1234'
 )
 
 # Parse arguments
 args = my_parser.parse_args()
 path_main = args.path_main
 version = args.version
-n = args.n_random_states
+random_state = args.random_state
 
 ########################################################################
 
@@ -94,22 +94,18 @@ def Embs():
     #-----------------------------------------------------------------#
 
     # Embs
-    random_states = range(n)
-    DFs = {}
-    for random_state in random_states:
-        df = embeddings(
-            adata, 
-            affinity='kNN', 
-            random_state=random_state, 
-            umap_only=False
-        )
-        DFs[f'sol_{random_state}'] = df
+    df = embeddings(
+        adata, 
+        paga_groups = 'leiden',
+        affinity='kNN', 
+        random_state=random_state, 
+        umap_only=False
+    )
 
     # Save results
     t.start()
-    logger.info('Write the full_embs .pickle')
-    with open(path_data + 'full_embs.pickle', 'wb') as f:
-        pickle.dump(DFs, f)
+    logger.info('Write the full_embs .csv')
+    df.to_csv(path_data + 'full_embs.csv')
     logger.info(f'End of writing {t.stop()} s.') 
 
     #-----------------------------------------------------------------#

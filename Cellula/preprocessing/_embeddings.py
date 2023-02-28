@@ -110,12 +110,17 @@ def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', k=15
 
     # Embeddings calculations
     if not umap_only:
-        sc.tl.draw_graph(a, init_pos='paga', random_state=random_state, n_jobs=cpu_count(), neighbors_key='nn')
+        sc.tl.draw_graph(a, init_pos='paga', layout='fa', random_state=random_state, n_jobs=cpu_count(), neighbors_key='nn')
         sc.tl.umap(a, init_pos='paga', random_state=random_state, neighbors_key='nn')
         sc.tl.tsne(a, use_rep='X_latent_space', random_state=random_state, n_jobs=cpu_count())
+
+        ##DIffmap for trajectories...
         a_ = pegasusio.UnimodalData(a)
         a_.obsp['W_latent_space'] = a_.obsp['nn_connectivities']
         pg.diffmap(a_, rep='latent_space', random_state=random_state)
+
+
+
         pg.fle(a_, random_state=random_state, **kwargs)
         a.obsm['X_fle'] = a_.obsm['X_fle']
 

@@ -138,7 +138,10 @@ if not args.skip:
     #-----------------------------------------------------------------#
 
     # Set logger 
-    logger = set_logger(path_runs, 'logs_DPT.txt')
+    if os.path.exists(path_runs, 'logs_DPT.txt'):
+        logger = set_logger(path_runs, 'logs_DPT.txt', 'a')
+    else:
+        logger = set_logger(path_runs, 'logs_DPT.txt', 'w')
 
 ########################################################################
 
@@ -150,8 +153,8 @@ def main():
     t = Timer()
     t.start()
 
-    # Load adata, singatures and prep contrasts and jobs
-    logger.info('Loading adata, full-embeddings, signatures')
+    # Load adata, singatures prep contrasts and jobs
+    logger.info('Loading clustered adata, full-embeddings and signatures')
     with open(path_data + 'full_embs.pickle', 'rb') as f:
         d = pickle.load(f)
     adata = sc.read(path_data + 'clustered.h5ad')

@@ -1,18 +1,25 @@
-# Code
-import pickle
-import scanpy as sc
+import pandas as pd 
+import numpy as np 
+import scanpy as sc 
 import pegasus as pg
+from sklearn.decomposition import PCA 
+from pegasus.tools import predefined_signatures, load_signatures_from_file 
+from sklearn.cluster import KMeans  
+from Cellula.dist_features._signatures import scanpy_score, wot_zscore, wot_rank
 from Cellula._utils import *
-from Cellula.plotting._plotting import *
-from Cellula.plotting._colors import *
-from Cellula.preprocessing._embeddings import embeddings
-from Cellula.preprocessing._pp import _sig_scores
-from Cellula.preprocessing._pp import *
-
-##
-
-import Cellula as cl
 
 
-Cellula.plotting._plotting_base.scatter
 
+
+
+
+
+    
+
+
+
+
+if not any([ 'cycling' == x for x in adata.obs.columns ]):
+    scores = _sig_scores(adata, score_method=score_method, organism=organism)
+    adata.obs = adata.obs.join(scores)
+    

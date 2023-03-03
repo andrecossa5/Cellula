@@ -16,6 +16,7 @@ plt.style.use('default')
 from ._colors import *
 from ._plotting_base import *
 from ..preprocessing._embeddings import embeddings
+from ..dist_features._Gene_set import *
 from .._utils import *
 
 
@@ -134,8 +135,7 @@ def plot_rankings(df, df_rankings, df_summary, feature='rescaled_score', by='sco
 ##
 
 
-def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), labels=False, rotate=False, 
-    legend=True, bbox_to_anchor=(0.93, 0.05)):
+def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), labels=False, rotate=False, legend=True):
     """
     Plot boxplot of QC covariates, by some cell goruping.
     """
@@ -150,9 +150,17 @@ def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), labels=Fals
         if rotate:
             ax.set_xticklabels(ax.get_xticks(), rotation=90)
     if legend:
-        handles = create_handles(meta[grouping].cat.categories, colors=colors[grouping].values())
-        fig.legend(handles=handles, loc='lower right', bbox_to_anchor = bbox_to_anchor, 
-            frameon=False, shadow=False, title=grouping.capitalize()
+        add_legend(
+            label=grouping,
+            colors=colors[grouping],
+            ax=ax,
+            bbox_to_anchor=(1.05,1),
+            loc='upper left',
+            ncols=1 if len(meta[grouping].cat.categories) <=8 else 2,
+            only_top=20,
+            label_size=8,
+            artists_size=8,
+            ticks_size=6
         )
     
     fig.tight_layout()
@@ -163,9 +171,38 @@ def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), labels=Fals
 ##
 
 
+def mean_variance_plot(adata_red):
+    """
+    Plot pca explained variance.
+    """
+    layers = [ x for x in adata_red.layers if x in ['raw', 'lognorm', 'sct'] ]
+    n = len(layers) 
+    figsize = (4.5*n, 4.5)
+
+    fig = plt.figure(figsize=figsize, constrained_layout=True)    
+    for i, layer in enumerate(layers):
+        ax = plt.subplot(1,n,i+1)
+        try:
+            X = adata_red.layers[layer].A
+        except:
+            X = adata_red.layers[layer]
+        df_ = pd.DataFrame({
+            'mean': X.mean(axis=1), 
+            'var': X.var(axis=1)
+        })
+        scatter(df_, x='mean', y='var', c='black', ax=ax)
+        format_ax(ax, title=layer, xlabel='mean', ylabel='var')
+    fig.suptitle('HVGs mean-variance trend, across layers')
+
+    return fig
+    
+
+##
+
+
 def pca_var_plot(exp_var, cum_sum, title, ax):
     """
-    Plot
+    Plot pca explained variance.
     """
     ax.bar(range(0, len(exp_var)), exp_var, 
         alpha=0.5, align='center', label='Individual explained variance'
@@ -249,6 +286,39 @@ def plot_biplot_PCs(adata, layer=None, covariate='sample', colors=None):
             cax=axins, orientation="horizontal", label=covariate
         )
 
+    fig.tight_layout()
+
+    return fig
+
+
+##
+
+
+def PCA_gsea_loadings_plot(df, genes_meta, organism='human', i=1):
+    """
+    Plot stem-plots of top 5 PCs GSEA-enriched pathways, and genes.
+    """
+    g = Gene_set(
+        df[f'PC{i}'].to_frame('effect_size').sort_values(by='effect_size', ascending=False), 
+        genes_meta,
+        organism=organism
+    )
+    g.compute_GSEA()
+    fig, axs = plt.subplots(1,2,figsize=(11,5))
+    stem_plot(
+        g.GSEA['original'].iloc[:, [0,1,3]].sort_values('NES', ascending=False).head(25),
+        'NES', 
+        ax=axs[0]
+    )
+    format_ax(axs[0], title='GSEA', xlabel='NES')
+    stem_plot(
+        df[f'PC{i}'].to_frame('es').sort_values('es', ascending=False).head(25),
+        'es', 
+        ax=axs[1]
+    )
+    format_ax(axs[1], title='PC loadings', xlabel='loadings')
+
+    fig.suptitle(f'PC{i}, scaled layer, original representation')
     fig.tight_layout()
 
     return fig

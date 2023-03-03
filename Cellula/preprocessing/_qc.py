@@ -196,7 +196,7 @@ def QC(adatas, mode='mads', min_cells=3, min_genes=200, nmads=5, path_viz=None, 
         t.start()
         logger.info('Calculate QC metrics')
         adata.var_names_make_unique()
-        adata.var["mt"] = adata.var_names.str.startswith("MT-")
+        adata.var["mt"] = adata.var_names.str.startswith("MT-") | adata.var_names.str.startswith("mt-")
         adata.obs['nUMIs'] = adata.X.toarray().sum(axis=1)  
         adata.obs['mito_perc'] = adata[:, adata.var["mt"]].X.toarray().sum(axis=1) / adata.obs['nUMIs'].values
         adata.obs['detected_genes'] = (adata.X.toarray() > 0).sum(axis=1)  

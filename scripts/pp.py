@@ -184,6 +184,15 @@ from Cellula.plotting._colors import *
 import warnings
 warnings.filterwarnings("ignore")
 
+# path_main = '/Users/IEO5505/Desktop/cellula_example/'
+# version = 'default'
+# normalization_method = 'scanpy'
+# scoring_method = 'scanpy'
+# n_HVGs = 2000
+# covariates = ['mito_perc', 'nUMIs']
+# organism = 'human'
+# n_comps = 30
+
 #-----------------------------------------------------------------#
 
 # Set other paths 
@@ -349,7 +358,11 @@ def main():
         logger.info(f'''Finished HVGs subsetting and sct normalization: "sct" .layer: {t.stop()}''')
 
     else:
-        raise ValueError('Unknown normalization method selected. Choose one between scapy and sct.')
+        raise ValueError('Unknown normalization method selected. Choose one between scanpy and sct.')
+    
+    # Visualize normalization and HVGs selection trends on the obtained layers
+    fig = mean_variance_plot(adata_red)
+    fig.savefig(path_viz + f'HVGs_mean_variance_trend.png')
 
     # PCA
     logger.info('PCA...')
@@ -366,17 +379,32 @@ def main():
     #-----------------------------------------------------------------#
 
     # Visualize sample biplots, top5 PCs 
-    if not args.biplot:
+    if args.biplot:
+
         for layer in adata_red.layers:
             make_folder(path_viz, layer)
             t.start()
+            # Biplots
             logger.info(f'Top 5 PCs biplots for the {layer} layer...')
             for cov in ['seq_run', 'sample', 'nUMIs', 'cycle_diff']:
                 fig = plot_biplot_PCs(adata_red, layer=layer, covariate=cov, colors=colors)
                 fig.savefig(path_viz + f'{layer}/PCs_{cov}.png')
             logger.info(f'Top 5 PCs biplots for the {layer} layer: {t.stop()}')
-    
-    #-----------------------------------------------------------------#
+        
+            # Inspection of top genes loadingsz
+            t.start()
+            logger.info(f'Top 5 PCs loadings inspection for the {layer} layer...')
+            df = pd.DataFrame(
+                adata_red.varm[f'{layer}|original|pca_loadings'][:,:5],
+                index=adata_red.var_names,
+                columns=[ f'PC{i+1}' for i in range(5) ]
+            )
+            for i in range(1,6):
+                fig = PCA_gsea_loadings_plot(df, adata_red.var, organism=organism, i=i)
+                fig.savefig(path_viz + f'{layer}/PC{i}_loadings.png')
+            logger.info(f'Top 5 PCs loadings inspection for the {layer} layer: {t.stop()}')
+
+    #------------------------------------------------------------#---#
 
     # Compute original cell embeddings
     # Visualize QC covariates in cell embeddings (umap only here)

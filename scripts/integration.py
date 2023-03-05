@@ -43,50 +43,18 @@ my_parser.add_argument(
     help='Method to run. Default: all.'
 )
 
-# Covariates
-my_parser.add_argument( 
-    '--covariates', 
-    type=str,
-    default='seq_run',
-    help='The covariate(s) for which kNN-mixing needs to be checked. Default: seq_run.'
-)
-
 # Covariate
 my_parser.add_argument( 
-    '--covariate', 
+    '--categorical', 
     type=str,
     default='seq_run',
-    help='The covariate (single) for which kNN-mixing needs to be checked, only for BBKNN method. Default: seq_run.'
-)
-
-# n_pcs
-my_parser.add_argument( 
-    '--n_pcs', 
-    type=int,
-    default=30,
-    help='n_pcs for kNN indices computation. Default: 30.'
-)
-
-#k
-my_parser.add_argument( 
-    '--k', 
-    type=int,
-    default=15,
-    help='k used for kNN search. Default: 30.'
-)
-
-# Covariate
-my_parser.add_argument( 
-    '--categoricals', 
-    type=list,
-    default=['seq_run'],
     help='Categorical covariates included in the model. Default: seq_run.'
 )
 
 my_parser.add_argument( 
     '--continuous', 
-    type=list,
-    default=['nUMIs', 'mito_perc'],
+    type=str,
+    default='nUMIs:mito_perc',
     help='Continuous covariates included in the model. Default: nUMIs and mito_perc.'
 )
 
@@ -94,12 +62,8 @@ my_parser.add_argument(
 args = my_parser.parse_args()
 path_main = args.path_main
 version = args.version
-covariates = args.covariates.split(':')
-covariate = args.covariate
-n_pcs = args.n_pcs
-k = args.k
-categoricals = args.categoricals
-continuous = args.continuous
+categorical = args.categorical
+continuous = args.continuous.split(':')
 
 ########################################################################
 
@@ -137,7 +101,6 @@ def Integration():
 
     # Load anndata
     adata = sc.read(path_data + 'reduced.h5ad')
-
     logger.info(f'Data loading and preparation: {t.stop()} s.')
     
     #-----------------------------------------------------------------#
@@ -149,21 +112,19 @@ def Integration():
         methods = args.method.split(':')  
 
     # Parse integration options, and run each integration task
-    d = parse_integration_options(adata, methods=methods)
-    for opt in d:
+    jobs = parse_integration_options(adata, methods=methods)
+    for j in jobs:
         t.start()
-        func = d[opt][0]
-        adata = d[opt][1]
-        kwargs = d[opt][2]
-        logger.info(f'Begin the following integration method with associated pp:{opt}') 
+        func = jobs[j][0]
+        kwargs = jobs[j][1]
+        logger.info(f'Begin the job {j}') 
         adata = run_command(func, adata, **kwargs)
-        logger.info(f'End of {opt} integration method: {t.stop()} s.') 
+        logger.info(f'End of job {j}: {t.stop()} s.') 
 
     # Save results
     t.start()
-    logger.info('Write the new integrated AnnData')
     adata.write(path_data + 'integration.h5ad')
-    logger.info(f'End of writing of the new integrated AnnData: {t.stop()} s.') 
+    logger.info(f'Writing of the integrated adata: {t.stop()} s.') 
 
     #-----------------------------------------------------------------#
 
@@ -177,4 +138,3 @@ if __name__ == "__main__":
     Integration()
 
 #######################################################################
-

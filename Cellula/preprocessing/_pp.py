@@ -380,7 +380,7 @@ def pca(adata, n_pcs=50, layer='scaled', auto=False):
     """
 
     # Logging
-    logger = logging.getLogger("Cellula_logs") 
+    logger = logging.getLogger('Cellula_logs')
 
     if layer in adata.layers: 
         X = adata.layers[layer]
@@ -388,21 +388,29 @@ def pca(adata, n_pcs=50, layer='scaled', auto=False):
     else:
         raise KeyError(f'Selected layer {layer} is not present. Compute it first!')
 
+    # PCA
     model = my_PCA()
     model.calculate_PCA(X, n_components=n_pcs)
-    adata.obsm[key + '|X_pca'] = model.embs
-    adata.varm[key + '|pca_loadings'] = model.loads
-    adata.uns[key + '|pca_var_ratios'] = model.var_ratios
-    adata.uns[key + '|cum_sum_eigenvalues'] = np.cumsum(model.var_ratios)
 
     # Select the n of PCs to retain
     if auto:
-        embs = adata.obsm[key + '|X_pca']
-        data = Data(embs)
+        X_pca = model.embs
+        data = Data(X_pca)
         data.compute_distances(maxk=15)
-        ndim, a, b = data.compute_id_2NN()
-        adata.obsm[key + '|X_pca'] = embs[:,:round(ndim)]
-        logger.info(f'{round(ndim)} PCs retained, after dadapy intrinsic dimensions estimation.')
+        np.random.seed(1234)
+        n_pcs, a, b = data.compute_id_2NN()
+        logger.info(f'{round(n_pcs)} PCs retained, after dadapy intrinsic dimensions estimation.')
+        X_pca = X_pca[:,:round(n_pcs)]
+    else:
+        X_pca = model.embs
 
-    return adata  
+    # Save 
+    adata.obsm[key + '|X_pca'] = X_pca
+    adata.varm[key + '|pca_loadings'] = model.loads
+    adata.uns[key + '|PCA'] = {
+        'var_ratios' : model.var_ratios,
+        'cum_sum_eigenvalues' : model.cum_sum_eigenvalues,
+        'n_pcs' : round(n_pcs)
+    }
 
+    return adata

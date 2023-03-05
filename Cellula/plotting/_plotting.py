@@ -337,20 +337,19 @@ def plot_embeddings(adata, layer=None, rep='original', k=15, n_components=30):
         paga_groups='sample', 
         rep=rep, 
         layer=layer, 
-        k=k, 
-        n_components=n_components, 
         umap_only=True
     )
 
-    covariates = ['seq_run', 'sample', 'nUMIs', 'cycle_diff']
+    covariates = ['nUMIs', 'cycle_diff', 'seq_run', 'sample']
     fig, axs = plt.subplots(1, len(covariates), figsize=(4.5*len(covariates), 5))
     for i, c in enumerate(covariates):
         if c == 'nUMIs' or c == 'cycle_diff':
             draw_embeddings(df, cont=c, ax=axs[i])
         else:
-            draw_embeddings(df, cat=c, ax=axs[i])
+            kwargs = {'bbox_to_anchor':(1,1), 'loc':'upper left'} if c == 'sample' else {}
+            draw_embeddings(df, cat=c, ax=axs[i], legend_kwargs=kwargs)
     # Fig
-    fig.tight_layout()
+    plt.subplots_adjust(right=.8, bottom=.2, top=.8, left=.05)
 
     return fig
 

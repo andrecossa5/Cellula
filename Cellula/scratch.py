@@ -1,27 +1,22 @@
-# coSpar 
+
+# Code
+from Cellula._utils import *
+from Cellula.preprocessing._pp import *
+from Cellula.preprocessing._integration import *
 
 
-import scanpy as sc
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.use('macOSX')
-import cospar as cs
-
-from Cellula.plotting._plotting_base import *
-from Cellula.plotting._plotting import *
-from Cellula.plotting._colors import *
+path_main = '/Users/IEO5505/Desktop/cellula_example/'
+version = 'default'
+covariates = ['seq_run']
+covariate = 'seq_run'
+n_pcs = 30
+k = 15
+categoricals = ['seq_run']
+continuous = ['nUMIs', 'mito_perc']
+methods = ['Scanorama']
 
 
-adata = cs.datasets.hematopoiesis_subsampled()
+# Set other paths
+path_data = path_main + f'/data/{version}/'
+path_runs = path_main + f'/runs/{version}/'
 
-
-adata.obs['state_info'].unique()
-
-cs.tl.clonal_fate_bias(adata, selected_fate="Baso")
-cs.pl.clonal_fate_bias(adata)
-
-
-
-adata.obsm['X_clone'].A

@@ -11,6 +11,7 @@ from harmony import harmonize
 from scvi.model import SCVI
 from bbknn.matrix import bbknn
 from scanorama import correct_scanpy
+from itertools import product
 
 from .._utils import get_representation
 from .._utils import rescale
@@ -20,48 +21,44 @@ from Cellula.preprocessing._neighbors import *
 ##
 
 
-def compute_Scanorama(adata, covariate='seq_run', layer='scaled', k=15, n_components=30):
+def compute_Scanorama(adata, layer='lognorm', categorical='sample', **kwargs):
     """
-    Compute Scanorama latent space and KNN graph for the given AnnData object for a given layer.
+    Compute Scanorama latent space and KNN graph for the given AnnData object and layer.
 
     Parameters:
     -----------
     adata: AnnData object
         Annotated data matrix with rows representing cells and columns representing features.
-    covariate : str, optional (default: 'seq_run')
+    categorical : str, optional (default: 'seq_run')
         The covariate used for batch correction.
     layer: str, optional (default: 'scaled')
         Key for the layer in `adata.layers` to use for batch correction.
-    k: int, optional (default: 15)
-        Number of nearest neighbors to use for building the KNN graph.
-    n_components: int, optional (default: 30)
-        Number of dimensions used in the reduction method (default is 30).
 
     Returns:
     --------
     adata: AnnData object
-        Annotated data matrix with the Scanorama latent space added to `adata.obsm` 
-        and KNN graph added to `adata.obsm` and `adata.obsp`.
+        Annotated data matrix with the Scanorama latent space added to `.obsm` 
+        and KNN graph added to `.obsm` and `.obsp` and '.uns', respectively
     """
+
+    # Logging
     logger = logging.getLogger("my_logger") 
-    t = Timer()
-    t.start()
-    logger.info(f'Compute Scanorama latent space for pp={layer}')
+    logger.info(f'Compute Scanorama latent space for the {layer} layer...')
+
     # Compute Scanorama latent space
     key = f'{layer}|Scanorama|X_corrected'
-    categories = adata.obs[covariate].cat.categories.to_list()
+    categories = adata.obs[categorical].cat.categories.to_list()
     adata_mock = anndata.AnnData(X=adata.layers[layer], obs=adata.obs, var=adata.var)
-    splitted = [ adata_mock[adata_mock.obs[covariate] == c, :].copy() for c in categories ]
+    splitted = [ adata_mock[adata_mock.obs[categorical] == c, :].copy() for c in categories ]
     corrected = correct_scanpy(splitted, return_dimred=True)
-    logger.info(f'End of Scanorama latent space computation for pp={layer}: {t.stop()} s.')
 
     # Add representation
     X_corrected = np.concatenate([ x.obsm['X_scanorama'] for x in corrected ], axis=0)
     adata.obsm[key] = X_corrected
-    t.start()
-    logger.info(f'Compute KNN for Scanorama for pp={layer}')
-    adata = compute_kNN(adata, layer=layer, int_method='Scanorama', k=k, n_components=n_components)
-    logger.info(f'End of Scanorama KNN computation for pp={layer}: {t.stop()} s.')
+
+    # kNN
+    logger.info(f'Compute KNN...')
+    adata = compute_kNN(adata, layer=layer, int_method='Scanorama', k=15)
 
     return adata
 
@@ -69,7 +66,7 @@ def compute_Scanorama(adata, covariate='seq_run', layer='scaled', k=15, n_compon
 ##
 
 
-def compute_Harmony(adata, covariate='seq_run',  layer='scaled', k=15, n_components=30):
+def compute_Harmony(adata, layer='lognorm', categorical='sample', **kwargs):
     """
     Compute Harmony latent space ( it corrects the original PCA ) and k-nearest neighbor graph 
     for `adata`.
@@ -78,14 +75,10 @@ def compute_Harmony(adata, covariate='seq_run',  layer='scaled', k=15, n_compone
     ----------
     adata : AnnData object
         Annotated data matrix with rows representing cells and columns representing features.
-    covariate : str, optional (default: 'seq_run')
-        The covariate used for batch correction.
-    layer : str, optional (default: 'scaled')
+    categorical : str, optional (default: 'seq_run')
+        The categorical covariate used for batch correction.
+    layer : str, optional (default: 'lognorm')
         The name of the data layer in `adata` to use for the batch correction.
-    k : int, optional (default: 15)
-        The number of nearest neighbors to consider when constructing the k-nearest neighbor graph.
-    n_components : int, optional (default: 30)
-        The number of principal components to use in the Harmony batch correction.
 
     Returns:
     --------
@@ -93,29 +86,29 @@ def compute_Harmony(adata, covariate='seq_run',  layer='scaled', k=15, n_compone
         Annotated data matrix with the Harmony latent space added to `adata.obsm` 
         and KNN graph added to `adata.obsm` and `adata.obsp`.
     """
+
+    # Logging
     logger = logging.getLogger("my_logger") 
-    t = Timer()
-    t.start()
-    logger.info(f'Compute Harmony latent space for pp={layer}')
+    logger.info(f'Compute Harmony latent space for the {layer} layer...')
+
+    # Compute Harmony latent space
     key = f'{layer}|Harmony|X_corrected'
     X_original = get_representation(adata, layer=layer, method='original')
 
     X_corrected = harmonize(
-        X_original[:, :n_components],
+        X_original,
         adata.obs,
-        covariate,
+        categorical,
         n_clusters=None,
         n_jobs=-1,
         random_state=1234,
         max_iter_harmony=1000,
     )
-    logger.info(f'End of Harmony latent space computation for pp={layer}: {t.stop()} s.')
-
     adata.obsm[key] =  X_corrected
-    t.start()
-    logger.info(f'Compute KNN for Harmony for pp={layer}')
-    adata = compute_kNN(adata, layer=layer, int_method='Harmony', k=k, n_components=n_components)
-    logger.info(f'End of Harmony KNN computation for pp={layer}: {t.stop()} s.')
+   
+    # kNN
+    logger.info(f'Compute KNN...')
+    adata = compute_kNN(adata, layer=layer, int_method='Harmony', k=15)
 
     return adata
 
@@ -123,8 +116,8 @@ def compute_Harmony(adata, covariate='seq_run',  layer='scaled', k=15, n_compone
 ##
 
 
-def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_perc', 'nUMIs'],
-    n_layers=2, n_latent=30, n_hidden=128, max_epochs=None, k = 15, n_components= 30):
+def compute_scVI(adata, categorical='seq_run', continuous=['mito_perc', 'nUMIs'],
+    n_layers=2, n_latent=30, n_hidden=128, max_epochs=None, k=15):
     """
     Compute scVI latent space and KNN graph for the given AnnData object for the raw layer.
 
@@ -132,9 +125,9 @@ def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_per
     ----------
     adata : AnnData object
         Annotated data matrix with rows representing cells and columns representing features.
-    categorical_covs : list[str], optional (default: ['seq_run'])
+    categorical: list[str], optional (default: ['seq_run'])
         List of keys for categorical covariates in `adata.obs` to be included in the model.
-    continuous_covs : list[str], optional (default: ['mito_perc', 'nUMIs'])
+    continuous : list[str], optional (default: ['mito_perc', 'nUMIs'])
         List of keys for continuous covariates in `adata.obs` to be included in the model.
     n_layers : int, optional (default: 2)
         The number of layers in the neural network of the scVI model.
@@ -146,8 +139,6 @@ def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_per
         The maximum number of epochs to train the scVI model. If None, will train until convergence.
     k : int, optional (default: 15)
         The number of nearest neighbors to use when building the KNN graph.
-    n_components : int, optional (default: 30)
-        The number of components to use for the KNN graph.
 
     Returns
     -------
@@ -155,20 +146,20 @@ def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_per
        Annotated data matrix with the scVI latent space added to `adata.obsm` 
        and KNN graph added to `adata.obsm` and `adata.obsp`.
     """
+
+    # Logging
+    logger = logging.getLogger("my_logger") 
+    logger.info(f'Compute scVI latent space for the raw layer...')
+
     # Check adata
     adata_mock = anndata.AnnData(X=adata.layers['raw'], obs=adata.obs, var=adata.var)
     adata_mock.layers['counts'] = adata.layers['raw']
     assert adata_mock.layers['counts'] is not None
 
-    logger = logging.getLogger("my_logger") 
-    t = Timer()
-    t.start()
-    logger.info('Compute scVI latent space for pp=raw')
-
     # Prep
     SCVI.setup_anndata(adata_mock,
-        categorical_covariate_keys=categorical_covs,
-        continuous_covariate_keys=continuous_covs
+        categorical_covariate_keys=[categorical],
+        continuous_covariate_keys=continuous
     )
     vae = SCVI(adata_mock, 
         gene_likelihood="nb", 
@@ -180,14 +171,10 @@ def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_per
     # Train and add trained model to adata
     vae.train(train_size=1.0, max_epochs=max_epochs)
     adata.obsm['raw|scVI|X_corrected'] = vae.get_latent_representation()
-    logger.info(f'End of scVI latent space computation for pp=raw: {t.stop()} s.')
 
-    # Add latent space
-    t.start()
-    logger.info(f'Compute KNN for scVI for pp=raw')
-    adata = compute_kNN(adata, layer='raw', int_method='scVI', k=k, n_components=n_components)
-    logger.info(f'End of scVI KNN computation for pp=raw: {t.stop()} s.')
-
+    # kNN
+    logger.info(f'Compute KNN...')
+    adata = compute_kNN(adata, layer='raw', int_method='scVI', k=k)
 
     return adata
 
@@ -195,7 +182,7 @@ def compute_scVI(adata, categorical_covs=['seq_run'], continuous_covs=['mito_per
 ##
 
 
-def compute_BBKNN(adata, covariate='seq_run', layer='scaled', k=15, n_components=30, trim=None):
+def compute_BBKNN(adata, layer='lognorm', categorical='seq_run', k=15, trim=None,  **kwargs):
     """
     Compute the BBKNN graph for the input AnnData object.
 
@@ -203,15 +190,13 @@ def compute_BBKNN(adata, covariate='seq_run', layer='scaled', k=15, n_components
     ----------
     adata : AnnData object
         Annotated data matrix with rows representing cells and columns representing features.
-    covariate : str, optional
+    categorical : str, optional
         The name of the column in adata.obs to use for batch correction. Default is 'seq_run'.
     layer : str, optional
         The name of the layer to extract the original PCA that is used as input for the computation of the BBKNN graph. 
         Default is 'scaled'.
     k : int, optional
         The number of neighbors to consider for each point in the computation of the BBKNN graph. Default is 15.
-    n_components : int, optional
-        The number of principal components to use in the computation of the BBKNN graph. Default is 30.
     trim : float or None, optional
         The trimming threshold for the shared nearest neighbors metric. If None, no trimming is applied. Default is None.
 
@@ -220,17 +205,18 @@ def compute_BBKNN(adata, covariate='seq_run', layer='scaled', k=15, n_components
     adata : AnnData object
         The input AnnData object with the computed BBKNN graph stored in its .obsp and .obsm attributes.
     """
+
+    # Logging
     logger = logging.getLogger("my_logger") 
-    t = Timer()
-    t.start()
-    logger.info(f'Compute BBKNN graph for pp={layer}')
+    logger.info(f'Compute BBKNN representation for the {layer} layer...')
+    
     # Run BBKNN
     X_original = get_representation(adata, layer=layer, method='original')
     X_corrected = bbknn(
-        X_original[:, :n_components], 
-        adata.obs[covariate],
+        X_original, 
+        adata.obs[categorical],
         use_annoy=False,
-        neighbors_within_batch=k//len(adata.obs[covariate].cat.categories),
+        neighbors_within_batch=k//len(adata.obs[categorical].cat.categories),
         pynndescent_n_neighbors=50, 
         trim=trim,
         pynndescent_random_state=1234,
@@ -238,11 +224,11 @@ def compute_BBKNN(adata, covariate='seq_run', layer='scaled', k=15, n_components
     )
 
     # X_corrected in this case is equal to X_pca original
-    adata.obsp[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_dist'] = X_corrected[0]
-    adata.obsp[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_conn'] = X_corrected[1]
-    adata.obsm[f'{layer}|BBKNN|X_corrected|{k}_NN_{n_components}_comp_idx']  = get_idx_from_simmetric_matrix(X_corrected[0], k=k)[0]
-    logger.info(f'End of BBKNN graph computation for pp={layer}: {t.stop()} s.')
-   
+    adata.obsp[f'{layer}|BBKNN|X_corrected|NN_dist'] = X_corrected[0]
+    adata.obsp[f'{layer}|BBKNN|X_corrected|NN_conn'] = X_corrected[1]
+    adata.obsm[f'{layer}|BBKNN|X_corrected|NN_idx']  = get_idx_from_simmetric_matrix(X_corrected[0], k=k)[0]
+    adata.uns[f'{layer}|BBKNN|X_corrected|NN'] = { 'nn' : k }
+
     return adata
 
 
@@ -334,40 +320,44 @@ def summary_metrics(df, df_rankings, evaluation='clustering'):
 
     return df_summary
 
-def parse_integration_options(adata, methods, covariate='seq_run', k=15, n_components=30, 
-    categorical_covs=['seq_run'], continuous_covs=['mito_perc', 'nUMIs']
+
+##
+
+
+def parse_integration_options(
+    adata, 
+    methods=['Harmony'], 
+    categorical='seq_run', 
+    continuous=['mito_perc', 'nUMIs']
     ):
     """
     Function to parse integration options.
     """
+
+    # All methods and their wrapper functions
     all_functions = {
         'Scanorama' : compute_Scanorama, 
         'BBKNN' : compute_BBKNN, 
         'scVI' : compute_scVI, 
         'Harmony' : compute_Harmony
     }
+    # Extract
     functions_int = { k : all_functions[k] for k in all_functions if k in methods }
 
+    # Produce options
     integration_d = {}
-    for m in methods:
-        
-        for layer in adata.layers:
-            kwargs = { 'k' : k, 'n_components' : n_components }
-
-            if m != 'scVI' and layer != 'raw':
-                kwargs = { 
-                    **kwargs, 
-                    **{ 'covariate' : covariate, 'layer' : layer } 
-                }
-                analysis = '|'.join([m, layer])
-                integration_d[analysis] = [ functions_int[m], adata, kwargs ]
-            elif m == 'scVI' and layer == 'raw':
-                kwargs = { 
-                    **kwargs, 
-                    **{ 'categorical_covs' : categorical_covs, 'continuous_covs' : continuous_covs } 
-                } 
-                analysis = '|'.join([m, layer])
-                integration_d[analysis] = [ functions_int[m], adata, kwargs ]
+    jobs = list(product(methods, adata.layers))
+    jobs = [ j for j in jobs if not ((j[0] == 'scVI') and (j[1] != 'raw')) ]
+    for j in jobs:
+        method = j[0]
+        layer = j[1]
+        kwargs = { 
+            'layer' : layer,
+            'categorical' : categorical,
+            'continuous' : continuous if method == 'scVI' else None
+        }
+        analysis = '|'.join([method, layer])
+        integration_d[analysis] = [ functions_int[method], kwargs ]
 
     return integration_d
 

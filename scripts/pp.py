@@ -23,12 +23,13 @@ my_parser = argparse.ArgumentParser(
     HVGs correlated with G1/S and G2/M gene signatures can be excluded from further pp steps 
     (i.e., --no_cc option). 
 
-    With the standard log-normalization workflow (i.e., --norm scanpy option), 4 pre-processed version of
+    With the standard log-normalization workflow (i.e., --norm scanpy option), 5 alternative versions of
     the original, full, log-normalized gene expression matrix are created: 
 
-    i) 'reduced' (HVGs expression data only); 
-    ii) 'scaled' (z-scored HVGs expression data); 
-    iii) 'regressed' (HVGs expression data, from which the effect of user-defined covariates has been regressed-out); 
+    i) 'raw' (HVGs 'raw' counts data); 
+    i) 'reduced' (HVGs log-normalized data); 
+    ii) 'scaled' (HVGs log-normalized and z-scored data); 
+    iii) 'regressed' (HVGs log-normalized data, from which the effect of user-defined covariates has been regressed-out); 
     iv) 'regressed_and_scaled' (same as iii), but with the additional scaling of resulting expression values). 
 
     The dimensionality of these matrices is linearly reduced with Principal Components Analysis (PCA), and the resulting,
@@ -184,15 +185,6 @@ from Cellula.plotting._colors import *
 import warnings
 warnings.filterwarnings("ignore")
 
-# path_main = '/Users/IEO5505/Desktop/cellula_example/'
-# version = 'default'
-# normalization_method = 'scanpy'
-# scoring_method = 'scanpy'
-# n_HVGs = 2000
-# covariates = ['mito_perc', 'nUMIs']
-# organism = 'human'
-# n_comps = 30
-
 #-----------------------------------------------------------------#
 
 # Set other paths 
@@ -298,7 +290,7 @@ def main():
         n_HVGs=n_HVGs, 
         score_method=scoring_method,
         organism=organism,
-        no_cc=args.no_cc
+        #no_cc=args.no_cc
     )
 
     logger.info(f'Log-normalization, HVGs identification, QC and cell cycle signatures scoring: {t.stop()}')

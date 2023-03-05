@@ -15,13 +15,13 @@ my_parser = argparse.ArgumentParser(
     prog='kBET',
     description=
     '''
-    This tool leverages the kBET method from Buttner et al., 2018, to evaluate the presence of 
-    batch effects. The kBET metric (i.e., kBET "acceptance rate", see the paper for details) 
-    quantifies the proportions of cells in a dataset having a "batch imbalanced" neighborhood on
-    a certain kNN graph. Here, alternative GE_spaces from 1_pp.py are evaluated for kNN mixing of a 
-    user-defined categorical covariate. The mean acceptance rate across all GE_spaces and their 
-    multiple kNN graphs is computed and reported. The user can decide wheater or not to proceed 
-    with data integration based on this results and experimental design considerations.
+    The kBET metric (Buttner et al., 2018), is used to assess the need for batch correction/data integration strategies.
+    The "kBET acceptance rate" (see the paper for details) quantifies the proportions of cells in a dataset having a 
+    "batch imbalanced" neighborhood on a certain kNN graph. 
+    Here, alternative PCA spaces from pp.py are evaluated for kNN mixing of a 
+    user-defined categorical covariate (e.g., sample, sequencing run...). The mean acceptance rate across spaces evaluated 
+    at multiple k values for kNN search, is computed and reported. Based on this results and experimental design considerations,
+    the user can then decide wheater to proceed with batch correction or not (i.e., integration.py).
     '''
 )
 
@@ -45,14 +45,6 @@ my_parser.add_argument(
     help='The pipeline step to run. Default: default.'
 )
 
-# n_pcs
-my_parser.add_argument( 
-    '--n_comps', 
-    type=int,
-    default=30,
-    help='n_pcs for kNN indices computation. Default: 30.'
-)
-
 # Covariate
 my_parser.add_argument( 
     '--covariate', 
@@ -65,13 +57,11 @@ my_parser.add_argument(
 args = my_parser.parse_args()
 path_main = args.path_main
 version = args.version
-n_comps = args.n_comps
 covariate = args.covariate
 
 ########################################################################
 
 # Preparing run: import code, prepare directories, set logger
-
 
 # Code
 import scanpy as sc
@@ -114,46 +104,46 @@ def kBET():
     t = Timer()
     t.start()
 
-    logger.info(f'Execute kBET: --n_pcs {n_comps} --covariate {covariate}')
+    logger.info(
+        f"""
+        \nExecute kBET, with options:
+        -p {path_main}
+        --version {version} 
+        --covariate {covariate} # covariate = 'seq_run'
+        """
+    )
 
-    # Load reduced adata
+    # Load reduced adata, with PCA spaces
     adata = sc.read(path_data + 'reduced.h5ad')
-    
-    logger.info(f'Data loading and preparation: {t.stop()} s.')
+    logger.info(f'Data loading and preparation: {t.stop()}')
 
     #-----------------------------------------------------------------#
 
-    # Run kBET (for each preprocessed dataset across a range of 7 Ks, 6 default, 
-    # and 1 found using the heuristic specified in Buttner et al. 2018.
-    g = Timer()
-    s = Timer()
-    # Define k_range
-    k_range = [ 15, 30, 50, 100, 250, 500 ]
-
-    # Compute kNN indices and kBET
+    # Run kBET 
+    k_range = [15, 30, 50, 100, 250] 
     kbet_computation = {}
+
     for k in k_range:
-        t.start()
+
         logger.info(f'Begin operations on all representations, for k {k}...')
+
         for layer in adata.layers:
-            g.start()
-            s.start()
-            logger.info(f'KNN computation for k = {k} and pp = {layer}')
-            adata = compute_kNN(adata, layer=layer, int_method='original', k=k, n_components=n_comps)
-            logger.info(f'End of KNN computation for  k = {k} and pp = {layer}: {g.stop()} s.')
-            logger.info(f'kBET computation for k = {k} and pp = {layer}')
+
+            t.start()
+            logger.info(f'KNN computation for k={k} and layer {layer}...')
+            adata = compute_kNN(adata, layer=layer, int_method='original', k=k)
+            logger.info(f'KNN computation for k={k} and layer {layer}: {t.stop()}')
+
+            t.start()
             score = kBET_score(
                 adata, 
-                covariate=covariate, 
+                covariate='seq_run', 
                 method='original', 
                 layer=layer,
-                k=k, 
-                n_components=n_comps
+                k=k
             )
             kbet_computation.update(score)
-            logger.info(f'End of kBET computation for k = {k} and pp = {layer}: {s.stop()} s.')
-        
-        logger.info(f'kBET calculations finished for k {k}: {t.stop()} s.')
+            logger.info(f'End of kBET computation for k={k} and layer {layer}: {t.stop()}')
 
     # Extract results and take the integration decision
     t.start()

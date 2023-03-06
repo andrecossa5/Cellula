@@ -202,8 +202,11 @@ class Int_evaluator:
         """
         Compute one of the available metrics.
         """
-        logger = logging.getLogger("my_logger") 
+
+        # Logging
+        logger = logging.getLogger("Cellula_logs") 
         t = Timer()
+        
         if self.d_options is None:
             raise ValueError('Parse options first!')
 

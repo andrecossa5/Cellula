@@ -321,7 +321,7 @@ def clustering_diagnostics():
             nn_key='NN'
         )
         X_umap = df.loc[:, ['UMAP1', 'UMAP2']].values
-        logger.info(f'Compute UMAP with PAGA initialization with {chosen} coordinates: {t.stop()}')
+        logger.info(f'Compute UMAP with PAGA initialization ({chosen} partitions coordinates): {t.stop()}')
 
         # Fill info in a final, cleaned adata
         t.start()

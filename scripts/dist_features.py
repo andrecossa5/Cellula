@@ -14,12 +14,17 @@ import argparse
 my_parser = argparse.ArgumentParser(
     prog='dist_features',
     description=
-    '''
+    """
+    Distinguishing features operations.
     Giving some user defined contrasts, computes the distinguishing features among cell groups.
-    3 methods are implemented: differential expression (DE, Wilcoxon test); logit (logistic regression);
-    and xgboost (XGBoost). The latter ones may take genes or PCs as input features. Other type of features 
-    will be implemented in the future (e.g., NMF components or other interpretable DL latent space components).
-    '''
+    3 methods are implemented: 
+    
+    i) differential expression (DE, Wilcoxon test); 
+    ii) logit (logistic regression);
+    iii) xgboost (XGBoost). 
+    
+    The latter ones may take genes, PCs or (previously calculated) signature scores. 
+    """
 )
 
 # Add arguments
@@ -64,13 +69,6 @@ my_parser.add_argument(
     help='The number of core to allocate for a given model.'
 )
 
-# Filter genes
-my_parser.add_argument( 
-    '--skip_computation', 
-    action='store_true',
-    help='Skip Dist_features computation. Default: False.'
-)
-
 # Organism
 my_parser.add_argument(
     '--organism',
@@ -79,60 +77,47 @@ my_parser.add_argument(
     help='The organism to score signatures for. Default: human. Other options: mouse.'
 )
 
-# Skip
-my_parser.add_argument(
-    '--skip', 
-    action='store_true',
-    help='Skip analysis. Default: False.'
-)
-
 # Parse arguments
 args = my_parser.parse_args()
 
 path_main = args.path_main
 version = args.version
-contrasts_name = args.contrasts.split('.')[0]
-n_cores = args.n_cores
-organism = args.organism
+contrasts_name = args.contrasts.split('.')[0] 
+n_cores = args.n_cores  
+organism = args.organism 
 
 ########################################################################
 
 # Preparing run: import code, prepare directories, set logger
-if not args.skip:
 
-    # Code
-    import pickle
-    import scanpy as sc
-    import yaml
-    from Cellula._utils import *
-    from Cellula.dist_features._dist_features import prep_jobs_contrasts
-    from Cellula.dist_features._Dist import Dist_features
+# Code
+import pickle
+import scanpy as sc
+import yaml
+from Cellula._utils import *
+from Cellula.dist_features._dist_features import prep_jobs_contrasts
+from Cellula.dist_features._Dist import Dist_features
 
-    #-----------------------------------------------------------------#
+#-----------------------------------------------------------------#
 
-    # Set other paths 
-    #path_main = '/Users/IEO5505/Desktop/cellula_example/'
-    #version = 'default'
-    # contrasts_name = 'sample_and_leiden'
-    path_data = path_main + f'/data/{version}/'
-    path_results = path_main + '/results_and_plots/dist_features/'
-    path_runs = path_main + '/runs/'
-    path_signatures = path_main + '/results_and_plots/signatures/'
+# Set other paths 
+path_data = path_main + f'/data/{version}/'
+path_results = path_main + '/results_and_plots/dist_features/'
+path_runs = path_main + '/runs/'
+path_signatures = path_main + '/results_and_plots/signatures/'
 
-    # Create step_{i} clustering folders. Do NOT overwrite, if they have already been created
-    to_make = [ (path_results, version) ]
-    for x, y in to_make:
-        make_folder(x, y, overwrite=False)
+# Folders
+to_make = [ (path_results, version) ]
+for x, y in to_make:
+    make_folder(x, y, overwrite=False)
+# Update paths
+path_runs += f'/{version}/'
+path_results += f'/{version}/' 
+path_signatures += f'/{version}/' 
 
-    # Update paths
-    path_runs += f'/{version}/'
-    path_results += f'/{version}/' 
-    path_signatures += f'/{version}/' 
-
-    #-----------------------------------------------------------------#
-
-    # Set logger 
-    logger = set_logger(path_runs, 'logs_dist_features.txt')
+#-----------------------------------------------------------------#
+# Set logger 
+logger = set_logger(path_runs, 'logs_dist_features.txt')
 
 ########################################################################
 
@@ -141,31 +126,41 @@ def main():
 
     T = Timer()
     T.start()
-    g = Timer()
-    g.start()
-    # Load adata, singatures and prep contrasts and jobs
-    logger.info('Loading adata, singatures and prep contrasts and jobs')
-    adata = sc.read(path_data + 'clustered.h5ad')
 
+    t = Timer()
+    t.start()
+
+    logger.info(
+        f"""
+        \nExecute dist_features.py, with options:
+        -p {path_main}
+        --version {version} 
+        --contrasts {args.contrasts}
+        --ncores {n_cores}
+        --organism {organism}
+        """
+    )
+
+    # Load adata, signatures and prep contrasts and jobs
+    logger.info('Loading adata and signatures, prepare contrasts and jobs...')
+    adata = sc.read(path_data + 'clustered.h5ad')
     with open(path_signatures + 'signatures.pickle', 'rb') as f:
         signatures = pickle.load(f)
     jobs, contrasts = prep_jobs_contrasts(adata, path_main + 'contrasts/', contrasts_name)
-    logger.info(f'Data preparated before computation in: {g.stop()} s.')
+    logger.info(f'Data preparated before computation in: {t.stop()} s.')
 
     # Here we go
-    if not args.skip_computation:
-
-        logger.info(f'Begin distinguishing features calculations: --contrasts_name {contrasts_name} --n_cores {n_cores} --organism {organism}')
-
-        D = Dist_features(adata, contrasts, signatures=signatures, jobs=jobs, n_cores=n_cores, organism=organism, app=True) # To load on the app directly
-        D.run_all_jobs()
-        D.to_pickle(path_results, name=contrasts_name)
-
-    else:
-
-        #Read results 
-        with open(path_results + f'{contrasts_name}.pickle', 'rb') as f:
-            results = pickle.load(f)
+    D = Dist_features(
+        adata, 
+        contrasts, 
+        signatures=signatures, 
+        jobs=jobs, 
+        n_cores=n_cores, 
+        organism=organism, 
+        app=True
+    ) # To load on the app directly
+    D.run_all_jobs()
+    D.to_pickle(path_results, name=contrasts_name)
 
     # Write final exec time
     logger.info(f'Execution was completed successfully in total {T.stop()} s.')

@@ -54,10 +54,10 @@ class Gene_set:
 
     Parameters:
     -----------
-    results : list-like object or dataframe
+    results : pd.Series object or pd.DataFrame
         A list-like object or dataframe representing the gene set, according to the method that produced the (ordered)
         or not gene set.
-    genes_meta : dataframe
+    genes_meta : pd.DataFrame
         A dataframe containing information about the genes.
     name : str or None, default=None
         A name for the gene set.

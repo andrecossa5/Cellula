@@ -166,7 +166,7 @@ def integration_diagnostics():
                 fig = plot_embeddings(adata, layer=layer, rep=int_rep)  
                 tot = layer + '_' + int_rep
                 fig.suptitle(tot)
-                fig.savefig(path_viz + f'orig_int_{layer}_{int_rep}.png') 
+                fig.savefig(path_viz + f'{layer}_{int_rep}_embeddings.png') 
             except:
                 logger.info(f'Embedding {int_rep} is not available for layer {layer}')
         logger.info(f'End visualization for layer {layer}: {t.stop()} s.')

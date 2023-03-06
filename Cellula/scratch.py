@@ -9,12 +9,6 @@ from Cellula.preprocessing._Int_evaluator import *
 
 path_main = '/Users/IEO5505/Desktop/cellula_example/'
 version = 'default'
-normalization_method = 'sct'
-scoring_method = 'scanpy'
-n_HVGs = 2000
-covariates = ['nUMIs', 'mito_perc']
-organism = 'human'
-n_comps = 50
 
 
 

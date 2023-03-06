@@ -27,10 +27,10 @@ my_parser = argparse.ArgumentParser(
     the original, full, log-normalized gene expression matrix are created: 
 
     i) 'raw' (HVGs 'raw' counts data); 
-    i) 'reduced' (HVGs log-normalized data); 
-    ii) 'scaled' (HVGs log-normalized and z-scored data); 
-    iii) 'regressed' (HVGs log-normalized data, from which the effect of user-defined covariates has been regressed-out); 
-    iv) 'regressed_and_scaled' (same as iii), but with the additional scaling of resulting expression values). 
+    ii) 'reduced' (HVGs log-normalized data); 
+    iii) 'scaled' (HVGs log-normalized and z-scored data); 
+    iv) 'regressed' (HVGs log-normalized data, from which the effect of user-defined covariates has been regressed-out); 
+    v) 'regressed_and_scaled' (same as iii), but with the additional scaling of resulting expression values). 
 
     The dimensionality of these matrices is linearly reduced with Principal Components Analysis (PCA), and the resulting,
     alternative gene expression spaces are saved for later use. Visualization is produced along the way.

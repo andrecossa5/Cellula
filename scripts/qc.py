@@ -12,7 +12,7 @@ my_parser = argparse.ArgumentParser(
     prog='qc',
     description=
     """
-    Quality Control tool.\n
+    Gene and Cell Quality Control operations.\n
     It takes CellRanger/STARsolo outputs (stored in $path_main/matrices, see this repo README 
     for details on $path_main setup), and returns a single, quality controlled AnnData object. 
     This object stores minimal cell and gene metadata, along with

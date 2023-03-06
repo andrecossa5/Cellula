@@ -2,6 +2,7 @@
 _pp.py: preprocessing utils. 
 """
 
+import sys
 import pandas as pd 
 import numpy as np 
 import scanpy as sc 
@@ -261,7 +262,12 @@ def red(adata, normalization_method='scanpy'):
         The matrix is reduced to the highly variable features only.
     """
     adata = adata[:, adata.var['highly_variable_features']].copy()
-    adata.layers['raw'] = adata.raw.to_adata()[:, adata.var_names].X
+    if adata.raw is not None:
+        adata.layers['raw'] = adata.raw.to_adata()[:, adata.var_names].X
+    elif 'raw' in adata.layers:
+        print('Raw counts already present, but no .raw slot found...')
+    else:
+        sys.exit('Provide either an AnnData object with a raw layer or .raw slot!')
     adata.layers['lognorm'] = adata.X
 
     if normalization_method == 'sct':

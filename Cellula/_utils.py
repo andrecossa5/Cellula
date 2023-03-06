@@ -207,8 +207,8 @@ def get_representation(adata, layer='lognorm', method='original',
     elif kNN:
         representation = (
             adata.obsm[f'{layer}|{method}|{embedding_type}|NN_idx'],
-            adata.obsp[f'{layer}|{method}|{embedding_type}|NN_conn'],
-            adata.obsp[f'{layer}|{method}|{embedding_type}|NN_dist']
+            adata.obsp[f'{layer}|{method}|{embedding_type}|NN_dist'],
+            adata.obsp[f'{layer}|{method}|{embedding_type}|NN_conn']
         )
         k = representation[0].shape[1]
 
@@ -218,7 +218,7 @@ def get_representation(adata, layer='lognorm', method='original',
             representation = representation[0]
             logger.info(f'Using kNN (k={k}) indeces associated to the {layer} layer and the {method} integration method...')
         elif only_conn:
-            representation = representation[1]
+            representation = representation[2]
             logger.info(f'Using kNN (k={k}) connectivities associated to the {layer} layer and the {method} integration method...')
             
     return representation

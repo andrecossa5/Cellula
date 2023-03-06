@@ -15,7 +15,7 @@ from .._utils import get_representation
 ##
 
 
-def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', 
+def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', red_key=None, nn_key=None, 
             random_state=1234, umap_only=True, with_adata=False, kwargs={}):
     """
     From a preprocessed adata object, compute cells embedding in some reduced dimension space. 
@@ -30,6 +30,10 @@ def embeddings(adata, paga_groups='sample', layer='scaled', rep='original',
         Adata.obs categorical column to use for PAGA initialization of the UMAP algorithm (default is 'sample').
     rep : str, optional
        Data representation from which the kNN graph for embeddings computation has been built (default is 'original' --> standard PCA).
+    red_key : None, optional
+        Key to extract custom reduced dimension space from the adata.
+    nn_key : None, optional
+        Key to extract custom kNN graph from the adata.
     random_state : 1234
         Random state fo computations (default is 1234).
     umap_only : True
@@ -45,23 +49,36 @@ def embeddings(adata, paga_groups='sample', layer='scaled', rep='original',
     """
 
     # Get representations
-    if layer in adata.layers:
-        try:
-            a = anndata.AnnData(X=adata.layers[layer], obs=adata.obs)
-            if rep == 'BBKNN':
-                a.obsm['X_latent_space'] = get_representation(adata, layer=layer, method='original')
-            else:
-                a.obsm['X_latent_space'] = get_representation(adata, layer=layer, method=rep)
-            g = get_representation(adata, layer=layer, method='original', kNN=True, embeddings=False)
-        except:
-            raise Exception(f'There are no latent spaces associated with the input {layer} and {method}. Check your inputs...')
+    if red_key is None and nn_key is None:
+        if layer in adata.layers:
+            try:
+                a = anndata.AnnData(X=adata.layers[layer], obs=adata.obs)
+                if rep == 'BBKNN':
+                    a.obsm['X_latent_space'] = get_representation(adata, layer=layer, method='original')
+                else:
+                    a.obsm['X_latent_space'] = get_representation(adata, layer=layer, method=rep)
+                g = get_representation(adata, layer=layer, method=rep, kNN=True, embeddings=False)
+            except:
+                raise Exception(f'There are no latent spaces associated with the input {layer} and {method}. Check your inputs...')
+        else:
+            raise ValueError(f'{layer} layer is not available!')
     else:
-        raise ValueError(f'{layer} layer is not available!')
+        try:
+            a = anndata.AnnData(X=adata.X, obs=adata.obs)
+            a.obsm['X_latent_space'] = adata.obsm[red_key]
+            g = [ 
+                adata.obsm[f'{nn_key}_idx'],
+                adata.obsp[f'{nn_key}_dist'],
+                adata.obsp[f'{nn_key}_conn'],
+            ]
+            rep = adata.uns['dimred']['rep']
+        except:
+            raise Exception(f'There are no latent spaces/kNN graphs associated with provided keys. Check your inputs...')
 
     # Fill neighbors params of the mock adata, for scanpy compatibility
     method = 'PC' if rep == 'original' else rep
-    a.obsp['nn_connectivities'] = g[1]
-    a.obsp['nn_distances'] = g[2]
+    a.obsp['nn_distances'] = g[1]
+    a.obsp['nn_connectivities'] = g[2]
     a.uns['nn'] = {
         'connectivities_key': 'nn_connectivities',
         'distances_key': 'nn_distances', 

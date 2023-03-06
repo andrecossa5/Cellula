@@ -11,8 +11,22 @@ import argparse
 
 # Create the parser
 my_parser = argparse.ArgumentParser(
-    prog='Integration',
-    description='''Integrate dataset with 4 different methods.'''
+    prog='integration',
+    description=
+    """
+    Batch-correction/data integration operations.
+    Starting from the output of the pp.py script (the preprocessed AnnData object at $path_main/data/step/reduced.h5ad) and 
+    the kBET.py script (suggesting the need to control for batch effects), one can use this tool to integrate 
+    its data. 4 methods are implemented:
+
+    i) 'Harmony', Korsunsky et al., 2019; 
+    ii) 'Scanorama', Hie et al., 2019; 
+    iii) 'BBKNN', Polanski et al., 2020; 
+    iv) 'scVI', Lopez et al., 2018; 
+
+    Different methods require different input representation of data. Apart from scVI, which needs to be fed with 
+    raw counts only, all the other methods are applied to all the avaiable data 'layers' representations. 
+    """
 )
 
 # Add arguments
@@ -62,8 +76,8 @@ my_parser.add_argument(
 args = my_parser.parse_args()
 path_main = args.path_main
 version = args.version
-categorical = args.categorical
-continuous = args.continuous.split(':')
+categorical = args.categorical  
+continuous = args.continuous.split(':') 
 
 ########################################################################
 
@@ -73,6 +87,8 @@ continuous = args.continuous.split(':')
 from Cellula._utils import *
 from Cellula.preprocessing._pp import *
 from Cellula.preprocessing._integration import *
+import warnings
+warnings.filterwarnings("ignore")
 
 #-----------------------------------------------------------------#
 
@@ -97,7 +113,16 @@ def Integration():
     t = Timer()
     t.start()
     
-    logger.info('Execute integration...')
+    logger.info(
+        f"""
+        \nExecute integration, with options:
+        -p {path_main}
+        --version {version} 
+        --method {args.method}
+        --categorical {categorical} 
+        --continuous {continuous}
+        """
+    )
 
     # Load anndata
     adata = sc.read(path_data + 'reduced.h5ad')

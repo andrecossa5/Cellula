@@ -15,10 +15,11 @@ my_parser = argparse.ArgumentParser(
     prog='clustering',
     description=
     '''
-    This tool performs Leiden clustering. Starting from a pre-processed AnnData with pre-computed 
-    kNN graph(s), it will partition each of these graphs n times in a certain resolution range.
-    If --markers is on, it will also compute markers genes for each of these partitions 
-    (Wilcoxon Rank Sum test with FDR correction).
+    Clustering operations. 
+    Starting from the pre-processed adata, this scripts calculates its kNN graph(s) (different k values),
+    and partitions each of these graphs with Leiden clustering (n times ecah, within a certain resolution range).
+    If the --markers option is on, markers genes will be computed for each partition.
+    (Wilcoxon Rank Sum test, with FDR correction).
     '''
 )
 
@@ -89,44 +90,45 @@ n = args.n
 ########################################################################
 
 # Preparing run: import code, prepare directories, set logger
-if not args.skip:
 
-    # Code
-    import pickle
-    import scanpy as sc
-    from Cellula._utils import *
-    from Cellula.preprocessing._pp import *
-    from Cellula.clustering._clustering import *
-    from Cellula.dist_features._Dist import *
-    from Cellula.dist_features._Contrast import *
+# Code
+import pickle
+import scanpy as sc
+from itertools import product
+from Cellula._utils import *
+from Cellula.preprocessing._pp import *
+from Cellula.preprocessing._neighbors import *
+from Cellula.clustering._clustering import *
+from Cellula.dist_features._Dist import *
+from Cellula.dist_features._Contrast import *
+import warnings
+warnings.filterwarnings("ignore")
 
-    #-----------------------------------------------------------------#
+#-----------------------------------------------------------------#
 
-    # Set other paths 
-    path_data = path_main + f'/data/{version}/'
-    path_results = path_main + '/results_and_plots/clustering/'
-    path_runs = path_main + '/runs/'
-    path_viz = path_main + '/results_and_plots/vizualization/clustering/'
+# Set other paths 
+path_data = path_main + f'/data/{version}/'
+path_results = path_main + '/results_and_plots/clustering/'
+path_runs = path_main + '/runs/'
+path_viz = path_main + '/results_and_plots/vizualization/clustering/'
 
-    # Create step_{i} clustering folders. 
-    to_make = [ (path_results, version), (path_viz, version) ]
+# Create step_{i} clustering folders. 
+to_make = [ (path_results, version), (path_viz, version) ]
+if not args.skip_clustering:
+    for x, y in to_make:
+        make_folder(x, y, overwrite=True)
+elif args.skip_clustering and not all([ os.path.exists(x+y) for x, y in to_make ]):
+    print('Run without --skip_clustering option first!')
+    sys.exit()
 
-    if not args.skip_clustering:
-        for x, y in to_make:
-            make_folder(x, y, overwrite=True)
-    elif args.skip_clustering and not all([ os.path.exists(x + y) for x, y in to_make ]):
-        print('Run without --skip_clustering option first!')
-        sys.exit()
+# Update paths
+path_runs += f'/{version}/'
+path_results += f'/{version}/' 
 
-    # Update paths
-    path_runs += f'/{version}/'
-    path_results += f'/{version}/' 
-
-    #-----------------------------------------------------------------#
-
-    # Set logger 
-    mode = 'a' if args.markers and args.skip_clustering else 'w'
-    logger = set_logger(path_runs, 'logs_clustering.txt', mode=mode)
+#-----------------------------------------------------------------#
+# Set logger 
+mode = 'a' if args.markers and args.skip_clustering else 'w'
+logger = set_logger(path_runs, 'logs_clustering.txt', mode=mode)
 
 ########################################################################
 
@@ -136,61 +138,66 @@ def clustering():
     T = Timer()
     T.start()
 
-    logger.info(f'Begin clustering: --range {args.range} --n {n}')
+    logger.info(
+        f"""
+        \nExecute clustering, with options:
+        -p {path_main}
+        --version {version} 
+        --range {args.range} 
+        --n {n}
+        --markers {args.markers}
+        --skip_clustering {args.skip_clustering}
+        """
+    )
 
     # Load preprocessed and lognorm
-    t = Timer()
-    t.start()
-    logger.info('Loading preprocessed AnnData and get preprocessing options')
+    logger.info('Loading preprocessed adata...')
     adata = sc.read(path_data + 'preprocessed.h5ad')
 
     # Define resolution range
     resolution_range = np.linspace(range_[0], range_[1], n)
 
-    # Get preprocessing options
-    layer = np.unique([ x.split('|')[0] for x in adata.obsp ])[0]
-    int_method = np.unique([ x.split('|')[1] for x in adata.obsp ])[0]
-    Ks = np.unique([ x.split('|')[3].split('_')[0] for x in adata.obsp ])
-    n_components =  np.unique([ x.split('|')[3].split('_')[2] for x in adata.obsp ])[0]
-    rep = 'X_corrected' if int_method != 'original' else 'X_pca'
-    logger.info(f'Get preprocessed AnnData and preprocessing options in: {t.stop()} s.')
+    # Print preprocessed object status
+    dimred_options = adata.uns['dimred'] 
+    NN_options = adata.uns['NN'] 
+    logger.info(f'Found kNN graph dimred options: {dimred_options}')
+    logger.info(f'Found kNN graph NN options {NN_options}')
 
-    logger.info(f'Found kNN graphs from layer {layer} and int_method {int_method}...')
-
-    # Here we go
-    clustering_solutions = {}
-
-    for i, k in enumerate(Ks):
-
+    # kNN computations
+    k_range = [5, 10, 15, 30, 50, 100]
+    kNN_graphs = {}
+    for i, k in enumerate(k_range):
+        t = Timer()
         t.start()
+        kNN_graphs[k] = kNN_graph(adata.obsm['X_reduced'], k=k)
+        logger.info(f'kNN ({i+1}/{len(k_range)}, k={k}) graph computation: {t.stop()}')
 
-        coonnectivities = get_representation(
-            adata, 
-            layer=layer, 
-            method=int_method, 
-            k=k, 
-            n_components=n_components
-        )[1]
+    # Clustering
+    jobs = list(product(k_range, resolution_range))
+    clustering_solutions = {}
+    for i, j in enumerate(jobs): 
+        t.start()
+        k = j[0]
+        r = j[1]
+        r = round(r, 2)
+        connectivities = kNN_graphs[k][2] # Extract connectivities
+        labels = leiden_clustering(connectivities, res=r)
+        key = f'{k}_NN_{r}'
+        clustering_solutions[key] = labels
+        logger.info(f'{i+1}/{len(jobs)} clustering solution: {t.stop()} s.')
 
-        logger.info(f'Begin partitioning graph {i+1}/{len(Ks)}...')
-
-        for r in resolution_range:
-
-            r = round(r, 2)
-            labels = leiden_clustering(coonnectivities, res=r)
-            key = f'{k}_NN_{n_components}_{r}'
-            clustering_solutions[key] = labels
-        
-        logger.info(f'Finished partitioning {i+1}/{len(Ks)} graph in total {t.stop()} s.')
-
-    # Save
+    # Save kNNs and clustering solutions
     t.start()
-    logger.info('Save dictionary of clustering solutions as a Pandas Dataframe')
+    logger.info('Saving objects...')
+    # kNNs
+    with open(path_results + 'kNN_graphs.pickle', 'wb') as f:
+        pickle.dump(kNN_graphs, f)
+    # Clustering solutions
     pd.DataFrame(
         clustering_solutions, 
         index=adata.obs_names
     ).to_csv(path_results + 'clustering_solutions.csv')
-    logger.info(f'Generation of clustering_solutions.csv in: {t.stop()} s.')
+    logger.info(f'Saving objects: {t.stop()} s.')
 
     #-----------------------------------------------------------------#
 
@@ -208,12 +215,13 @@ def markers_all():
     t = Timer()
     t.start()
 
-    g = Timer()
     logger.info(f'Adding markers...')
 
-    # Load clustering solutions
-    g.start()
-    logger.info('Begin loading of clustering solutions, create contrasts and jobs')
+    # Load adata and clustering solutions
+    logger.info('Loading preprocessed adata...')
+    adata = sc.read(path_data + 'preprocessed.h5ad')
+    logger.info('Loading clustering solutions, creating jobs...')
+
     if not os.path.exists(path_results + 'clustering_solutions.csv'):
         print('Run without --skip_clustering, first!')
         sys.exit()
@@ -224,19 +232,16 @@ def markers_all():
     contrasts = {
         k: Contrast(clustering_solutions, k) for k in clustering_solutions.columns
     }
-
     jobs = {
         k: [{ 'features': 'genes', 'model' : 'wilcoxon', 'mode' : None }] \
         for k in clustering_solutions.columns
     }
+    logger.info(f'Finished loading clustering solutions and creating jobs {t.stop()} s.')
 
-    logger.info(f'End of loading of clustering solutions, create contrasts and jobs in: {g.stop()} s.')
-    # Here we go  
-    g.start()
-    logger.info('Loading the full log-normalized matrix and initialization of Dist_features class')
-    adata = sc.read(path_data + 'lognorm.h5ad')   # Full log-normalized matrix required
+    # Here we go
+    t.start()
     D = Dist_features(adata, contrasts, jobs=jobs)   # Job mode here
-    logger.info(f'Lognorm matrix loaded and class initialized: {g.stop()} s.')
+    logger.info(f'Running markers computations...')
     D.run_all_jobs()
 
     # Save markers, as Gene_sets dictionary only
@@ -244,13 +249,11 @@ def markers_all():
     make_folder(path_markers, version, overwrite=False)
     path_markers += f'/{version}/' 
 
-    g.start()
-    logger.info('Saving markers in a pickle file')
+    logger.info('Saving markers...')
     with open(path_markers + 'clusters_markers.pickle', 'wb') as f:
         pickle.dump(D.Results.results, f)
-    logger.info(f'Genearation of clusters_markers.pickle: {g.stop()} s.')
 
-    logger.info(f'Finished markers: {t.stop()} s.')
+    logger.info(f'Finished markers computation: {t.stop()} s.')
 
     #-----------------------------------------------------------------#
 
@@ -261,10 +264,9 @@ def markers_all():
 
 # Run program
 if __name__ == "__main__":
-    if not args.skip:
-        if not args.skip_clustering:
-            clustering()
-        if args.markers:
-            markers_all()
+    if not args.skip_clustering:
+        clustering()
+    if args.markers:
+        markers_all()
 
 #######################################################################

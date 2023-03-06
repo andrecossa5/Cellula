@@ -15,6 +15,7 @@ my_parser = argparse.ArgumentParser(
     prog='kBET',
     description=
     '''
+    Preliminary batch-effects assessment.
     The kBET metric (Buttner et al., 2018), is used to assess the need for batch correction/data integration strategies.
     The "kBET acceptance rate" (see the paper for details) quantifies the proportions of cells in a dataset having a 
     "batch imbalanced" neighborhood on a certain kNN graph. 
@@ -47,7 +48,7 @@ my_parser.add_argument(
 
 # Covariate
 my_parser.add_argument( 
-    '--covariate', 
+    '--categorical', 
     type=str,
     default='seq_run',
     help='The covariate for which kNN-mixing needs to be checked. Default: seq_run.'
@@ -57,7 +58,7 @@ my_parser.add_argument(
 args = my_parser.parse_args()
 path_main = args.path_main
 version = args.version
-covariate = args.covariate
+categorical = args.categorical 
 
 ########################################################################
 
@@ -68,6 +69,8 @@ import scanpy as sc
 from Cellula._utils import *
 from Cellula.preprocessing._metrics import *
 from Cellula.preprocessing._neighbors import *
+import warnings
+warnings.filterwarnings("ignore")
 
 #-----------------------------------------------------------------#
 
@@ -109,7 +112,7 @@ def kBET():
         \nExecute kBET, with options:
         -p {path_main}
         --version {version} 
-        --covariate {covariate} # covariate = 'seq_run'
+        --categorical {categorical} 
         """
     )
 
@@ -137,14 +140,14 @@ def kBET():
             t.start()
             score = kBET_score(
                 adata, 
-                covariate='seq_run', 
+                covariate=categorical, 
                 method='original', 
                 layer=layer,
                 k=k
             )
             kbet_computation.update(score)
             logger.info(f'End of kBET computation for k={k} and layer {layer}: {t.stop()}')
-
+            
     # Extract results and take the integration decision
     t.start()
     logger.info(f'Extract results and take the integration decision...')
@@ -160,6 +163,7 @@ def kBET():
     df.sort_values(by='acceptance_rate', ascending=False).to_excel(path_results + 'kBET_df.xlsx')
     
     logger.info(f'kBET_df.xlsx finished in: {t.stop()} s.')
+
     #-----------------------------------------------------------------#
 
     # Calculate results summary, and make a (temporary) integration 
@@ -173,7 +177,7 @@ def kBET():
     if df.loc[df['k']>100, 'acceptance_rate'].mean() < 0.6:
         integration_choice ='Integration suggested, if covariates are not overlayed to sources of true biological signal.'
     else:
-        integration_choice = 'Integration can be skipped! Go on fella.'
+        integration_choice = 'Integration can be skipped! Sta senza pensier...'
 
     logger.info(f'{integration_choice}')
     

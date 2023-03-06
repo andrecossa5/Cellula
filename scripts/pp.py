@@ -290,7 +290,7 @@ def main():
         n_HVGs=n_HVGs, 
         score_method=scoring_method,
         organism=organism,
-        #no_cc=args.no_cc
+        no_cc=args.no_cc
     )
 
     logger.info(f'Log-normalization, HVGs identification, QC and cell cycle signatures scoring: {t.stop()}')
@@ -364,19 +364,15 @@ def main():
         adata_red = pca(adata_red, n_pcs=n_comps, layer=layer, auto=args.auto_pcs)
         logger.info(f'Finished PCA for .layer {layer}: {t.stop()}')
 
-    # Save
-    logger.info(f'Save adata with processed metrices and their PCA spaces...')
-    adata_red.write(path_data + 'reduced.h5ad')
-
     #-----------------------------------------------------------------#
 
     # Visualize sample biplots, top5 PCs 
     if args.biplot:
-
         for layer in adata_red.layers:
-            make_folder(path_viz, layer)
-            t.start()
+            
             # Biplots
+            t.start()
+            make_folder(path_viz, layer)
             logger.info(f'Top 5 PCs biplots for the {layer} layer...')
             for cov in ['seq_run', 'sample', 'nUMIs', 'cycle_diff']:
                 fig = plot_biplot_PCs(adata_red, layer=layer, covariate=cov, colors=colors)
@@ -410,6 +406,10 @@ def main():
         logger.info(f'Draw UMAP embeddings for the {layer} layer: {t.stop()}')
         fig.suptitle(layer)
         fig.savefig(path_viz + f'{layer}_original_embeddings.png')
+    
+    # Save
+    logger.info(f'Save adata with processed metrices, original PCA spaces and kNN graphs...')
+    adata_red.write(path_data + 'reduced.h5ad')
 
     #-----------------------------------------------------------------#
 

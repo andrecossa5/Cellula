@@ -327,7 +327,7 @@ def PCA_gsea_loadings_plot(df, genes_meta, organism='human', i=1):
 ##
 
 
-def plot_embeddings(adata, layer=None, rep='original', k=15, n_components=30):
+def plot_embeddings(adata, layer=None, rep='original', k=15):
     """
     Plot QC covariates in the UMAP embeddings obtained from original or original and integrated data.
     """
@@ -339,7 +339,6 @@ def plot_embeddings(adata, layer=None, rep='original', k=15, n_components=30):
         layer=layer, 
         umap_only=True
     )
-
     covariates = ['nUMIs', 'cycle_diff', 'seq_run', 'sample']
     fig, axs = plt.subplots(1, len(covariates), figsize=(4.5*len(covariates), 5))
     for i, c in enumerate(covariates):
@@ -614,19 +613,12 @@ def _prep_paga_umap(adata, clustering_solutions, sol=None, rep='original', color
     """
     a = adata.copy()
     a.obs[sol] = clustering_solutions[sol]
-
-    layer = list(a.obsm.keys())[0].split('|')[0] 
-    rep = list(a.obsm.keys())[0].split('|')[1] 
-    k = int(sol.split('_')[0])
-    n_components = int(sol.split('_')[2])
     
     a_new, df = embeddings(
         a, 
         paga_groups=sol,
-        layer=layer, 
-        rep=rep, 
-        k=k, 
-        n_components=n_components, 
+        red_key='X_reduced',
+        nn_key='NN',
         with_adata=True
     )
 
@@ -655,6 +647,8 @@ def top_3_paga_umap(adata, clustering_solutions, top_sol, s=13, color_fun=None, 
         scatter(df, 'UMAP1', 'UMAP2', by=sol, c=colors[sol], ax=axs[1,i])
         add_labels_on_loc(df, 'UMAP1', 'UMAP2', sol, ax=axs[1,i], s=s)
         axs[1,i].axis('off')
+    
+    fig.tight_layout()
     
     return fig
 
@@ -742,6 +736,8 @@ def top_3_ji_cells(markers, sol, title_size=10, figsize=(16, 10)):
     ji_markers_one_couple(markers, sol.columns[0], sol.columns[1], ax=axs[1, 0])
     ji_markers_one_couple(markers, sol.columns[0], sol.columns[2], ax=axs[1, 1])
     ji_markers_one_couple(markers, sol.columns[1], sol.columns[2], ax=axs[1, 2])
+
+    fig.tight_layout()
         
     return fig
 
@@ -818,5 +814,7 @@ def top_3_dot_plots(adata, markers, top_3, figsize=(11, 8)):
     dot_plot(adata, markers, top_3[0], n=3, ax=axs[0], size=8, legend=True)
     dot_plot(adata, markers, top_3[1], n=3, ax=axs[1], size=8, legend=True)
     dot_plot(adata, markers, top_3[2], n=3, ax=axs[2], size=8, legend=True)
+
+    fig.tight_layout()
 
     return fig

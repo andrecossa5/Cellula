@@ -14,14 +14,16 @@ import argparse
 my_parser = argparse.ArgumentParser(
     prog='integration_diagnostics',
     description=
-    '''
-    This tool employs several evalutation metrics to choose one (potentially batch-corrected) 
-    GE_space representation for downstream analysis. Metrics, code and default values were borrowed or 
-    re-adapted from the scib paper (Luecken et. al 2022). First, run the evaluation. Then, after 
-    results inspection (visualization and tabular summaries are produced), 
-    re-run the script choosing the best GE_space representation (adding the --chosen option),
-    to build the final pre-processed AnnData that will be used for clustering.
-    '''
+    """
+    Batch-correction/data integration diagnostics.
+    several evalutation metrics are applied to each 'batch-corrected' data representation to evaluate
+    their quality in terms of i) extent of batch effect removal and ii) extent of conservation of the original 
+    data topology.
+    Metrics, code and default values are borrowed or re-adapted from the scib paper (Luecken et. al 2022). 
+    First, run the evaluation. Then, after results inspection (visualization and tabular summaries are produced), 
+    re-run the script choosing the best representation (adding the --chosen option),
+    to build the final pre-processed AnnData that will be used for clustering. 
+    """
 )
 
 # Add arguments
@@ -37,10 +39,10 @@ my_parser.add_argument(
 
 # Covariate
 my_parser.add_argument( 
-    '--covariate', 
+    '--categorical', 
     type=str,
     default='seq_run',
-    help='The covariate to be checked for kNN mixing. Default: seq_run.'
+    help='The categorical covariate to be checked for kNN mixing. Default: seq_run.'
 )
 
 # k
@@ -72,15 +74,7 @@ my_parser.add_argument(
     '--chosen', 
     type=str,
     default=None,
-    help='The preprocessing option to choose. Default: None. Example: red_s:original.'
-)
-
-# n_comps
-my_parser.add_argument(
-    '--n_comps', 
-    type=int,
-    default=30,
-    help='Number of latent embeddings components to compute kNNs on. Default: 30.'
+    help='The preprocessing option to choose. Default: None. Example: lognorm:original.'
 )
 
 # Parse arguments
@@ -88,11 +82,10 @@ args = my_parser.parse_args()
 
 path_main = args.path_main
 version = args.version
-k = args.k
-covariate = args.covariate
+categorical = args.categorical
 delete = args.delete
 chosen = args.chosen
-n_comps = args.n_comps
+k = args.k 
 
 ########################################################################
 
@@ -105,11 +98,13 @@ from Cellula.preprocessing._Int_evaluator import *
 from Cellula.preprocessing._pp import *
 from Cellula.preprocessing._integration import *
 from Cellula.preprocessing._neighbors import *
+import warnings
+warnings.filterwarnings("ignore")
 
 #-----------------------------------------------------------------#
 
 # Set other paths
-path_data = path_main + f'/data/{version}/'
+path_data = path_main + f'/data/{version}/'  
 path_results = path_main + '/results_and_plots/pp/'
 path_runs = path_main + '/runs/'
 path_viz = path_main + '/results_and_plots/vizualization/pp/'
@@ -139,41 +134,46 @@ def integration_diagnostics():
     # Data loading and preparation
     t = Timer()
     t.start()
-    
-    logger.info(f'Execute 3_integration_diagnostics: --k {k} --covariate {covariate} --n_comps {n_comps}')
+
+    logger.info(
+        f"""
+        \nExecute integration_diagnostics, with options:
+        -p {path_main}
+        --version {version} 
+        --categorical {categorical} 
+        --chosen {chosen}
+        --k {k}
+        """
+    )
 
     # Load Integration.h5ad and instantiate an Int_evaluator class
     adata = sc.read(path_data + 'integration.h5ad')
     I = Int_evaluator(adata)
-
     logger.info(f'Loading data: {t.stop()} s.')
         
     #-----------------------------------------------------------------#
 
     # Here we go
+    logger.info(f'Begin embeddings visualization...')
 
     # Compute and compare embeddings
-    methods = pd.Series([ x.split('|')[1] for x in adata.obsp.keys()]).unique()
-    G = Timer()
-    G.start()
-    logger.info(f'Begin embeddings visualization:')
-    for layer in adata.layers:
+    for layer in I.adata.layers:
         t.start()
-        logger.info(f'Start the visualization of the embedding for all integration methods (for raw there are only scVI and original) on the following pp:{layer}')
-        for int_rep in methods:
+        logger.info(f'Visualization of all the embeddings for the {layer} layer...')
+        for int_rep in I.int_methods:
             try:
+                logger.info(f'Integration method: {int_rep}...')
                 fig = plot_embeddings(adata, layer=layer, rep=int_rep)  
                 tot = layer + '_' + int_rep
                 fig.suptitle(tot)
-                fig.savefig(path_viz + f'orig_int_{layer}_{int_rep}.png') 
+                fig.savefig(path_viz + f'{layer}_{int_rep}_embeddings.png') 
             except:
-                print(f'Embedding {int_rep} is not available for layer {layer}')
-        logger.info(f'End of the visualization on all methods on the following pp {layer}: {t.stop()} s.')
-    logger.info(f'Embeddings visualization completed: {G.stop()} s.')
+                logger.info(f'Embedding {int_rep} is not available for layer {layer}')
+        logger.info(f'End visualization for layer {layer}: {t.stop()} s.')
 
     # Compute diagnostics metrics
     t.start()
-    I.parse_options(covariate=covariate) 
+    I.parse_options(covariate=categorical) 
     I.compute_metrics()
     logger.info(f'Metrics calculations: {t.stop()} s.')
 
@@ -196,7 +196,7 @@ def integration_diagnostics():
 
 ########################################################################
 
-# choosing a prep option
+# Choosing a pp option
 def choose_preprocessing_option():
 
     T = Timer()
@@ -204,39 +204,56 @@ def choose_preprocessing_option():
     t = Timer()
 
     # Data loading and preparation
-    pp, chosen_int = chosen.split(':') 
-    logger.info('Choose preprocessing option: ' + '|'.join([pp, chosen_int]))
-    logger.info(f'Execute for: --covariate {covariate} --n_comps {n_comps}')
+
+    # Read adatas: lognorm and reduced/integration
+    lognorm = sc.read(path_data + 'lognorm.h5ad')
+    layer, chosen_method = chosen.split(':') 
+    logger.info('Choosing integrated preprocessing option: ' + '|'.join([layer, chosen_method]))
 
     if not os.path.exists(path_data + 'integration.h5ad') and chosen is not None:
-        adata = sc.read(path_data + 'reduced.h5ad')
+        pp = sc.read(path_data + 'reduced.h5ad')
     elif os.path.exists(path_data + 'integration.h5ad') and chosen is not None:
-        adata = sc.read(path_data + 'integration.h5ad')
+        pp = sc.read(path_data + 'integration.h5ad')
     else:
-        raise ValueError('No reduced or integration available.')
+        raise ValueError('No reduced or integration adatas available.')
 
-    # Pick the chosen pp and integration method
-    new_adata = sc.AnnData(X=adata.X, obs=adata.obs, var=adata.var)
-    new_adata.layers[pp] = adata.layers[pp]
+    # Assemble final adata
 
-    if chosen_int != 'original' and chosen_int != 'BBKNN':
-        new_adata.obsm[f'{pp}|{chosen_int}|X_corrected'] = get_representation(adata, layer=pp, method=chosen_int)
-    else:
-        new_adata.obsm[f'{pp}|original|X_pca'] = get_representation(adata, layer=pp)
+    # Cells and gene metadata, log-normalized (size) and raw counts metrices
+    adata = sc.AnnData(X=lognorm.X, obs=pp.obs, var=lognorm.var)
+    adata.X = lognorm.X
+    adata.layers['raw'] = pp.raw.to_adata().X
 
-    # k calculation
-    for k in [5, 10, 15, 30, 50, 100]:
+    # Chosen, cleaned dimension reduced embeddings
+    adata.obsm['X_reduced'] = get_representation(pp, layer=layer, method=chosen_method)
+    adata.uns['lognorm'] = { 'method' : 'scanpy, library size, target sum 50k' }
+    adata.uns['dimred'] = { 
+        'layer' : layer, 
+        'n_HVGs' : pp.shape[1], 
+        'rep' : chosen_method, 
+        'n_dims' : adata.obsm['X_reduced'].shape[1]
+    }
+
+    # kNN 
+    logger.info(f'Get kNN for {layer} layer and {chosen_method} representation and (k={k})')
+    embeddings_type = 'X_pca' if chosen_method == 'original' else 'X_corrected'
+    NN_options = pp.uns[f'{layer}|{chosen_method}|{embeddings_type}|NN']
+
+    if not NN_options['k'] == k:
         t.start()
-        if chosen_int != 'BBKNN':
-            logger.info(f'Begin the KNN computation for {chosen_int} and k = {k}')
-            new_adata = compute_kNN(new_adata, layer=pp, int_method=chosen_int, k=k, n_components=n_comps) # 6 kNN graphs
-        else:
-            logger.info(f'Begin the KNN computation for {chosen_int} and k = {k}')
-            new_adata = compute_BBKNN(new_adata, layer=pp, covariate=covariate, k=k, n_components=n_comps, trim=None)
-        logger.info(f'End of computation for {chosen_int} and k = {k}: {t.stop()} s.')
+        logger.info(f'Recomputing kNN graph (k={k})...')
+        pp = compute_kNN(pp, layer=layer, int_method=chosen_method, k=k)
+        logger.info(f'Finished recomputing kNN graph (k={k}): {t.stop()}')
+    else:
+        logger.info(f'kNN graph already present (k={k})...')
+    idx, conn, dist = get_representation(pp, layer=layer, method=chosen_method, kNN=True, embeddings=False)
+    adata.obsm['NN_idx'] = idx
+    adata.obsp['NN_conn'] = conn
+    adata.obsp['NN_dist'] = dist
+    adata.uns['NN'] = pp.uns[f'{layer}|{chosen_method}|{embeddings_type}|NN']
 
     # Save
-    new_adata.write(path_data + 'preprocessed.h5ad')
+    adata.write(path_data + 'preprocessed.h5ad')
 
     # Write final exec time
     logger.info(f'Assemble the definitive preprocessed adata took total {T.stop()} s.')

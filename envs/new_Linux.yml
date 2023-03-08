@@ -9,7 +9,6 @@ dependencies:
   - c-ares=1.18.1=h7f98852_0
   - c-blosc2=2.6.1=hf91038e_0
   - cmake=3.25.1=h816a3e0_0
-  - conda-build=3.23.3=py310hff52083_0
   - gcc_impl_linux-64=12.2.0=hcc96c02_19
   - gfortran_impl_linux-64=12.2.0=h55be85b_19
   - grpc-cpp=1.47.1=h30feacc_7
@@ -86,3 +85,5 @@ dependencies:
     - scFates
     - fastcluster
     - scarches
+    - forceatlas2
+

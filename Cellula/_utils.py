@@ -44,9 +44,19 @@ class Timer:
         if self._start_time is None:
             raise TimerError(f"Timer is not running. Use .start() to start it")
         elapsed_time = time.perf_counter() - self._start_time
+
+        if elapsed_time > 100:
+            unit = 'min'
+            elapsed_time = elapsed_time / 60
+        elif elapsed_time > 1000:
+            unit = 'h'
+            elapsed_time = elapsed_time / 3600
+        else:
+            unit = 's'
+
         self._start_time = None
 
-        return round(elapsed_time, 2)
+        return f'{round(elapsed_time, 2)} {unit}'
 
 
 ##
@@ -71,7 +81,7 @@ def set_logger(path_runs, name, mode='w'):
     """
     A function to open a logs.txt file for a certain script, writing its trace at path_main/runs/step/.
     """
-    logger = logging.getLogger("my_logger")
+    logger = logging.getLogger("Cellula_logs")
     handler = logging.FileHandler(path_runs + name, mode=mode)
     handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
     logger.setLevel(logging.INFO)
@@ -162,26 +172,54 @@ def rescale(x):
 ##
 
 
-def get_representation(adata, layer=None, method='original', k=None, n_components=None, 
-    only_index=False, only_conn=False):
+def get_representation(adata, layer='lognorm', method='original', 
+    embeddings=True, kNN=False, only_index=False, only_conn=False ):
     """
-    Take out desired representation from a adata.obsm/obsp.
+    Get desired representation from a adata.obsm/obsp.
     """
+    # Logging
+    logger = logging.getLogger('Cellula_logs')
+
+    # Take reps
     embedding_type = 'X_pca' if method == 'original' else 'X_corrected'
-    if method != 'BBKNN' and k is None and n_components is None:
-        representation = adata.obsm[f'{layer}|{method}|{embedding_type}']
-    elif method == 'BBKNN' and k is None and n_components is None:
-        raise ValueError('The BBKNN method has no associated X_corrected embedding.')
-    else:
+    if embeddings and kNN:
+        raise ValueError('kNN and embedding options are exclusive. Choose one of them!')
+    
+    # Here we go
+    if embeddings:
+        if method == 'BBKNN':
+            representation = adata.obsm[f'{layer}|original|X_pca']
+            ndim = adata.uns[f'{layer}|original|PCA']['n_pcs']
+            logger.info(f'Using {embedding_type} embeddings (ndim={ndim}) associated to the {layer} layer and the {method} integration method...')
+        elif method == 'original':
+            representation = adata.obsm[f'{layer}|{method}|{embedding_type}']
+            ndim = adata.uns[f'{layer}|original|PCA']['n_pcs']
+            logger.info(f'Using {embedding_type} embeddings (ndim={ndim}) associated to the {layer} layer and the {method} integration method...')
+        elif method not in ['BBKNN', 'original']:
+            representation = adata.obsm[f'{layer}|{method}|{embedding_type}']
+            ndim_original = adata.uns[f'{layer}|original|PCA']['n_pcs']
+            ndim_integrated = representation.shape[1]
+            representation = representation[:,:ndim_original]
+            logger.info(f'Original embeddings associated to the {layer} layer have ndim={ndim_original}')
+            logger.info(f'Integrated (method={method}) embeddings associated to the {layer} layer have ndim={ndim_integrated}')
+            logger.info(f'Using subsetted {embedding_type} embeddings (ndim={ndim_original})')
+        
+    elif kNN:
         representation = (
-            adata.obsm[f'{layer}|{method}|{embedding_type}|{k}_NN_{n_components}_comp_idx'],
-            adata.obsp[f'{layer}|{method}|{embedding_type}|{k}_NN_{n_components}_comp_conn'],
-            adata.obsp[f'{layer}|{method}|{embedding_type}|{k}_NN_{n_components}_comp_dist']
+            adata.obsm[f'{layer}|{method}|{embedding_type}|NN_idx'],
+            adata.obsp[f'{layer}|{method}|{embedding_type}|NN_dist'],
+            adata.obsp[f'{layer}|{method}|{embedding_type}|NN_conn']
         )
-        if only_index:
+        k = representation[0].shape[1]
+
+        if not only_index and not only_conn:
+            logger.info(f'Using kNN (k={k}) graph associated to the {layer} layer and the {method} integration method...')
+        elif only_index:
             representation = representation[0]
-        if only_conn:
-            representation = representation[1]
+            logger.info(f'Using kNN (k={k}) indeces associated to the {layer} layer and the {method} integration method...')
+        elif only_conn:
+            representation = representation[2]
+            logger.info(f'Using kNN (k={k}) connectivities associated to the {layer} layer and the {method} integration method...')
             
     return representation
 

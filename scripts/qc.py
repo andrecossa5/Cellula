@@ -11,9 +11,9 @@ import argparse
 my_parser = argparse.ArgumentParser(
     prog='qc',
     description=
-    '''
-    Cell QC. 
-    This tool takes CellRanger/STARsolo outputs (stored in $path_main/matrices, see this repo README 
+    """
+    Gene and Cell Quality Control operations.\n
+    It takes CellRanger/STARsolo outputs (stored in $path_main/matrices, see this repo README 
     for details on $path_main setup), and returns a single, quality controlled AnnData object. 
     This object stores minimal cell and gene metadata, along with
     raw gene expression counts for all genes and cells passing a certain quality control (QC) 
@@ -22,7 +22,7 @@ my_parser = argparse.ArgumentParser(
     In the latter case, --mode needs to be set to 'raw', and the matrices folder need to store (for each
     sample) an additional file, summary_sheet_cells.csv, a table storing the genomic barcode (i.e., clone) of all 
     previously filtered cells. See Adamson et al., 2016 for details on this filtering procedure.
-    '''
+    """
 )
 
 # Add arguments
@@ -56,8 +56,8 @@ my_parser.add_argument(
 my_parser.add_argument( 
     '--qc_mode', 
     type=str,
-    default='seurat',
-    help='Cell QC mode. Default: seurat. Other option available: mads (adaptive tresholds).'
+    default='mads',
+    help='Cell QC mode. Default: mads (i.e, adaptive tresholds). Other option available: seurat.'
 )
 
 # Mito_perc
@@ -111,6 +111,8 @@ nmads = args.nmads
 from Cellula._utils import *
 from Cellula.plotting._plotting import *
 from Cellula.preprocessing._qc import *
+import warnings
+warnings.filterwarnings("ignore")
 
 #-----------------------------------------------------------------#
 # Set other paths 
@@ -146,12 +148,22 @@ def qc():
     t = Timer()
     t.start()
 
-    logger.info(f'Execute qc: --version {version} --mode {mode} --qc_mode {qc_mode}')
+    logger.info(
+    f"""
+    \nExecute qc.py, with options:
+    -p {path_main}
+    --version {version} 
+    --mode {mode}
+    --qc_mode {qc_mode}
+    --nUMIs {nUMIs_t}
+    --detected_genes {detected_genes_t}
+    --mito_perc {mito_perc_t}
+    --nmads {nmads}\n
+    """
+    )
 
     # Read and format 10x/STARsolo matrices 
-    logger.info('Read and format 10x/STARsolo matrices')
     adatas = read_matrices(path_matrices, mode=mode)
-    logger.info(f'End of reading and formatting 10x/STARsolo matrices: {t.stop()} s.')
 
     # QC them
     tresholds = {
@@ -159,8 +171,6 @@ def qc():
         'nUMIs' : nUMIs_t,
         'detected_genes' : detected_genes_t
     }
-    t.start()
-    logger.info('Begin of quality control and plotting')
     adata, removed_cells = QC(
         adatas, 
         mode=qc_mode, 
@@ -170,18 +180,21 @@ def qc():
         nmads=nmads,
         tresh=tresholds
     )
-    logger.info(f'End of quality control and plotting: {t.stop()} s.')
+
     # Save adata and cells_meta.csv
-    logger.info(adata)
+    logger.info(f'Final "cleaned" AnnData:\n {adata}')
     adata.write(path_data + 'QC.h5ad')
     adata.obs.to_csv(path_data + 'cells_meta.csv')
 
     # Save removed cells 
-    pd.DataFrame({'cell':removed_cells}).to_csv(path_main + f'data/removed_cells/QC_{qc_mode}_{nUMIs_t}_{detected_genes_t}_{mito_perc_t}.csv')
-    # Write final exec time
-    logger.info(f'Execution was completed successfully in total {T.stop()} s.')
-    
+    logger.info(f'Removed cells stored at: data/removed_cells/QC_{qc_mode}_{nUMIs_t}_{detected_genes_t}_{mito_perc_t}.csv path')
+    pd.DataFrame({'cell':removed_cells}).to_csv(
+        path_main + f'data/removed_cells/QC_{qc_mode}_{nUMIs_t}_{detected_genes_t}_{mito_perc_t}.csv'
+    )
 
+    # Write final exec time
+    logger.info(f'Execution was completed successfully in total {T.stop()}')
+    
 #######################################################################
 
 # Run program

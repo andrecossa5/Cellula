@@ -11,8 +11,13 @@ import argparse
 
 # Create the parser
 my_parser = argparse.ArgumentParser(
-    prog='Embeddings',
-    description='''Given a final clustered solution, compute its embeddings for visualization and graph based TI.'''
+    prog='embeddings',
+    description=
+    """
+    Final embeddings operations.
+    Given a final clustered adata, compute its full embeddings 
+    (i.e., UMAP, tSNE, Force-Atlas2, Diffusion Maps and  Force-Atlas2 based on diffusion maps kNN).
+    These coordinates will be used for visualization and graph based Trajectory Inference (i.e., DPT.py script)."""
 )
 
 # Add arguments
@@ -60,6 +65,8 @@ from Cellula._utils import *
 from Cellula.plotting._plotting import *
 from Cellula.plotting._colors import *
 from Cellula.preprocessing._embeddings import embeddings
+import warnings
+warnings.filterwarnings("ignore")
 
 #-----------------------------------------------------------------#
 
@@ -88,19 +95,21 @@ def Embs():
 
     # Load anndata
     adata = sc.read(path_data + 'clustered.h5ad')
-
     logger.info(f'Data loading and preparation: {t.stop()} s.')
     
     #-----------------------------------------------------------------#
 
     # Embs
+    t.start()
+    logger.info('Calculate all embeddings...')
     df = embeddings(
         adata, 
-        paga_groups = 'leiden',
-        affinity='kNN', 
-        random_state=random_state, 
+        nn_key='NN',
+        red_key='X_reduced',
+        random_state=1234, 
         umap_only=False
     )
+    logger.info(f'Calculate all embeddings: {t.stop()} s.')
 
     # Save results
     t.start()

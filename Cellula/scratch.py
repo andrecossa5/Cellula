@@ -10,16 +10,17 @@ from Cellula.preprocessing._Int_evaluator import *
 path_main = '/Users/IEO5505/Desktop/cellula_example/'
 version = 'default'
 
+import scFates as scf
 
 
-
-
-
-
-
-# Set other paths
-path_data = path_main + f'/data/{version}/'
-path_runs = path_main + f'/runs/{version}/'
-
+n_cores = 8
+n_comps = 2
+coord = 'UMAP'
+cov = 'CD34'
+rep = 'reduced'
+transition = ['3', '0']
+skip_DPT = False
+HVGs =  True
+organism = 'human'
 
 

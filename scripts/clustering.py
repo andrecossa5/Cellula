@@ -42,20 +42,28 @@ my_parser.add_argument(
     help='The pipeline step to run. Default: default.'
 )
 
-# Upper resolution
-my_parser.add_argument( 
-    '--range', 
-    type=str,
-    default='0.1:2.0',
-    help='Resolution range to perform clustering with. Default: 0.1-2.0.'
-)
-
 # n clusterign solutions to evalutate
 my_parser.add_argument( 
     '--n', 
     type=int,
     default=10,
     help='Number of resolutions to perform clustering with. Default: 10.'
+)
+
+# Range
+my_parser.add_argument( 
+    '--range', 
+    type=str,
+    default='0.2:2.0',
+    help='Resolution to perform clustering within. Default: 0.2:2.0.'
+)
+
+# Organism
+my_parser.add_argument( 
+    '--organism', 
+    type=str,
+    default='human',
+    help='Organism. Default: human.'
 )
 
 # Markers
@@ -86,6 +94,7 @@ path_main = args.path_main
 version = args.version
 range_ = [ float(x) for x in args.range.split(':') ]
 n = args.n
+organism = args.organism
 
 ########################################################################
 
@@ -147,6 +156,7 @@ def clustering():
         --n {n}
         --markers {args.markers}
         --skip_clustering {args.skip_clustering}
+        --organism {organism}
         """
     )
 
@@ -184,7 +194,7 @@ def clustering():
         labels = leiden_clustering(connectivities, res=r)
         key = f'{k}_NN_{r}'
         clustering_solutions[key] = labels
-        logger.info(f'{i+1}/{len(jobs)} clustering solution: {t.stop()} s.')
+        logger.info(f'{i+1}/{len(jobs)} clustering solution: {t.stop()}')
 
     # Save kNNs and clustering solutions
     t.start()
@@ -197,12 +207,12 @@ def clustering():
         clustering_solutions, 
         index=adata.obs_names
     ).to_csv(path_results + 'clustering_solutions.csv')
-    logger.info(f'Saving objects: {t.stop()} s.')
+    logger.info(f'Saving objects: {t.stop()}')
 
     #-----------------------------------------------------------------#
 
     # Write final exec time
-    logger.info(f'Execution was completed successfully in total {T.stop()} s.')
+    logger.info(f'Execution was completed successfully in total {T.stop()}')
 
 #######################################################################
 
@@ -236,11 +246,11 @@ def markers_all():
         k: [{ 'features': 'genes', 'model' : 'wilcoxon', 'mode' : None }] \
         for k in clustering_solutions.columns
     }
-    logger.info(f'Finished loading clustering solutions and creating jobs {t.stop()} s.')
+    logger.info(f'Finished loading clustering solutions and creating jobs {t.stop()}')
 
     # Here we go
     t.start()
-    D = Dist_features(adata, contrasts, jobs=jobs)   # Job mode here
+    D = Dist_features(adata, contrasts, jobs=jobs, organism=organism)   # Job mode here
     logger.info(f'Running markers computations...')
     D.run_all_jobs()
 
@@ -253,12 +263,12 @@ def markers_all():
     with open(path_markers + 'clusters_markers.pickle', 'wb') as f:
         pickle.dump(D.Results.results, f)
 
-    logger.info(f'Finished markers computation: {t.stop()} s.')
+    logger.info(f'Finished markers computation: {t.stop()}')
 
     #-----------------------------------------------------------------#
 
     # Write final exec time
-    logger.info(f'Execution was completed successfully in total {T.stop()} s.')
+    logger.info(f'Execution was completed successfully in total {T.stop()}')
 
 #######################################################################
 

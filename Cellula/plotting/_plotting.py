@@ -818,3 +818,137 @@ def top_3_dot_plots(adata, markers, top_3, figsize=(11, 8)):
     fig.tight_layout()
 
     return fig
+
+
+##
+
+
+def ORA_transition_plot(adata, s, organism='human', n=25, title=None, figsize=(11,5)):
+    """
+    Plot ORA results and goodness of fit results on the genes statistically associated with 
+    an scFates transition, among two milestones.
+    """
+    # Prep data
+    gs_transition = Gene_set(s.to_frame('gof'), adata.var.loc[s.index], organism=organism)
+    gs_transition.compute_ORA()
+
+    # Visualization
+    fig, axs = plt.subplots(1,2,figsize=figsize)
+    stem_plot(
+        gs_transition.ORA['Default_ORA'].head(n),
+        'Adjusted P-value', 
+        ax=axs[0]
+    )
+    format_ax(axs[0], title='ORA', xlabel='Adjusted P-value')
+    stem_plot(s.to_frame('gof').head(n), 'gof', ax=axs[1])
+    format_ax(axs[1], title='Goodnes of fit', xlabel='A')
+    fig.suptitle(title)
+    fig.tight_layout()
+
+    return fig
+        
+
+##
+
+
+def dpt_feature_plot(adata, x, ax=None):
+    """
+    Plot ORA results and goodness of fit results on the genes statistically associated with 
+    an scFates transition, among two milestones.
+    """
+    # Ax for each segment
+    colors = create_palette(adata.obs, 'seg', sc.pl.palettes.vega_10)
+    for c, s in zip(colors.values(), adata.obs['seg'].cat.categories):
+        idx = adata.obs['seg'] == s
+        ax.plot(
+            adata.obs['t'][idx], 
+            adata[idx,x].layers['fitted'].flatten(), 
+            '.',
+            c=c
+        )
+    ax.text(0.05, 0.91, f'A: {adata.var.loc[x,"A"]:.2f}', transform=ax.transAxes, fontsize=6)
+    ax.text(0.05, 0.86, f'FDR: {adata.var.loc[x,"fdr"]:.2e}', transform=ax.transAxes, fontsize=6)
+    add_legend(ax=ax, label='Segment', colors=colors, ncols=1,
+        bbox_to_anchor=(1,1), loc='upper right', label_size=8, artists_size=6, ticks_size=6
+    )
+    format_ax(ax, title=x, xlabel='DPT', ylabel='Expression')
+
+    return ax
+
+
+##
+
+
+def milestones_groups_relationship(adata, figsize=(10,6)):
+    """
+    Plot expression levels of genes, categorized by gene groups associated with DPT,
+    by DPT trajectory milestones.
+    """
+    # Prep data
+    df = pd.DataFrame(
+        adata.X.A, 
+        columns=adata.var_names,
+        index=adata.obs_names).assign(
+        milestones=adata.obs['milestones']
+        ).melt(
+            var_name='gene', value_name='expression', id_vars='milestones'
+        ).set_index('gene').join(
+            adata.var.loc[:, ['group']]
+        ).reset_index(
+    )
+
+    # Figure
+    fig = plt.figure(figsize=figsize)
+    for i, x in enumerate(df['group'].unique()):
+        ax = plt.subplot(2,3,i+1)
+        box(df.query('group == @x'), x='milestones', y='expression', ax=ax, c='grey')
+        format_ax(ax, title=f'Group {x}', xlabel='Milestones', ylabel='Expression')
+    fig.tight_layout()
+
+    return fig
+
+
+##
+
+
+def expression_path(adata):
+    """
+    Plot expression paths, of the genes significatly associated with DPT.
+    """
+    # Prep data
+    cell_order = np.argsort(adata.obs['t'])
+    cell_order = adata.obs_names[cell_order]
+
+    fitted = pd.DataFrame(
+        adata.layers['fitted'], 
+        index=adata.obs_names, 
+        columns=adata.var_names
+    ).T
+
+    fitted = fitted.apply(lambda x: (x - x.min()) / (x.max() - x.min()), axis=1)
+    feature_order = (
+        fitted.apply(
+            lambda x: adata.obs['t'][
+                x > np.quantile(x, q=0.8)
+            ].mean(),
+            axis=1,
+        )
+        .sort_values()
+        .index
+    )
+    
+    # Fig
+    fig, ax = plt.subplots()
+    plot_heatmap(
+        fitted.loc[feature_order, cell_order], 
+        x_names=False, 
+        y_names=False, 
+        ax=ax
+    )
+    format_ax(ax, title='Expression path', 
+        xlabel=r'Cells, ordered by DPT $\longrightarrow$', ylabel='Genes')
+    
+    fig.tight_layout()
+
+    return fig
+

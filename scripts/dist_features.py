@@ -97,6 +97,8 @@ import yaml
 from Cellula._utils import *
 from Cellula.dist_features._dist_features import prep_jobs_contrasts
 from Cellula.dist_features._Dist import Dist_features
+import warnings
+warnings.filterwarnings("ignore")
 
 #-----------------------------------------------------------------#
 
@@ -169,8 +171,7 @@ def main():
 
 # Run program
 if __name__ == "__main__":
-    if not args.skip:
-        main()
+    main()
 
 #######################################################################
 

@@ -15,8 +15,8 @@ from .._utils import get_representation
 ##
 
 
-def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', red_key=None, nn_key=None, 
-            random_state=1234, umap_only=True, with_adata=False, kwargs={}):
+def embeddings(adata, paga_groups='sample', layer='lognorm', rep='original', red_key=None, nn_key=None, 
+            n_diff=15, random_state=1234, umap_only=True, with_adata=False):
     """
     From a preprocessed adata object, compute cells embedding in some reduced dimension space. 
 
@@ -34,6 +34,8 @@ def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', red_
         Key to extract custom reduced dimension space from the adata.
     nn_key : None, optional
         Key to extract custom kNN graph from the adata.
+    n_diff :  15, optional
+        N of diffusion component to reatain.
     random_state : 1234
         Random state fo computations (default is 1234).
     umap_only : True
@@ -103,26 +105,26 @@ def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', red_
 
     # Embeddings calculations
     if not umap_only:
-        sc.tl.draw_graph(a, init_pos='paga', layout='fa', random_state=random_state, n_jobs=cpu_count(), neighbors_key='nn')
+        sc.tl.draw_graph(a, init_pos='paga', layout='fa', random_state=random_state, 
+                        n_jobs=cpu_count(), neighbors_key='nn', key_added_ext='fa_reduced')
         sc.tl.umap(a, init_pos='paga', random_state=random_state, neighbors_key='nn')
         sc.tl.tsne(a, use_rep='X_latent_space', random_state=random_state, n_jobs=cpu_count())
 
-        ##DIffmap for trajectories...
-        a_ = pegasusio.UnimodalData(a)
-        a_.obsp['W_latent_space'] = a_.obsp['nn_connectivities']
-        pg.diffmap(a_, rep='latent_space', random_state=random_state)
-        pg.fle(a_, rep='diffmap', random_state=random_state, **kwargs) # TOFIXXX
-        a.obsm['X_fle'] = a_.obsm['X_fle']
+        # Diffusion maps and embeds their graph
+        sc.tl.diffmap(a, n_comps=n_diff, neighbors_key='nn', random_state=random_state)
+        sc.pp.neighbors(a, use_rep='X_diffmap', key_added='nn_diff')
+        sc.tl.paga(a, groups=paga_groups, neighbors_key='nn_diff')
+        sc.pl.paga(a, show=False, plot=False)
+        sc.tl.draw_graph(a, init_pos='paga', layout='fa', random_state=random_state, 
+                        n_jobs=cpu_count(), neighbors_key='nn_diff', key_added_ext='fa_diff')
 
-        # Get embeddings coordinates: 4 embeddings types
+        # Get embeddings coordinates: 5 embeddings types
         umap = pd.DataFrame(data=a.obsm['X_umap'], columns=['UMAP1', 'UMAP2'], index=a.obs_names)
-        try:
-            fr = pd.DataFrame(data=a.obsm['X_draw_graph_fa'], columns=['FA1', 'FA2'], index=a.obs_names)
-        except:
-            fr = pd.DataFrame(data=a.obsm['X_draw_graph_fr'], columns=['FA1', 'FA2'], index=a.obs_names)
+        fa = pd.DataFrame(data=a.obsm['X_draw_graph_fa_reduced'], columns=['FA1', 'FA2'], index=a.obs_names)
         tsne = pd.DataFrame(data=a.obsm['X_tsne'], columns=['tSNE1', 'tSNE2'], index=a.obs_names)
-        diff = pd.DataFrame(data=a.obsm['X_fle'][:,:2], columns=['FA_diff1', 'FA_diff2'], index=a.obs_names)
-        df_ = adata.obs.join([umap, fr, tsne, diff])
+        fa_diff = pd.DataFrame(data=a.obsm['X_draw_graph_fa_diff'], columns=['FA_diff1', 'FA_diff2'], index=a.obs_names)
+        diff = pd.DataFrame(data=a.obsm['X_diffmap'], columns=[ f'Diff{i+1}' for i in range(n_diff) ], index=a.obs_names)
+        df_ = adata.obs.join([umap, fa, tsne, fa_diff, diff])
     
     # Fast, only umap
     else:

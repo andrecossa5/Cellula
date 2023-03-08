@@ -74,7 +74,7 @@ my_parser.add_argument(
     '--chosen', 
     type=str,
     default=None,
-    help='The preprocessing option to choose. Default: None. Example: red_s:original.'
+    help='The preprocessing option to choose. Default: None. Example: lognorm:original.'
 )
 
 # Parse arguments

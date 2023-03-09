@@ -9,6 +9,7 @@ import scanpy as sc
 import pegasus as pg
 from sklearn.decomposition import PCA 
 from pegasus.tools import predefined_signatures, load_signatures_from_file 
+from scipy.sparse import issparse
 from sklearn.cluster import KMeans  
 from dadapy.data import Data
 
@@ -394,8 +395,13 @@ def pca(adata, n_pcs=50, layer='scaled', auto=False):
     else:
         raise KeyError(f'Selected layer {layer} is not present. Compute it first!')
 
-    # PCA
-    X[np.isnan(X)] = 0
+    # PCA 
+    if issparse(X): 
+        X = X.A
+        X[np.isnan(X)] = 0 # np.nans removal
+    else:
+        X[np.isnan(X)] = 0
+    
     model = my_PCA()
     model.calculate_PCA(X, n_components=n_pcs)
 

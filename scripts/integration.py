@@ -132,7 +132,7 @@ def Integration():
 
     #Selected integration methods
     if args.method == 'all':
-        methods = ['Scanorama', 'Harmony', 'BBKNN', 'scVI']
+        methods = ['Scanorama', 'Harmony', 'BBKNN', 'scVI'] 
     else:
         methods = args.method.split(':')  
 

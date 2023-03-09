@@ -116,7 +116,7 @@ def compute_Harmony(adata, layer='lognorm', categorical='sample', **kwargs):
 ##
 
 
-def compute_scVI(adata, categorical='seq_run', continuous=['mito_perc', 'nUMIs'],
+def compute_scVI(adata, categorical='seq_run', layer='raw', continuous=['mito_perc', 'nUMIs'],
     n_layers=2, n_latent=30, n_hidden=128, max_epochs=None, k=15):
     """
     Compute scVI latent space and KNN graph for the given AnnData object for the raw layer.
@@ -152,8 +152,8 @@ def compute_scVI(adata, categorical='seq_run', continuous=['mito_perc', 'nUMIs']
     logger.info(f'Compute scVI latent space for the raw layer...')
 
     # Check adata
-    adata_mock = anndata.AnnData(X=adata.layers['raw'], obs=adata.obs, var=adata.var)
-    adata_mock.layers['counts'] = adata.layers['raw']
+    adata_mock = anndata.AnnData(X=adata.layers[layer], obs=adata.obs, var=adata.var)
+    adata_mock.layers['counts'] = adata.layers[layer]
     assert adata_mock.layers['counts'] is not None
 
     # Prep
@@ -170,10 +170,10 @@ def compute_scVI(adata, categorical='seq_run', continuous=['mito_perc', 'nUMIs']
     
     # Train and add trained model to adata
     vae.train(train_size=1.0, max_epochs=max_epochs)
-    adata.obsm['raw|scVI|X_corrected'] = vae.get_latent_representation()
+    adata.obsm[f'{layer}|scVI|X_corrected'] = vae.get_latent_representation()
 
     # kNN
-    logger.info(f'Compute KNN...')
+    logger.info(f'Compute scVI...')
     adata = compute_kNN(adata, layer='raw', int_method='scVI', k=k)
 
     return adata

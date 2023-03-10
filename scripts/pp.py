@@ -69,21 +69,10 @@ my_parser.add_argument(
 
 # norm
 my_parser.add_argument(
-    '--norm', 
+    '--recipe', 
     type=str,
-    default='scanpy',
-    help='Normalization method. Default: scanpy. Other option available: sct, Lause et al., 2021'
-)
-
-# score
-my_parser.add_argument(
-    '--score', 
-    type=str,
-    default='scanpy',
-    help='''
-        QC and cell cycle signatures scoring method. Default: scanpy. 
-        Other options available: wot_rank and wot_zscore.
-    '''
+    default='standard',
+    help='Pre-processing recipe. Default: standard. Other option available: "remove_cc", "regress_cc", "sct".'
 )
 
 # n_HVGs
@@ -96,22 +85,12 @@ my_parser.add_argument(
 
 # score
 my_parser.add_argument(
-    '--covariates', 
+    '--cc_covariate', 
     type=str,
-    default='mito_perc:nUMIs',
+    default='cycle_diff',
     help='''
-        String specyfing the continuos covariates to regress-out from gene expression values. 
-        Default: 'mito_perc:nUMIs. It is possible to specify also for cc-related covariates: cycling, cycle_diff, G1/S, G2/M.
-    '''
-)
-
-# n_comps
-my_parser.add_argument(
-    '--n_comps', 
-    type=int,
-    default=50,
-    help='''Number of PCs to calculate. It is also the number of PCs retain for downstream analysis, if 
-        --auto_pcs is not specified.
+        String specyfing the continuos covariates to regress-out from log-normalized and scaled
+        expression data. Default: cycle_diff. Alternatives: cycling, G1/S, G2/M. This option work only with --recipe "regress_cc".
     '''
 )
 
@@ -139,17 +118,6 @@ my_parser.add_argument(
 
 # custom
 my_parser.add_argument(
-    '--no_cc', 
-    action='store_true',
-    help=
-    '''
-    Remove cell cycle-correlated genes from previously selected HVGs, before matrix processing and PCA.
-    Default: False. 
-    '''
-)
-
-# custom
-my_parser.add_argument(
     '--custom_meta', 
     action='store_true',
     help=
@@ -164,12 +132,10 @@ args = my_parser.parse_args()
 
 path_main = args.path_main
 version = args.version
-normalization_method = args.norm
-scoring_method = args.score
+recipe = args.recipe
 n_HVGs = args.n_HVGs
-covariates = args.covariates.split(':')
+cc_covariate = args.cc_covariate
 organism = args.organism
-n_comps = args.n_comps 
 
 ########################################################################
 
@@ -178,6 +144,7 @@ n_comps = args.n_comps
 # Code
 from Cellula._utils import *
 from Cellula.preprocessing._pp import *
+from Cellula.preprocessing._pp_recipes import *
 from Cellula.preprocessing._embeddings import *
 from Cellula.preprocessing._neighbors import *
 from Cellula.plotting._plotting import *
@@ -229,21 +196,18 @@ def main():
         \nExecute pp, with options:
         -p {path_main}
         --version {version} 
-        --norm {normalization_method}
-        --score {scoring_method}
+        --recipe {recipe}
         --n_HVGs {n_HVGs}
-        --covariates {covariates}
-        --n_comps {n_comps}
+        --cc_covariate {cc_covariate}
         --organism {organism}
         --biplot {args.biplot}
         --auto_pcs {args.biplot}
-        --no_cc {args.no_cc}
         --custom_meta {args.custom_meta}
         """
     )
 
     # Read QC
-    logger.info(f'Data merging and formatting operations...')
+    logger.info(f'Data preparation...')
     adata = sc.read(path_data + 'QC.h5ad')
 
     # Remove cells, if necessary
@@ -266,37 +230,36 @@ def main():
             logger.info('Cannot read cells_meta file. Format .csv or .tsv file correctly!')
             sys.exit()
     else:
-        adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.startswith('passing')]
         adata.obs['seq_run'] = 'run_1' # Assumed only one run of sequencing
         adata.obs['seq_run'] = pd.Categorical(adata.obs['seq_run'])
         adata.obs['sample'] = pd.Categorical(adata.obs['sample'])
+    
+    # Remove other columns 
+    adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.startswith('passing')]
+    adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.contains('doublet')]
 
     # Create colors
     colors = create_colors(adata.obs)
-    logger.info(f'Data merging and formatting operations: {t.stop()}')
+    logger.info(f'Data preparation: {t.stop()}')
 
     #-----------------------------------------------------------------#
 
-    # Log-normalization, hvg selection, signatures scoring
+    # Apply a preprocessing recipe
     t.start()
-    adata.raw = adata.copy()
+    adata.raw = adata.copy() # Raw counts
     logger.info('Raw expression data stored in adata.raw.')
-    logger.info('Log-normalization, HVGs selection, QC and cell cycle signatures scoring...')
-    
-    adata = pp(
-        adata, 
-        mode=normalization_method,  
-        target_sum=50*1e4, 
-        n_HVGs=n_HVGs, 
-        score_method=scoring_method,
-        organism=organism,
-        no_cc=args.no_cc
+    logger.info(f'Pre-processing: {recipe}')
+
+    adata, adata_red = run_command(
+        recipes_pp[recipe], 
+        adata,
+        **{ 'n_HVGs':n_HVGs, 'organism':organism, 'path_viz':path_viz }
     )
+    logger.info(f'Pre-processing with recipe {recipe} finished: {t.stop()}')
 
-    logger.info(f'Log-normalization, HVGs identification, QC and cell cycle signatures scoring: {t.stop()}')
-
-    # Save 
+    # Save adata and adata_red
     adata.write(path_data + 'lognorm.h5ad')
+    adata_red.write(path_data + 'lognorm.h5ad')
 
     #-----------------------------------------------------------------#
 
@@ -321,76 +284,43 @@ def main():
 
     #-----------------------------------------------------------------#
 
-    # Matrix processing and linear dimensionality reduction (PCA)
-    logger.info('Matrix processing and linear dimensionality reduction...')
-
-    # Matrix manipulation
-    if normalization_method == 'scanpy':
-
-        t.start()
-        logger.info('HVGs subsetting...')
-        adata_red = red(adata, normalization_method=normalization_method)
-        logger.info(f'Finished HVGs subsetting: "lognorm" .layer: {t.stop()}')
-        t.start()
-        logger.info('HVGs subsetting and scaling...')
-        adata_red = scale(adata_red)
-        logger.info(f'''Finished HVGs subsetting and scaling: "scaled" .layer: {t.stop()}''')
-        t.start()
-        logger.info('HVGs subsetting and regression of technical covariates...')
-        adata_red = regress(adata_red, covariates=covariates)
-        logger.info(f'''Finished HVGs subsetting and regression of technical covariates: "regressed" .layer: {t.stop()}''')
-        t.start()
-        logger.info('HVGs subsetting, regression of technical covariates, and scaling...')
-        adata_red = regress_and_scale(adata_red)
-        logger.info(f'''Finished HVGs subsetting, regression of technical covariates, and scaling: "regressed_and_scaled" .layer: {t.stop()}''')
-    
-    elif normalization_method == 'sct':
-        t.start()
-        adata_red = red(adata, normalization_method=normalization_method)
-        logger.info(f'''Finished HVGs subsetting and sct normalization: "sct" .layer: {t.stop()}''')
-
-    else:
-        raise ValueError('Unknown normalization method selected. Choose one between scanpy and sct.')
-    
-    # Visualize normalization and HVGs selection trends on the obtained layers
-    fig = mean_variance_plot(adata_red)
-    fig.savefig(path_viz + f'HVGs_mean_variance_trend.png')
-
     # PCA
     logger.info('PCA...')
     for layer in adata_red.layers:
-        t.start()
-        logger.info(f'PCA for .layer {layer}...')
-        adata_red = pca(adata_red, n_pcs=n_comps, layer=layer, auto=args.auto_pcs)
-        logger.info(f'Finished PCA for .layer {layer}: {t.stop()}')
+        if layer in ['scaled', 'regressed', 'sct']:
+            t.start()
+            logger.info(f'PCA for .layer {layer}...')
+            adata_red = pca(adata_red, n_pcs=50, layer=layer, auto=args.auto_pcs)
+            logger.info(f'Finished PCA for .layer {layer}: {t.stop()}')
 
     #-----------------------------------------------------------------#
 
     # Visualize sample biplots, top5 PCs 
     if args.biplot:
         for layer in adata_red.layers:
+            if layer in ['scaled', 'regressed', 'sct']:
             
-            # Biplots
-            t.start()
-            make_folder(path_viz, layer)
-            logger.info(f'Top 5 PCs biplots for the {layer} layer...')
-            for cov in ['seq_run', 'sample', 'nUMIs', 'cycle_diff']:
-                fig = plot_biplot_PCs(adata_red, layer=layer, covariate=cov, colors=colors)
-                fig.savefig(path_viz + f'{layer}/PCs_{cov}.png')
-            logger.info(f'Top 5 PCs biplots for the {layer} layer: {t.stop()}')
-        
-            # Inspection of top genes loadingsz
-            t.start()
-            logger.info(f'Top 5 PCs loadings inspection for the {layer} layer...')
-            df = pd.DataFrame(
-                adata_red.varm[f'{layer}|original|pca_loadings'][:,:5],
-                index=adata_red.var_names,
-                columns=[ f'PC{i+1}' for i in range(5) ]
-            )
-            for i in range(1,6):
-                fig = PCA_gsea_loadings_plot(df, adata_red.var, organism=organism, i=i)
-                fig.savefig(path_viz + f'{layer}/PC{i}_loadings.png')
-            logger.info(f'Top 5 PCs loadings inspection for the {layer} layer: {t.stop()}')
+                # Biplots
+                t.start()
+                make_folder(path_viz, layer)
+                logger.info(f'Top 5 PCs biplots for the {layer} layer...')
+                for cov in ['seq_run', 'sample', 'nUMIs', 'cycle_diff']:
+                    fig = plot_biplot_PCs(adata_red, layer=layer, covariate=cov, colors=colors)
+                    fig.savefig(path_viz + f'{layer}/PCs_{cov}.png')
+                logger.info(f'Top 5 PCs biplots for the {layer} layer: {t.stop()}')
+
+                # Inspection of top genes loadingsz
+                t.start()
+                logger.info(f'Top 5 PCs loadings inspection for the {layer} layer...')
+                df = pd.DataFrame(
+                    adata_red.varm[f'{layer}|original|pca_loadings'][:,:5],
+                    index=adata_red.var_names,
+                    columns=[ f'PC{i+1}' for i in range(5) ]
+                )
+                for i in range(1,6):
+                    fig = PCA_gsea_loadings_plot(df, adata_red.var, organism=organism, i=i)
+                    fig.savefig(path_viz + f'{layer}/PC{i}_loadings.png')
+                logger.info(f'Top 5 PCs loadings inspection for the {layer} layer: {t.stop()}')
 
     #------------------------------------------------------------#---#
 
@@ -398,14 +328,15 @@ def main():
     # Visualize QC covariates in cell embeddings (umap only here)
     logger.info(f'Original cell embeddings visualization...')
     for layer in adata_red.layers:
-        t.start()
-        adata_red = compute_kNN(adata_red, layer=layer, int_method='original')
-        logger.info(f'kNN graph computation for the {layer} layer: {t.stop()}')
-        t.start()
-        fig = plot_embeddings(adata_red, layer=layer)
-        logger.info(f'Draw UMAP embeddings for the {layer} layer: {t.stop()}')
-        fig.suptitle(layer)
-        fig.savefig(path_viz + f'{layer}_original_embeddings.png')
+        if layer in ['scaled', 'regressed', 'sct']:
+            t.start()
+            adata_red = compute_kNN(adata_red, layer=layer, int_method='original')
+            logger.info(f'kNN graph computation for the {layer} layer: {t.stop()}')
+            t.start()
+            fig = plot_embeddings(adata_red, layer=layer)
+            logger.info(f'Draw UMAP embeddings for the {layer} layer: {t.stop()}')
+            fig.suptitle(layer)
+            fig.savefig(path_viz + f'{layer}_original_embeddings.png')
     
     # Save
     logger.info(f'Save adata with processed metrices, original PCA spaces and kNN graphs...')

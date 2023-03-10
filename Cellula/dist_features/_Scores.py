@@ -3,6 +3,7 @@ _Scores.py: The Scores class
 """
 
 import re
+import sys
 import numpy as np
 import pandas as pd
 from scipy.sparse import csc_matrix
@@ -93,6 +94,9 @@ class Scores():
         """
         Args initialization.
         """
+        # logging
+        logger = logging.getLogger('Cellula_logs')
+
         # All available meethods so far
         methods_ = [ f'compute_{x}' for x in ['wu', 'Hotspot', 'barkley'] ]
 
@@ -116,8 +120,8 @@ class Scores():
                 x : getattr(self, f'compute_{x}') \
                 for x in methods if f'compute_{x}' in dir(self) 
             }
-            print(f'Passed methods: {str(methods).strip("[]")}')
-            print(f'Scores will used methods: {str(list(self.methods.keys())).strip("[]")}.')
+            logger.info(f'Passed methods: {str(methods).strip("[]")}')
+            logger.info(f'Scores will used methods: {str(list(self.methods.keys())).strip("[]")}.')
 
     ##
 
@@ -125,8 +129,19 @@ class Scores():
         """
         Compute Hotspot modules.
         """
-        self.matrix.layers['raw'] = csc_matrix(self.matrix.raw[:, self.matrix.var_names].X)
+        # logging
+        logger = logging.getLogger('Cellula_logs')
+
+        if 'raw' not in self.matrix.layers and self.matrix.raw is not None:
+            self.matrix.layers['raw'] = csc_matrix(self.matrix.raw[:, self.matrix.var_names].X)
+        elif 'raw' in self.matrix.layers:
+            pass
+        else:
+            sys.exit('Provide AnnData with .raw attribute or layer!')
         
+        assert 'raw' in self.matrix.layers
+        logger.info('Found raw counts...')
+
         if only_HVGs:
             self.matrix = self.matrix[:, self.matrix.var_names[self.matrix.var['highly_variable_features']]]
     
@@ -176,8 +191,11 @@ class Scores():
         Compute GMs like in Wu et al., 2021.
         """
         
+        # Logging
+        logger = logging.getLogger('Cellula_logs')
+        
         # Code here
-        print('Barkley methods is in TODO list...')
+        logger.info('Barkley methods is in TODO list...')
 
         # self.barkley = {}
 
@@ -188,19 +206,19 @@ class Scores():
         Compute GMs of some kind. Three kinds implemented.
         """
         logger = logging.getLogger("my_logger") 
-        g = Timer()
+
+        t = Timer()
         for method in self.methods:
-            g.start()
-            logger.info(f'Begin the computation for the following method:{method}') 
-            print(f'Run method: {method}...')
+            t.start()
+            logger.info(f'Run method: {method}...')
             self.methods[method]()
-            logger.info(f'End of {method} computation: {g.stop()} s.') 
+            logger.info(f'End of {method} computation: {t.stop()} s.') 
 
         d = {**self.wu, **self.barkley, **self.Hotspot, **self.curated}
         d = { k : Gene_set(v, self.matrix.var, name=k, organism=self.organism) for k, v in d.items() }
         self.gene_sets = d
 
-        print(f'Finished GMs calculation')
+        logger.info(f'Finished GMs calculation')
 
     ##
 

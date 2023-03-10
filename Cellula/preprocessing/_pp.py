@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np 
 import scanpy as sc 
 import pegasus as pg
+from anndata import AnnData
 from sklearn.decomposition import PCA 
 from pegasus.tools import predefined_signatures, load_signatures_from_file 
 from scipy.sparse import issparse
@@ -20,7 +21,7 @@ from .._utils import *
 ##
 
 
-def _sig_scores(adata, score_method='scanpy', organism='human'):
+def sig_scores(adata, layer=None, score_method='scanpy', organism='human'):
     """
     Calculate pegasus scores for cell cycle, ribosomal and apoptotic genes.
     """
@@ -32,12 +33,19 @@ def _sig_scores(adata, score_method='scanpy', organism='human'):
     signatures = {**cc_transitions, **ribo, **apoptosis}
 
     # Calculate scores
+    if layer is None:
+        a = adata.copy()
+    else:
+        if layer in adata.layers:
+            a = AnnData(X=adata.layers[layer], obs=adata.obs, var=adata.var)
+        else:
+            raise ValueError(f'{layer} not present... Check inputs!')
     if score_method == 'scanpy':
-        scores = pd.concat([ scanpy_score(adata, x, n_bins=50) for x in signatures.values() ], axis=1)
+        scores = pd.concat([ scanpy_score(a, x, n_bins=50) for x in signatures.values() ], axis=1)
     elif score_method == 'wot_zscore':
-        scores = pd.concat([ wot_zscore(adata, x) for x in signatures.values() ], axis=1)
+        scores = pd.concat([ wot_zscore(a, x) for x in signatures.values() ], axis=1)
     elif score_method == 'wot_rank':
-        scores = pd.concat([ wot_rank(adata, x) for x in signatures.values() ], axis=1)
+        scores = pd.concat([ wot_rank(a, x) for x in signatures.values() ], axis=1)
 
     scores.columns = signatures.keys()
     scores['cycle_diff'] = scores['G2/M'] - scores['G1/S']
@@ -242,7 +250,7 @@ class my_PCA:
 ##
 
 
-def red(adata, normalization_method='scanpy'):
+def red(adata):
     """
     Reduce the input AnnData object to highly variable features and store the resulting expression matrices.
 
@@ -251,9 +259,6 @@ def red(adata, normalization_method='scanpy'):
     adata : AnnData
         Annotated data matrix with n_obs x n_vars shape. Should contain a variable 'highly_variable_features'
         that indicates which features are considered to be highly variable.
-    normalization_method : str, default 'scanpy'
-        Normalization method to use. Options: scanpy, sct.
-
     Returns
     -------
     adata : AnnData
@@ -270,12 +275,6 @@ def red(adata, normalization_method='scanpy'):
     else:
         sys.exit('Provide either an AnnData object with a raw layer or .raw slot!')
     adata.layers['lognorm'] = adata.X
-
-    if normalization_method == 'sct':
-        adata.X = adata.layers['raw'] # Put it back into .X slot for sct normalization
-        sc.experimental.pp.normalize_pearson_residuals(adata)
-        adata.layers['sct'] = adata.X
-        adata.X = adata.layers['lognorm'] # Put it back
 
     return adata
 
@@ -299,8 +298,13 @@ def scale(adata):
         the expression matrix that has been scaled to unit variance and zero mean.
 
     """
-    adata_mock = sc.pp.scale(adata, copy=True)
+    if 'lognorm' not in adata.layers:
+        raise ValueError('The regress function needs to be called on a log-normalized AnnData. Check your input.')
+    
+    adata_mock = AnnData(X=adata.layers['lognorm'], obs=adata.obs, var=adata.var)
+    sc.pp.scale(adata_mock)
     adata.layers['scaled'] = adata_mock.X
+
     return adata
 
 
@@ -325,37 +329,13 @@ def regress(adata, covariates=['mito_perc', 'nUMIs']):
         the expression matrix with covariates regressed out.
 
     """
-    adata_mock = sc.pp.regress_out(adata, covariates, n_jobs=8, copy=True)
+    if 'scaled' not in adata.layers:
+        raise ValueError('The regress function needs to be called on a scaled AnnData. Check your input.')
+    
+    adata_mock = AnnData(X=adata.layers['scaled'], obs=adata.obs, var=adata.var)
+    sc.pp.regress_out(adata_mock, covariates, n_jobs=8)
+    sc.pp.scale(adata_mock) # Re-scale again
     adata.layers['regressed'] = adata_mock.X
-    return adata
-
-
-##
-
-
-def regress_and_scale(adata):
-    """
-    Regress out covariates from the input AnnData object and scale the resulting expression matrix.
-
-    Parameters
-    ----------
-    adata : AnnData
-        Annotated data matrix with n_obs x n_vars shape. Should contain a layer called 'regressed'
-        that stores the expression matrix with covariates regressed out.
-
-    Returns
-    -------
-    adata : AnnData
-        Annotated data matrix with n_obs x n_vars shape. Adds a new layer called 'regressed_and_scaled'
-        that stores the expression matrix with covariates regressed out and then scaled.
-
-    """
-    if 'regressed' not in adata.layers:
-        raise KeyError('Regress out covariates first!')
-    adata_mock= adata.copy()
-    adata_mock.X = adata_mock.layers['regressed']
-    adata_mock = scale(adata_mock)
-    adata.layers['regressed_and_scaled'] = adata_mock.layers['scaled']
 
     return adata
 

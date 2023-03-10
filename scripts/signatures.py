@@ -150,7 +150,7 @@ def Signatures():
     
     #Selected integration methods
     if method == 'all':
-        methods = ['wu', 'Hotspot', 'barkley'] 
+        methods = ['wu', 'Hotspot', 'barkley']   
     else:
         methods = args.method.split(':')  
 
@@ -163,14 +163,15 @@ def Signatures():
 
     ##
 
+
     # Retrieve gene_sets and score them
     S = Scores(
         adata, 
         clusters, 
         markers, 
         curated=curated, 
-        organism=organism,  
-        methods=methods
+        organism=organism, 
+        methods=methods 
     )
 
     t.start()

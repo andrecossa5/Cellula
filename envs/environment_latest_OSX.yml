@@ -62,9 +62,10 @@ dependencies:
     - cython==0.29.32
     - dadapy==0.1.1
     - flax==0.6.1
-    - harmony-pytorch==0.1.7
     - hnswlib==0.6.2
-    - hotspotsc==1.1.1
+    - hotspot==0.9.1
+#    - git+https://github.com/YosefLab/Hotspot.git@3faeab0db1cd6a1db8586eb5e7d45bdb5f09302c
+    - harmony-pytorch==0.1.7
     - louvain==0.7.1
     - mquad==0.1.6
     - numpy-groupies==0.9.19
@@ -81,7 +82,7 @@ dependencies:
     - scanorama==1.7.2
     - scikit-misc==0.1.4
     - scvi-tools==0.17.1
-    - streamlit==1.13.0
+    - streamlit
     - torch==1.12.1
     - torchmetrics==0.9.3
     - wot==1.0.8.post2

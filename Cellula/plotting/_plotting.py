@@ -952,3 +952,29 @@ def expression_path(adata):
 
     return fig
 
+
+##
+
+
+def mean_variance_plot(adata, recipe='standard', figsize=(5,4.5)):
+    """
+    Plot gene-wise mean variance trned, after log-normalization.
+    """
+    # Prep df
+    df = pd.DataFrame({
+        'mean': adata.var['mean'],
+        'var': adata.var['var'] if recipe != 'sct' else adata.var['residual_variances'], 
+        'HVG': np.where(adata.var['highly_variable_features'], 'HVG', 'Non-HVG')
+    })
+
+    # Fig
+    fig, ax = plt.subplots(figsize=figsize)
+    ylabel = 'var' if recipe != 'sct' else 'residual variance'
+    scatter(df.query('HVG == "Non-HVG"'), x='mean', y='var', c='black', ax=ax, s=1)
+    scatter(df.query('HVG == "HVG"'), x='mean', y='var', c='red', ax=ax, s=2)
+    format_ax(ax, title='Mean-variance trend', xlabel='mean', ylabel=ylabel)
+    add_legend(label='HVG status', colors={'HVG':'red', 'Non-HVG':'black'}, ax=ax, 
+        loc='upper right', bbox_to_anchor=(.95,.95), ncols=1, artists_size=8, label_size=10, ticks_size=7)
+    fig.tight_layout()
+
+    return fig

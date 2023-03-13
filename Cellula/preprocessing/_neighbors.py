@@ -32,7 +32,7 @@ def _NN(X, k=15):
 
     knn_indices, knn_dists = index.knn_query(X, k=k, num_threads=num_threads)
 
-    return knn_indices[:, 1:], knn_dists[:, 1:]
+    return knn_indices, knn_dists
 
 
 ##

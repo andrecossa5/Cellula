@@ -201,7 +201,7 @@ def main():
         --cc_covariate {cc_covariate}
         --organism {organism}
         --biplot {args.biplot}
-        --auto_pcs {args.biplot}
+        --auto_pcs {args.auto_pcs}
         --custom_meta {args.custom_meta}
         """
     )
@@ -286,9 +286,10 @@ def main():
 
     # PCA, all pre-processed layers
     logger.info('PCA...')
+    t.start()
     adata_red = compute_pca_all(
         adata_red, 
-        auto=args.auto,
+        auto=args.auto_pcs,
         biplot=args.biplot, 
         path_viz=path_viz, 
         organism=organism, 

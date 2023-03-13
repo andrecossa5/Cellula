@@ -1,0 +1,9 @@
+name: faiss-cpu
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - python=3.8
+  - faiss-cpu
+  - mamba
+

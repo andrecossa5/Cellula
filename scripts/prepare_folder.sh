@@ -8,7 +8,7 @@ cd $begin
 
 # Create a report.txt file and update data with the removed_cells folder
 cd data 
-mkdir removed_cells 
+mkdir removed_cells .kNNs .reduced_spaces
 
 # Go back to main folder, create the results_and_plots and runs folders
 cd ..

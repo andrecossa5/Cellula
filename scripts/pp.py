@@ -248,8 +248,8 @@ def main():
     t.start()
     adata.raw = adata.copy() # Raw counts
     logger.info('Raw expression data stored in adata.raw.')
+    # Apply recipe
     logger.info(f'Pre-processing: {recipe}')
-
     adata, adata_red = run_command(
         recipes_pp[recipe], 
         adata,
@@ -259,7 +259,7 @@ def main():
 
     # Save adata and adata_red
     adata.write(path_data + 'lognorm.h5ad')
-    adata_red.write(path_data + 'lognorm.h5ad')
+    adata_red.write(path_data + 'reduced.h5ad')
 
     #-----------------------------------------------------------------#
 
@@ -284,59 +284,33 @@ def main():
 
     #-----------------------------------------------------------------#
 
-    # PCA
+    # PCA, all pre-processed layers
     logger.info('PCA...')
-    for layer in adata_red.layers:
-        if layer in ['scaled', 'regressed', 'sct']:
-            t.start()
-            logger.info(f'PCA for .layer {layer}...')
-            adata_red = pca(adata_red, n_pcs=50, layer=layer, auto=args.auto_pcs)
-            logger.info(f'Finished PCA for .layer {layer}: {t.stop()}')
+    adata_red = compute_pca_all(
+        adata_red, 
+        auto=args.auto,
+        biplot=args.biplot, 
+        path_viz=path_viz, 
+        organism=organism, 
+        colors=colors
+    )
+    logger.info(f'Finished PCA: {t.stop()}')
 
     #-----------------------------------------------------------------#
-
-    # Visualize sample biplots, top5 PCs 
-    if args.biplot:
-        for layer in adata_red.layers:
-            if layer in ['scaled', 'regressed', 'sct']:
-            
-                # Biplots
-                t.start()
-                make_folder(path_viz, layer)
-                logger.info(f'Top 5 PCs biplots for the {layer} layer...')
-                for cov in ['seq_run', 'sample', 'nUMIs', 'cycle_diff']:
-                    fig = plot_biplot_PCs(adata_red, layer=layer, covariate=cov, colors=colors)
-                    fig.savefig(path_viz + f'{layer}/PCs_{cov}.png')
-                logger.info(f'Top 5 PCs biplots for the {layer} layer: {t.stop()}')
-
-                # Inspection of top genes loadingsz
-                t.start()
-                logger.info(f'Top 5 PCs loadings inspection for the {layer} layer...')
-                df = pd.DataFrame(
-                    adata_red.varm[f'{layer}|original|pca_loadings'][:,:5],
-                    index=adata_red.var_names,
-                    columns=[ f'PC{i+1}' for i in range(5) ]
-                )
-                for i in range(1,6):
-                    fig = PCA_gsea_loadings_plot(df, adata_red.var, organism=organism, i=i)
-                    fig.savefig(path_viz + f'{layer}/PC{i}_loadings.png')
-                logger.info(f'Top 5 PCs loadings inspection for the {layer} layer: {t.stop()}')
-
-    #------------------------------------------------------------#---#
 
     # Compute original cell embeddings
     # Visualize QC covariates in cell embeddings (umap only here)
     logger.info(f'Original cell embeddings visualization...')
     for layer in adata_red.layers:
         if layer in ['scaled', 'regressed', 'sct']:
-            t.start()
-            adata_red = compute_kNN(adata_red, layer=layer, int_method='original')
-            logger.info(f'kNN graph computation for the {layer} layer: {t.stop()}')
-            t.start()
-            fig = plot_embeddings(adata_red, layer=layer)
-            logger.info(f'Draw UMAP embeddings for the {layer} layer: {t.stop()}')
-            fig.suptitle(layer)
-            fig.savefig(path_viz + f'{layer}_original_embeddings.png')
+           t.start()
+           adata_red = compute_kNN(adata_red, layer=layer, int_method='original') # Already parallel
+           logger.info(f'kNN graph computation for the {layer} layer: {t.stop()}')
+           t.start()
+           fig = plot_embeddings(adata_red, layer=layer)
+           logger.info(f'Draw default UMAP embeddings for the {layer} layer: {t.stop()}')
+           fig.suptitle(layer)
+           fig.savefig(path_viz + f'{layer}_original_embeddings.png')
     
     # Save
     logger.info(f'Save adata with processed metrices, original PCA spaces and kNN graphs...')

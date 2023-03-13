@@ -132,21 +132,23 @@ def kBET():
 
         for layer in adata.layers:
 
-            t.start()
-            logger.info(f'KNN computation for k={k} and layer {layer}...')
-            adata = compute_kNN(adata, layer=layer, int_method='original', k=k)
-            logger.info(f'KNN computation for k={k} and layer {layer}: {t.stop()}')
-
-            t.start()
-            score = kBET_score(
-                adata, 
-                covariate=categorical, 
-                method='original', 
-                layer=layer,
-                k=k
-            )
-            kbet_computation.update(score)
-            logger.info(f'End of kBET computation for k={k} and layer {layer}: {t.stop()}')
+            if layer in ['scaled', 'regressed', 'sct']:
+                
+                t.start()
+                logger.info(f'KNN computation for k={k} and layer {layer}...')
+                adata = compute_kNN(adata, layer=layer, int_method='original', k=k)
+                logger.info(f'KNN computation for k={k} and layer {layer}: {t.stop()}')
+    
+                t.start()
+                score = kBET_score(
+                    adata, 
+                    covariate=categorical, 
+                    method='original', 
+                    layer=layer,
+                    k=k
+                )
+                kbet_computation.update(score)
+                logger.info(f'End of kBET computation for k={k} and layer {layer}: {t.stop()}')
             
     # Extract results and take the integration decision
     t.start()

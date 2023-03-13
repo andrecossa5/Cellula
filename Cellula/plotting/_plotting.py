@@ -241,12 +241,11 @@ def explained_variance_plot(adata, figsize=(10,7)):
 ##
 
 
-def plot_biplot_PCs(adata, layer=None, covariate='sample', colors=None):
+def plot_biplot_PCs(adata, embs, covariate='sample', colors=None):
     """
     Plot a biplot of the first 5 PCs, colored by a cell attribute.
     """
     # Data
-    embs = get_representation(adata, layer=layer, method='original')
     df_ = pd.DataFrame(
         data=embs[:,:5], 
         columns=[f'PC{i}' for i in range(1,6)],

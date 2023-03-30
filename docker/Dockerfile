@@ -30,7 +30,7 @@ ENV PATH="/mambaforge/bin/:$PATH"
 
 ## Clone repo and install code
 RUN git clone https://github.com/andrecossa5/Cellula.git 
-RUN ls .
+RUN echo ciao
 RUN cd Cellula \
     && git pull \
     && mamba env update -n base -f envs/new_Linux.yml \

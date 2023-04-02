@@ -15,6 +15,7 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 import seaborn as sns 
 from statannotations.Annotator import Annotator 
+import textalloc as ta
 
 from .._utils import *
 from ._colors import *
@@ -545,3 +546,22 @@ def bb_plot(df, cov1=None, cov2=None, show_y=True, legend=True, colors=None,
         return ax, data
     else:
         return ax
+    
+
+##
+
+
+def rank_plot(df, cov=None, ascending=False, n_annotated=25, title=None, ylabel=None, ax=None, fig=None):
+    """
+    Annotated scatterplot.
+    """
+    s = df[cov].sort_values(ascending=ascending)
+    x = np.arange(df.shape[0])
+    y = s.values
+    labels = s[:n_annotated].index
+    ax.plot(x, y, '.')
+    ta.allocate_text(fig, ax, x[:n_annotated], y[:n_annotated], labels, x_scatter=x, y_scatter=y,
+        linecolor='black', textsize=8, max_distance=0.5, linewidth=0.5, nbr_candidates=100)
+    format_ax(ax, title=title, xlabel='rank', ylabel=ylabel)
+
+    return ax

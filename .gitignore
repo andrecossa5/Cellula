@@ -136,3 +136,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Cellula-nf
+./Cellula-nf/.nextflow
+./Cellula-nf/work
+

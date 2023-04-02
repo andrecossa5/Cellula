@@ -16,6 +16,7 @@ plt.style.use('default')
 from ._colors import *
 from ._plotting_base import *
 from ..preprocessing._embeddings import embeddings
+from ..dist_features._Gene_set import *
 from .._utils import *
 
 
@@ -134,8 +135,7 @@ def plot_rankings(df, df_rankings, df_summary, feature='rescaled_score', by='sco
 ##
 
 
-def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), labels=False, rotate=False, 
-    legend=True, bbox_to_anchor=(0.93, 0.05)):
+def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), labels=False, rotate=False, legend=True):
     """
     Plot boxplot of QC covariates, by some cell goruping.
     """
@@ -150,9 +150,17 @@ def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), labels=Fals
         if rotate:
             ax.set_xticklabels(ax.get_xticks(), rotation=90)
     if legend:
-        handles = create_handles(meta[grouping].cat.categories, colors=colors[grouping].values())
-        fig.legend(handles=handles, loc='lower right', bbox_to_anchor = bbox_to_anchor, 
-            frameon=False, shadow=False, title=grouping.capitalize()
+        add_legend(
+            label=grouping,
+            colors=colors[grouping],
+            ax=ax,
+            bbox_to_anchor=(1.05,1),
+            loc='upper left',
+            ncols=1 if len(meta[grouping].cat.categories) <=8 else 2,
+            only_top=20,
+            label_size=8,
+            artists_size=8,
+            ticks_size=6
         )
     
     fig.tight_layout()
@@ -163,9 +171,38 @@ def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), labels=Fals
 ##
 
 
+def mean_variance_plot(adata_red):
+    """
+    Plot pca explained variance.
+    """
+    layers = [ x for x in adata_red.layers if x in ['raw', 'lognorm', 'sct'] ]
+    n = len(layers) 
+    figsize = (4.5*n, 4.5)
+
+    fig = plt.figure(figsize=figsize, constrained_layout=True)    
+    for i, layer in enumerate(layers):
+        ax = plt.subplot(1,n,i+1)
+        try:
+            X = adata_red.layers[layer].A
+        except:
+            X = adata_red.layers[layer]
+        df_ = pd.DataFrame({
+            'mean': X.mean(axis=1), 
+            'var': X.var(axis=1)
+        })
+        scatter(df_, x='mean', y='var', c='black', ax=ax)
+        format_ax(ax, title=layer, xlabel='mean', ylabel='var')
+    fig.suptitle('HVGs mean-variance trend, across layers')
+
+    return fig
+    
+
+##
+
+
 def pca_var_plot(exp_var, cum_sum, title, ax):
     """
-    Plot
+    Plot pca explained variance.
     """
     ax.bar(range(0, len(exp_var)), exp_var, 
         alpha=0.5, align='center', label='Individual explained variance'
@@ -204,12 +241,11 @@ def explained_variance_plot(adata, figsize=(10,7)):
 ##
 
 
-def plot_biplot_PCs(adata, layer=None, covariate='sample', colors=None):
+def plot_biplot_PCs(adata, embs, covariate='sample', colors=None):
     """
     Plot a biplot of the first 5 PCs, colored by a cell attribute.
     """
     # Data
-    embs = get_representation(adata, layer=layer, method='original')
     df_ = pd.DataFrame(
         data=embs[:,:5], 
         columns=[f'PC{i}' for i in range(1,6)],
@@ -257,30 +293,54 @@ def plot_biplot_PCs(adata, layer=None, covariate='sample', colors=None):
 ##
 
 
-def plot_embeddings(adata, layer=None, rep='original', k=15, n_components=30):
+def PCA_gsea_loadings_plot(df, genes_meta, organism='human', i=1):
     """
-    Plot QC covariates in the UMAP embeddings obtained from original or original and integrated data.
+    Plot stem-plots of top 5 PCs GSEA-enriched pathways, and genes.
     """
-    # Prep embedding
-    df = embeddings(
-        adata, 
-        paga_groups='sample', 
-        rep=rep, 
-        layer=layer, 
-        k=k, 
-        n_components=n_components, 
-        umap_only=True
+    g = Gene_set(
+        df[f'PC{i}'].to_frame('effect_size').sort_values(by='effect_size', ascending=False), 
+        genes_meta,
+        organism=organism
     )
+    g.compute_GSEA()
+    fig, axs = plt.subplots(1,2,figsize=(11,5))
+    stem_plot(
+        g.GSEA['original'].iloc[:, [0,1,3]].sort_values('NES', ascending=False).head(25),
+        'NES', 
+        ax=axs[0]
+    )
+    format_ax(axs[0], title='GSEA', xlabel='NES')
+    stem_plot(
+        df[f'PC{i}'].to_frame('es').sort_values('es', ascending=False).head(25),
+        'es', 
+        ax=axs[1]
+    )
+    format_ax(axs[1], title='PC loadings', xlabel='loadings')
 
-    covariates = ['seq_run', 'sample', 'nUMIs', 'cycle_diff']
+    fig.suptitle(f'PC{i}, scaled layer, original representation')
+    fig.tight_layout()
+
+    return fig
+
+
+##
+
+
+def plot_embeddings(df):
+    """
+    Plot QC covariates in the UMAP embeddings obtained from original or original/integrated data.
+    """
+    # Fig
+    covariates = ['nUMIs', 'cycle_diff', 'seq_run', 'sample']
     fig, axs = plt.subplots(1, len(covariates), figsize=(4.5*len(covariates), 5))
     for i, c in enumerate(covariates):
         if c == 'nUMIs' or c == 'cycle_diff':
             draw_embeddings(df, cont=c, ax=axs[i])
         else:
-            draw_embeddings(df, cat=c, ax=axs[i])
+            kwargs = {'bbox_to_anchor':(1,1), 'loc':'upper left'} if c == 'sample' else {}
+            draw_embeddings(df, cat=c, ax=axs[i], legend_kwargs=kwargs)
     # Fig
-    fig.tight_layout()
+    plt.subplots_adjust(right=.8, bottom=.2, top=.8, left=.05)
 
     return fig
 
@@ -545,19 +605,12 @@ def _prep_paga_umap(adata, clustering_solutions, sol=None, rep='original', color
     """
     a = adata.copy()
     a.obs[sol] = clustering_solutions[sol]
-
-    layer = list(a.obsm.keys())[0].split('|')[0] 
-    rep = list(a.obsm.keys())[0].split('|')[1] 
-    k = int(sol.split('_')[0])
-    n_components = int(sol.split('_')[2])
     
     a_new, df = embeddings(
         a, 
         paga_groups=sol,
-        layer=layer, 
-        rep=rep, 
-        k=k, 
-        n_components=n_components, 
+        red_key='X_reduced',
+        nn_key='NN',
         with_adata=True
     )
 
@@ -586,6 +639,8 @@ def top_3_paga_umap(adata, clustering_solutions, top_sol, s=13, color_fun=None, 
         scatter(df, 'UMAP1', 'UMAP2', by=sol, c=colors[sol], ax=axs[1,i])
         add_labels_on_loc(df, 'UMAP1', 'UMAP2', sol, ax=axs[1,i], s=s)
         axs[1,i].axis('off')
+    
+    fig.tight_layout()
     
     return fig
 
@@ -673,6 +728,8 @@ def top_3_ji_cells(markers, sol, title_size=10, figsize=(16, 10)):
     ji_markers_one_couple(markers, sol.columns[0], sol.columns[1], ax=axs[1, 0])
     ji_markers_one_couple(markers, sol.columns[0], sol.columns[2], ax=axs[1, 1])
     ji_markers_one_couple(markers, sol.columns[1], sol.columns[2], ax=axs[1, 2])
+
+    fig.tight_layout()
         
     return fig
 
@@ -749,5 +806,167 @@ def top_3_dot_plots(adata, markers, top_3, figsize=(11, 8)):
     dot_plot(adata, markers, top_3[0], n=3, ax=axs[0], size=8, legend=True)
     dot_plot(adata, markers, top_3[1], n=3, ax=axs[1], size=8, legend=True)
     dot_plot(adata, markers, top_3[2], n=3, ax=axs[2], size=8, legend=True)
+
+    fig.tight_layout()
+
+    return fig
+
+
+##
+
+
+def ORA_transition_plot(adata, s, organism='human', n=25, title=None, figsize=(11,5)):
+    """
+    Plot ORA results and goodness of fit results on the genes statistically associated with 
+    an scFates transition, among two milestones.
+    """
+    # Prep data
+    gs_transition = Gene_set(s.to_frame('gof'), adata.var.loc[s.index], organism=organism)
+    gs_transition.compute_ORA()
+
+    # Visualization
+    fig, axs = plt.subplots(1,2,figsize=figsize)
+    stem_plot(
+        gs_transition.ORA['Default_ORA'].head(n),
+        'Adjusted P-value', 
+        ax=axs[0]
+    )
+    format_ax(axs[0], title='ORA', xlabel='Adjusted P-value')
+    stem_plot(s.to_frame('gof').head(n), 'gof', ax=axs[1])
+    format_ax(axs[1], title='Goodnes of fit', xlabel='A')
+    fig.suptitle(title)
+    fig.tight_layout()
+
+    return fig
+        
+
+##
+
+
+def dpt_feature_plot(adata, x, ax=None):
+    """
+    Plot ORA results and goodness of fit results on the genes statistically associated with 
+    an scFates transition, among two milestones.
+    """
+    # Ax for each segment
+    colors = create_palette(adata.obs, 'seg', sc.pl.palettes.vega_10)
+    for c, s in zip(colors.values(), adata.obs['seg'].cat.categories):
+        idx = adata.obs['seg'] == s
+        ax.plot(
+            adata.obs['t'][idx], 
+            adata[idx,x].layers['fitted'].flatten(), 
+            '.',
+            c=c
+        )
+    ax.text(0.05, 0.91, f'A: {adata.var.loc[x,"A"]:.2f}', transform=ax.transAxes, fontsize=6)
+    ax.text(0.05, 0.86, f'FDR: {adata.var.loc[x,"fdr"]:.2e}', transform=ax.transAxes, fontsize=6)
+    add_legend(ax=ax, label='Segment', colors=colors, ncols=1,
+        bbox_to_anchor=(1,1), loc='upper right', label_size=8, artists_size=6, ticks_size=6
+    )
+    format_ax(ax, title=x, xlabel='DPT', ylabel='Expression')
+
+    return ax
+
+
+##
+
+
+def milestones_groups_relationship(adata, figsize=(10,6)):
+    """
+    Plot expression levels of genes, categorized by gene groups associated with DPT,
+    by DPT trajectory milestones.
+    """
+    # Prep data
+    df = pd.DataFrame(
+        adata.X.A, 
+        columns=adata.var_names,
+        index=adata.obs_names).assign(
+        milestones=adata.obs['milestones']
+        ).melt(
+            var_name='gene', value_name='expression', id_vars='milestones'
+        ).set_index('gene').join(
+            adata.var.loc[:, ['group']]
+        ).reset_index(
+    )
+
+    # Figure
+    fig = plt.figure(figsize=figsize)
+    for i, x in enumerate(df['group'].unique()):
+        ax = plt.subplot(2,3,i+1)
+        box(df.query('group == @x'), x='milestones', y='expression', ax=ax, c='grey')
+        format_ax(ax, title=f'Group {x}', xlabel='Milestones', ylabel='Expression')
+    fig.tight_layout()
+
+    return fig
+
+
+##
+
+
+def expression_path(adata):
+    """
+    Plot expression paths, of the genes significatly associated with DPT.
+    """
+    # Prep data
+    cell_order = np.argsort(adata.obs['t'])
+    cell_order = adata.obs_names[cell_order]
+
+    fitted = pd.DataFrame(
+        adata.layers['fitted'], 
+        index=adata.obs_names, 
+        columns=adata.var_names
+    ).T
+
+    fitted = fitted.apply(lambda x: (x - x.min()) / (x.max() - x.min()), axis=1)
+    feature_order = (
+        fitted.apply(
+            lambda x: adata.obs['t'][
+                x > np.quantile(x, q=0.8)
+            ].mean(),
+            axis=1,
+        )
+        .sort_values()
+        .index
+    )
+    
+    # Fig
+    fig, ax = plt.subplots()
+    plot_heatmap(
+        fitted.loc[feature_order, cell_order], 
+        x_names=False, 
+        y_names=False, 
+        ax=ax
+    )
+    format_ax(ax, title='Expression path', 
+        xlabel=r'Cells, ordered by DPT $\longrightarrow$', ylabel='Genes')
+    
+    fig.tight_layout()
+
+    return fig
+
+
+##
+
+
+def mean_variance_plot(adata, recipe='standard', figsize=(5,4.5)):
+    """
+    Plot gene-wise mean variance trned, after log-normalization.
+    """
+    # Prep df
+    df = pd.DataFrame({
+        'mean': adata.var['mean'],
+        'var': adata.var['var'] if recipe != 'sct' else adata.var['residual_variances'], 
+        'HVG': np.where(adata.var['highly_variable_features'], 'HVG', 'Non-HVG')
+    })
+
+    # Fig
+    fig, ax = plt.subplots(figsize=figsize)
+    ylabel = 'var' if recipe != 'sct' else 'residual variance'
+    scatter(df.query('HVG == "Non-HVG"'), x='mean', y='var', c='black', ax=ax, s=1)
+    scatter(df.query('HVG == "HVG"'), x='mean', y='var', c='red', ax=ax, s=2)
+    format_ax(ax, title='Mean-variance trend', xlabel='mean', ylabel=ylabel)
+    add_legend(label='HVG status', colors={'HVG':'red', 'Non-HVG':'black'}, ax=ax, 
+        loc='upper right', bbox_to_anchor=(.95,.95), ncols=1, artists_size=8, label_size=10, ticks_size=7)
+    fig.tight_layout()
 
     return fig

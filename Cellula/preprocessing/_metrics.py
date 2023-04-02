@@ -71,7 +71,7 @@ def kbet_one_chunk(index, batch, null_dist):
 ##
 
 
-def kbet(index, batch, alpha=0.05, only_score=True):
+def kbet(index, batch, alpha=0.05, only_score=True, ncores=4):
     """
     Computes the kBET metric to assess batch effects for an index matrix of a KNN graph.
 
@@ -85,6 +85,8 @@ def kbet(index, batch, alpha=0.05, only_score=True):
         The significance level of the test.
     only_score : bool, optional (default : True)
         Whether to return only the accept rate or the full kBET results.
+    ncores : int, optional (default :4)
+        N of cores to use.
 
     Returns
     -------
@@ -103,17 +105,16 @@ def kbet(index, batch, alpha=0.05, only_score=True):
 
     # Parallel computation of kBET metric (pegasus code)
     starting_idx = chunker(len(batch))
-    n_jobs = cpu_count()
 
     with parallel_backend("loky", inner_max_num_threads=1):
         kBET_arr = np.concatenate(
-            Parallel(n_jobs=n_jobs)(
+            Parallel(n_jobs=ncores)(
                 delayed(kbet_one_chunk)(
                     index[starting_idx[i] : starting_idx[i + 1], :], 
                     batch, 
                     null_dist
                 )
-                for i in range(n_jobs)
+                for i in range(ncores)
             )
         )
         

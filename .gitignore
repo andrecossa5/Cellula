@@ -140,4 +140,5 @@ dmypy.json
 # Cellula-nf
 ./Cellula-nf/.nextflow
 ./Cellula-nf/work
+./trace*
 

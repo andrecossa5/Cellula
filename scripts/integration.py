@@ -74,6 +74,16 @@ my_parser.add_argument(
 
 # Parse arguments
 args = my_parser.parse_args()
+
+
+# path_main = '/Users/IEO5505/Desktop/cellula_example/'
+# version = 'default'
+# categorical = 'sample'
+# continuous = ['nUMIs']
+# methods = ['Harmony', 'Scanorama']
+
+
+
 path_main = args.path_main
 version = args.version
 categorical = args.categorical  
@@ -139,12 +149,9 @@ def Integration():
     # Parse integration options, and run each integration task
     jobs = parse_integration_options(adata, methods=methods)
     for j in jobs:
-        t.start()
         func = jobs[j][0]
         kwargs = jobs[j][1]
-        logger.info(f'Begin the job {j}') 
         adata = run_command(func, adata, **kwargs)
-        logger.info(f'End of job {j}: {t.stop()} s.') 
 
     # Save results
     t.start()
@@ -163,3 +170,4 @@ if __name__ == "__main__":
     Integration()
 
 #######################################################################
+

@@ -2,7 +2,6 @@
 _integration.py: integration utils. 
 """
 
-
 import pandas as pd 
 import numpy as np 
 import scanpy 
@@ -21,7 +20,7 @@ from Cellula.preprocessing._neighbors import *
 ##
 
 
-def compute_Scanorama(adata, layer='lognorm', categorical='sample', **kwargs):
+def compute_Scanorama(adata, layer='scaled', categorical='sample', **kwargs):
     """
     Compute Scanorama latent space and KNN graph for the given AnnData object and layer.
 
@@ -66,7 +65,7 @@ def compute_Scanorama(adata, layer='lognorm', categorical='sample', **kwargs):
 ##
 
 
-def compute_Harmony(adata, layer='lognorm', categorical='sample', **kwargs):
+def compute_Harmony(adata, layer='scaled', categorical='sample', **kwargs):
     """
     Compute Harmony latent space ( it corrects the original PCA ) and k-nearest neighbor graph 
     for `adata`.
@@ -182,7 +181,7 @@ def compute_scVI(adata, categorical='seq_run', layer='raw', continuous=['mito_pe
 ##
 
 
-def compute_BBKNN(adata, layer='lognorm', categorical='seq_run', k=15, trim=None,  **kwargs):
+def compute_BBKNN(adata, layer='scaled', categorical='seq_run', k=15, trim=None,  **kwargs):
     """
     Compute the BBKNN graph for the input AnnData object.
 
@@ -346,8 +345,16 @@ def parse_integration_options(
 
     # Produce options
     integration_d = {}
-    jobs = list(product(methods, adata.layers))
-    jobs = [ j for j in jobs if not ((j[0] == 'scVI') and (j[1] != 'raw')) ]
+    jobs = list(product(
+        methods, 
+        [ x for x in adata.layers if x in ['sct', 'scaled', 'regressed'] ]
+    ))
+    # Add scVI if needed
+    if 'scVI' in methods:
+        assert 'raw' in adata.layers
+        jobs.append(('scVI', 'raw'))
+
+    # Produce args and kwargs
     for j in jobs:
         method = j[0]
         layer = j[1]
@@ -360,4 +367,3 @@ def parse_integration_options(
         integration_d[analysis] = [ functions_int[method], kwargs ]
 
     return integration_d
-

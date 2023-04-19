@@ -56,6 +56,16 @@ my_parser.add_argument(
 
 # Parse arguments
 args = my_parser.parse_args()
+
+
+# path_main = '/Users/IEO5505/Desktop/cellula_example/'
+# version = 'default'
+# recipe = 'standard'
+# n_HVGs = 2000
+# cc_covariate = 'cycle_diff'
+# organism = 'human'
+
+
 path_main = args.path_main
 version = args.version
 categorical = args.categorical 

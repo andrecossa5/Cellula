@@ -7,20 +7,23 @@ import pandas as pd
 import numpy as np 
 import scanpy as sc 
 import pegasus as pg
-from sklearn.decomposition import PCA 
+import fbpca
+from anndata import AnnData
 from pegasus.tools import predefined_signatures, load_signatures_from_file 
 from scipy.sparse import issparse
 from sklearn.cluster import KMeans  
 from dadapy.data import Data
+from joblib import parallel_backend, Parallel, delayed
 
 from ..dist_features._signatures import scanpy_score, wot_zscore, wot_rank
 from .._utils import *
+from ..plotting._plotting import *
 
 
 ##
 
 
-def _sig_scores(adata, score_method='scanpy', organism='human'):
+def sig_scores(adata, layer=None, score_method='scanpy', organism='human'):
     """
     Calculate pegasus scores for cell cycle, ribosomal and apoptotic genes.
     """
@@ -32,12 +35,19 @@ def _sig_scores(adata, score_method='scanpy', organism='human'):
     signatures = {**cc_transitions, **ribo, **apoptosis}
 
     # Calculate scores
+    if layer is None:
+        a = adata.copy()
+    else:
+        if layer in adata.layers:
+            a = AnnData(X=adata.layers[layer], obs=adata.obs, var=adata.var)
+        else:
+            raise ValueError(f'{layer} not present... Check inputs!')
     if score_method == 'scanpy':
-        scores = pd.concat([ scanpy_score(adata, x, n_bins=50) for x in signatures.values() ], axis=1)
+        scores = pd.concat([ scanpy_score(a, x, n_bins=50) for x in signatures.values() ], axis=1)
     elif score_method == 'wot_zscore':
-        scores = pd.concat([ wot_zscore(adata, x) for x in signatures.values() ], axis=1)
+        scores = pd.concat([ wot_zscore(a, x) for x in signatures.values() ], axis=1)
     elif score_method == 'wot_rank':
-        scores = pd.concat([ wot_rank(adata, x) for x in signatures.values() ], axis=1)
+        scores = pd.concat([ wot_rank(a, x) for x in signatures.values() ], axis=1)
 
     scores.columns = signatures.keys()
     scores['cycle_diff'] = scores['G2/M'] - scores['G1/S']
@@ -111,138 +121,7 @@ def remove_cc_genes(adata, organism='human', corr_threshold=0.1):
 ##
 
 
-def pp(adata, mode='scanpy', target_sum=50*1e4, n_HVGs=2000, score_method='scanpy', 
-    organism='human', no_cc=False, percent_cells=0.05):
-    """
-    Preprocesses the AnnData object adata using either the scanpy or the sct method for normalization
-    and highly variable genes (HVGs) selection. Moreover, it calculates QC and cell cycle related signature scores.
-
-    Parameters:
-    ----------
-    adata: AnnData object
-        Annotated data matrix.
-    mode: str, default 'scanpy'
-        Mode for size normalization and HVGs selection. It can be either 'scanpy' or 'sct'. 
-        If 'scanpy', performs size normalization using scanpy's normalize_total() function and selects HVGs 
-        using pegasus' highly_variable_features() function. If 'sct', it selects HVGs 
-        (sc.experimental.pp.highly_variable_genes() function) and normalize expression values 
-        (experimental.pp.normalize_pearson_residuals() function) following the Pearson residuals workflow 
-        from Lause et al., 2021. 
-    target_sum: float, default 50*1e4
-        The target total count after size normalization.
-    n_HVGs: int, default 2000
-        The number of HVGs to select.
-    score_method: str, default 'scanpy'
-        The method to calculate signature scores. It can be either 'scanpy' or 'cell_cycle' (only for human data).
-        If 'scanpy', calculates scores using scanpy's scoring.gex_scanpy() function. If 'cell_cycle', 
-        calculates scores using the 'cell_cycle' gene set from msigdb.
-    organism: str, default 'human'
-        Options: 'human' and 'mouse'. 
-    no_cc: bool, default False
-        Whether to remove cc-correlated genes from HVGs.
-    percent_cells: float, default 0.05
-        Minimum % of cells to express a gene to retain it in the full expression matrix.
-
-    Returns:
-    -------
-    adata: AnnData object
-        The preprocessed data matrix. 
-    """
-    
-    # Logging
-    t = Timer()
-    t.start()
-    logger = logging.getLogger("Cellula_logs") 
-    logger.info('Robust gene filtering, log-normalization and HVGs selection...')
-
-    # Robust genes
-    pg.identify_robust_genes(adata, percent_cells=percent_cells) 
-    adata = adata[:, adata.var['robust']]
-
-    # HVGs detection and normalization
-    if mode == 'scanpy': 
-
-        sc.pp.normalize_total(
-            adata, 
-            target_sum=target_sum,
-            exclude_highly_expressed=True,
-            max_fraction=0.2
-        )
-        sc.pp.log1p(adata)
-        pg.highly_variable_features(adata, batch='sample', n_top=n_HVGs)
-
-        if no_cc:
-            remove_cc_genes(adata, organism=organism, corr_threshold=0.1)
-
-    elif mode == 'sct':
-
-        sc.experimental.pp.highly_variable_genes(
-            adata, flavor="pearson_residuals", n_top_genes=n_HVGs
-        )
-        adata.var = adata.var.drop(columns=['highly_variable_features'])
-        adata.var['highly_variable_features'] = adata.var['highly_variable']
-        adata.var = adata.var.drop(columns=['highly_variable'])
-        adata.var = adata.var.rename(columns={'means':'mean', 'variances':'var'})
-
-        if no_cc:
-            remove_cc_genes(adata, organism=organism, corr_threshold=0.1)
-
-        sc.pp.normalize_total(
-            adata, 
-            target_sum=target_sum,
-            exclude_highly_expressed=True,
-            max_fraction=0.2
-        )
-        sc.pp.log1p(adata)
-
-    logger.info(f'Finished robust gene filtering, log-normalization and HVGs selection: {t.stop()} s.')
-   
-    # Calculate signature scores, if necessary
-    if not any([ 'cycling' == x for x in adata.obs.columns ]):
-        scores = _sig_scores(adata, score_method=score_method, organism=organism)
-        adata.obs = adata.obs.join(scores)
-
-    return adata 
-
-
-##
-
-
-class my_PCA:
-    """
-    A class to store the results of a sklearn PCA (i.e., embeddings, loadings and 
-    explained variance ratios).
-    """
-    def __init__(self):
-        self.n_pcs = None
-        self.embs = None
-        self.loads = None
-        self.var_ratios = None
-
-    def calculate_PCA(self, M, n_components=50):
-        '''
-        Perform PCA decomposition of some input obs x genes matrix.
-        '''
-        self.n_pcs = n_components
-        # Convert to dense np.array if necessary)
-        if isinstance(M, np.ndarray) == False:
-            M = M.toarray()
-
-        # Perform PCA
-        model = PCA(n_components=n_components, random_state=1234)
-        # Store results accordingly
-        self.embs = np.round(model.fit_transform(M), 2) # Round for reproducibility
-        self.loads = model.components_.T
-        self.var_ratios = model.explained_variance_ratio_
-        self.cum_sum_eigenvalues = np.cumsum(self.var_ratios)
-
-        return self
-
-
-##
-
-
-def red(adata, normalization_method='scanpy'):
+def red(adata):
     """
     Reduce the input AnnData object to highly variable features and store the resulting expression matrices.
 
@@ -251,9 +130,6 @@ def red(adata, normalization_method='scanpy'):
     adata : AnnData
         Annotated data matrix with n_obs x n_vars shape. Should contain a variable 'highly_variable_features'
         that indicates which features are considered to be highly variable.
-    normalization_method : str, default 'scanpy'
-        Normalization method to use. Options: scanpy, sct.
-
     Returns
     -------
     adata : AnnData
@@ -270,12 +146,6 @@ def red(adata, normalization_method='scanpy'):
     else:
         sys.exit('Provide either an AnnData object with a raw layer or .raw slot!')
     adata.layers['lognorm'] = adata.X
-
-    if normalization_method == 'sct':
-        adata.X = adata.layers['raw'] # Put it back into .X slot for sct normalization
-        sc.experimental.pp.normalize_pearson_residuals(adata)
-        adata.layers['sct'] = adata.X
-        adata.X = adata.layers['lognorm'] # Put it back
 
     return adata
 
@@ -299,8 +169,13 @@ def scale(adata):
         the expression matrix that has been scaled to unit variance and zero mean.
 
     """
-    adata_mock = sc.pp.scale(adata, copy=True)
+    if 'lognorm' not in adata.layers:
+        raise ValueError('The regress function needs to be called on a log-normalized AnnData. Check your input.')
+    
+    adata_mock = AnnData(X=adata.layers['lognorm'], obs=adata.obs, var=adata.var)
+    sc.pp.scale(adata_mock)
     adata.layers['scaled'] = adata_mock.X
+
     return adata
 
 
@@ -325,37 +200,13 @@ def regress(adata, covariates=['mito_perc', 'nUMIs']):
         the expression matrix with covariates regressed out.
 
     """
-    adata_mock = sc.pp.regress_out(adata, covariates, n_jobs=8, copy=True)
+    if 'scaled' not in adata.layers:
+        raise ValueError('The regress function needs to be called on a scaled AnnData. Check your input.')
+    
+    adata_mock = AnnData(X=adata.layers['scaled'], obs=adata.obs, var=adata.var)
+    sc.pp.regress_out(adata_mock, covariates, n_jobs=8)
+    sc.pp.scale(adata_mock) # Re-scale again
     adata.layers['regressed'] = adata_mock.X
-    return adata
-
-
-##
-
-
-def regress_and_scale(adata):
-    """
-    Regress out covariates from the input AnnData object and scale the resulting expression matrix.
-
-    Parameters
-    ----------
-    adata : AnnData
-        Annotated data matrix with n_obs x n_vars shape. Should contain a layer called 'regressed'
-        that stores the expression matrix with covariates regressed out.
-
-    Returns
-    -------
-    adata : AnnData
-        Annotated data matrix with n_obs x n_vars shape. Adds a new layer called 'regressed_and_scaled'
-        that stores the expression matrix with covariates regressed out and then scaled.
-
-    """
-    if 'regressed' not in adata.layers:
-        raise KeyError('Regress out covariates first!')
-    adata_mock= adata.copy()
-    adata_mock.X = adata_mock.layers['regressed']
-    adata_mock = scale(adata_mock)
-    adata.layers['regressed_and_scaled'] = adata_mock.layers['scaled']
 
     return adata
 
@@ -363,9 +214,10 @@ def regress_and_scale(adata):
 ##
 
 
-def pca(adata, n_pcs=50, layer='scaled', auto=False):
+def pca(adata, n_pcs=50, layer='scaled', auto=True, 
+    return_adata=False, biplot=False, path_viz=None, organism='human', colors=None):
     """
-    Performs Principal Component Analysis (PCA) on the data stored in a scanpy AnnData object.
+    Performs Principal Component Analysis (PCA) on some AnnData layer.
 
     Parameters
     ----------
@@ -376,21 +228,27 @@ def pca(adata, n_pcs=50, layer='scaled', auto=False):
     layer : str, optional (default: 'scaled')
         The name of the layer in `adata` where the data to be analyzed is stored. 
         Defaults to the 'scaled' layer. Raises a KeyError if the specified layer is not present.
-    auto : bool, optional (default: False)
+    auto : bool, optional (default: True)
         Automatic selection of the optimal number of PCs with the dadapy 
         intrinsic dimension method, Glielmo et al., 2022.
+    return_adata : bool, optional (default: False)
+        Wheter to return updated AnnData or a dictionary of outputs.
+    biplot : bool, optional (default: False)
+        Wheter to create a folder of biplots and GSEA functional annotations.
+    path_viz : str, optional (default: None)
+        Path to write the annotation folder to.
+    organism : str, optional (default: 'human')
+        Organism.
+    colors : dict, optional (default: None)
+        Colors for biplots.
+
     Returns
     -------
-    adata : AnnData
-        The original AnnData object with the calculated PCA embeddings and other information stored in its `obsm`, `varm`,
-        and `uns` fields.
+    Either a modified AnnData or a dictionary.
     """
 
-    # Logging
-    logger = logging.getLogger('Cellula_logs')
-
     if layer in adata.layers: 
-        X = adata.layers[layer]
+        X = adata.layers[layer].copy()
         key = f'{layer}|original'
     else:
         raise KeyError(f'Selected layer {layer} is not present. Compute it first!')
@@ -401,29 +259,89 @@ def pca(adata, n_pcs=50, layer='scaled', auto=False):
         X[np.isnan(X)] = 0 # np.nans removal
     else:
         X[np.isnan(X)] = 0
-    
-    model = my_PCA()
-    model.calculate_PCA(X, n_components=n_pcs)
 
-    # Select the n of PCs to retain
+    np.random.seed(1234)
+    X_pca, sv, loads = fbpca.pca(X, k=n_pcs, raw=True)
+    loads = loads.T
+    sqvars = sv**2
+    var_ratios = sqvars / np.sum(sqvars)
+    cum_sum_eigenvalues = np.cumsum(var_ratios)
+
+    # Select the n of PCs to retain in the output embeddings
     if auto:
-        X_pca = model.embs
         data = Data(X_pca)
         data.compute_distances(maxk=15)
         np.random.seed(1234)
         n_pcs, a, b = data.compute_id_2NN()
-        logger.info(f'{round(n_pcs)} PCs retained, after dadapy intrinsic dimensions estimation.')
         X_pca = X_pca[:,:round(n_pcs)]
-    else:
-        X_pca = model.embs
+    
+    if biplot:
+        make_folder(path_viz, layer)
+        for cov in ['seq_run', 'sample', 'nUMIs', 'cycle_diff']:
+            fig = plot_biplot_PCs(adata, X_pca, covariate=cov, colors=colors)
+            fig.savefig(path_viz + f'{layer}/PCs_{cov}.png')
+        # Inspection of top genes loadings
+        df = pd.DataFrame(
+            loads[:,:5],
+            index=adata.var_names,
+            columns=[ f'PC{i+1}' for i in range(5) ]
+        )
+        for i in range(1,6):
+            fig = PCA_gsea_loadings_plot(df, adata.var, organism=organism, i=i)
+            fig.savefig(path_viz + f'{layer}/PC{i}_loadings.png')
 
-    # Save 
-    adata.obsm[key + '|X_pca'] = X_pca
-    adata.varm[key + '|pca_loadings'] = model.loads
-    adata.uns[key + '|PCA'] = {
-        'var_ratios' : model.var_ratios,
-        'cum_sum_eigenvalues' : model.cum_sum_eigenvalues,
-        'n_pcs' : round(n_pcs)
-    }
+    # Return
+    if return_adata:
+        
+        adata.obsm[key + '|X_pca'] = X_pca
+        adata.varm[key + '|pca_loadings']  = loads
+        adata.uns[key + '|PCA'] = {
+            'var_ratios' : var_ratios,
+            'cum_sum_eigenvalues' : cum_sum_eigenvalues,
+            'n_pcs' : round(n_pcs)
+        }
+        
+        return adata
+    
+    else:
+
+        d = {}
+        d['key_to_add'] = key
+        d['X_pca'] = X_pca
+        d['pca_loadings'] = loads
+        d['PCA'] = {
+            'var_ratios' : var_ratios,
+            'cum_sum_eigenvalues' : cum_sum_eigenvalues,
+            'n_pcs' : round(n_pcs)
+        }
+    
+        return d
+
+
+##
+
+
+def compute_pca_all(adata, **kwargs):
+    """
+    Apply pca() in parallel to all the processed layers.
+    """
+
+    # Parallel PCA on all processed layers
+    processed_layers = [ l for l in adata.layers if l in ['scaled', 'regressed', 'sct'] ]
+
+    with parallel_backend("loky"):
+        results = Parallel(n_jobs=cpu_count())(
+            delayed(pca)(adata, n_pcs=50, layer=layer, **kwargs)
+            for layer in processed_layers
+        ) 
+
+    # Put back in adata
+    for x in results:
+        key = x['key_to_add']
+        adata.obsm[key + '|X_pca'] = x['X_pca']
+        adata.varm[key + '|pca_loadings'] = x['pca_loadings']
+        adata.uns[key + '|PCA'] = x['PCA']
+    
+    del results
 
     return adata

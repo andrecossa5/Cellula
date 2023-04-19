@@ -241,12 +241,11 @@ def explained_variance_plot(adata, figsize=(10,7)):
 ##
 
 
-def plot_biplot_PCs(adata, layer=None, covariate='sample', colors=None):
+def plot_biplot_PCs(adata, embs, covariate='sample', colors=None):
     """
     Plot a biplot of the first 5 PCs, colored by a cell attribute.
     """
     # Data
-    embs = get_representation(adata, layer=layer, method='original')
     df_ = pd.DataFrame(
         data=embs[:,:5], 
         columns=[f'PC{i}' for i in range(1,6)],
@@ -948,6 +947,33 @@ def expression_path(adata):
     format_ax(ax, title='Expression path', 
         xlabel=r'Cells, ordered by DPT $\longrightarrow$', ylabel='Genes')
     
+    fig.tight_layout()
+
+    return fig
+
+
+##
+
+
+def mean_variance_plot(adata, recipe='standard', figsize=(5,4.5)):
+    """
+    Plot gene-wise mean variance trned, after log-normalization.
+    """
+    # Prep df
+    df = pd.DataFrame({
+        'mean': adata.var['mean'],
+        'var': adata.var['var'] if recipe != 'sct' else adata.var['residual_variances'], 
+        'HVG': np.where(adata.var['highly_variable_features'], 'HVG', 'Non-HVG')
+    })
+
+    # Fig
+    fig, ax = plt.subplots(figsize=figsize)
+    ylabel = 'var' if recipe != 'sct' else 'residual variance'
+    scatter(df.query('HVG == "Non-HVG"'), x='mean', y='var', c='black', ax=ax, s=1)
+    scatter(df.query('HVG == "HVG"'), x='mean', y='var', c='red', ax=ax, s=2)
+    format_ax(ax, title='Mean-variance trend', xlabel='mean', ylabel=ylabel)
+    add_legend(label='HVG status', colors={'HVG':'red', 'Non-HVG':'black'}, ax=ax, 
+        loc='upper right', bbox_to_anchor=(.95,.95), ncols=1, artists_size=8, label_size=10, ticks_size=7)
     fig.tight_layout()
 
     return fig

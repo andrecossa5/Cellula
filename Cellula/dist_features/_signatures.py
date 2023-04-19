@@ -281,15 +281,15 @@ def format_curated(path_main):
     Each .txt file must have 2 comlumns (the second one with Hugo Gene symbols).
     """
     curated = {}
-    for x in os.listdir(path_main + 'data/curated_signatures/'):
+    for x in os.listdir(path_main + '/data/curated_signatures/'):
         name = x.split('.')[0]
         if x != '.DS_Store':
             try:
-               genes = pd.read_csv(path_main + f'data/curated_signatures/{x}', sep='\t', index_col=0).iloc[:, 0].to_list()
+               genes = pd.read_csv(path_main + f'/data/curated_signatures/{x}', sep='\t').iloc[:, 0].to_list()
                curated[name] = genes
             except:
                try:
-                   genes = pd.read_csv(path_main + f'data/curated_signatures/{x}', sep=',', index_col=0).iloc[:, 0].to_list()
+                   genes = pd.read_csv(path_main + f'/data/curated_signatures/{x}', sep=',').iloc[:, 0].to_list()
                    curated[name] = genes
                except:
                  sys.exit("Error: the following .txt file is not correctly formatted with 'tab' or ',' separators " + path_main + f'data/curated_signatures/{x}')

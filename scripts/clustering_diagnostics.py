@@ -230,7 +230,7 @@ def clustering_diagnostics():
 
         # Calculate metrics (NB. all intrinsic metrics. No ground truth needed.)
         t.start()
-        logger.info('Begin calculation of clusters separation and purity metrics...')
+        logger.info('Bgin calculation of clusters separation and purity metrics...')
 
         C = Clust_evaluator(adata, clustering_solutions, kNN_graphs, metrics='all')
         C.parse_options()
@@ -250,7 +250,7 @@ def clustering_diagnostics():
         fig = C.viz_results(df, df_summary, df_rankings)
         fig.savefig(path_viz + 'clustering_solutions_rankings.png')
 
-        # CLuster separation trends
+        # Cluster separation trends
         df = df.assign(
             NN = df['run'].map(lambda x: int(x.split('_')[0])),
             resolution = df['run'].map(lambda x: float(x.split('_')[2]))
@@ -275,8 +275,8 @@ def clustering_diagnostics():
         logger.info('Diagnostics 3: Top clustering solutions relationships.')
 
         # Load markers
-        if os.path.exists(path_main + f'results_and_plots/dist_features/{version}/clusters_markers.pickle'):
-            with open(path_main + f'results_and_plots/dist_features/{version}/clusters_markers.pickle', mode='rb') as f:
+        if os.path.exists(os.path.join(path_main, f'results_and_plots/dist_features/{version}/clusters_markers.pickle')):
+            with open(os.path.join(path_main, f'results_and_plots/dist_features/{version}/clusters_markers.pickle'), mode='rb') as f:
                 markers = pickle.load(f)
         else:
             sys.exit('Compute markers first!')

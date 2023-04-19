@@ -43,9 +43,12 @@ def create_colors(meta, chosen=None):
     }
     
     # Add cluster colors, if needed
+    n = len(meta[chosen].cat.categories)
     if chosen is not None:
-        c = sc.pl.palettes.default_20[:len(meta[chosen].cat.categories)]
+        if n <= 20:
+            c = sc.pl.palettes.default_20[:n]
+        else:
+            c = sc.pl.palettes.default_102[:n]
         colors[chosen] = { cluster : color for cluster, color in zip(meta[chosen].cat.categories, c)}
 
     return colors
-

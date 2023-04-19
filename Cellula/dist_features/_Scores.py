@@ -125,7 +125,6 @@ class Scores():
         """
         Compute Hotspot modules.
         """
-        self.matrix.layers['raw'] = csc_matrix(self.matrix.raw[:, self.matrix.var_names].X)
         
         if only_HVGs:
             self.matrix = self.matrix[:, self.matrix.var_names[self.matrix.var['highly_variable_features']]]

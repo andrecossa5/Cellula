@@ -108,18 +108,19 @@ class Dist_features:
 
         # PCs
         from ..preprocessing._pp import pca, red, scale
-        reduced = pca(scale(red(adata)))
-        embs = reduced.obsm['scaled|original|X_pca']
-        loadings = reduced.varm['scaled|original|pca_loadings']
+        reduced = scale(red(adata))
+        d_ = pca(reduced)
+        embs = d_['X_pca']
+        loadings = d_['pca_loadings']
         PCs = pd.DataFrame(
             data=embs,
             columns=[ f'PC{x}' for x in range(1, embs.shape[1]+1)], 
             index=adata.obs_names
         )
         loadings = pd.DataFrame(
-            data=loadings, 
+            data=loadings[:,:PCs.shape[1]], 
             index=reduced.var_names,
-            columns=[ f'PC{x}' for x in range(1, embs.shape[1]+1) ]
+            columns=[ f'PC{x}' for x in range(1, PCs.shape[1]+1) ]
         )
         self.PCs = PCs 
 

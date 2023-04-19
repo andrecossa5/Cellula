@@ -639,12 +639,13 @@ def top_3_paga_umap(adata, clustering_solutions, top_sol, s=13, color_fun=None, 
     """
 
     # Fig
-    fig, axs = plt.subplots(2,3,figsize=figsize)
+    fig, axs = plt.subplots(2,3,figsize=figsize) 
     
     # Axes
     for i, sol in enumerate(top_sol):
         a_new, df, colors = _prep_paga_umap(adata, clustering_solutions, sol=sol, color_fun=color_fun)
         sc.pl.paga(a_new, frameon=False, show=False, ax=axs[0,i], title=sol)
+        print(sol)
         scatter(df, 'UMAP1', 'UMAP2', by=sol, c=colors[sol], ax=axs[1,i])
         add_labels_on_loc(df, 'UMAP1', 'UMAP2', sol, ax=axs[1,i], s=s)
         axs[1,i].axis('off')

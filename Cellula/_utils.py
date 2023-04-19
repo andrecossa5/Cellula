@@ -190,19 +190,19 @@ def get_representation(adata, layer='lognorm', method='original',
         if method == 'BBKNN':
             representation = adata.obsm[f'{layer}|original|X_pca']
             ndim = adata.uns[f'{layer}|original|PCA']['n_pcs']
-            logger.info(f'Using {embedding_type} embeddings (ndim={ndim}) associated to the {layer} layer and the {method} integration method...')
+            # logger.info(f'Using {embedding_type} embeddings (ndim={ndim}) associated to the {layer} layer and the {method} integration method...')
         elif method == 'original':
             representation = adata.obsm[f'{layer}|{method}|{embedding_type}']
             ndim = adata.uns[f'{layer}|original|PCA']['n_pcs']
-            logger.info(f'Using {embedding_type} embeddings (ndim={ndim}) associated to the {layer} layer and the {method} integration method...')
+            # logger.info(f'Using {embedding_type} embeddings (ndim={ndim}) associated to the {layer} layer and the {method} integration method...')
         elif method not in ['BBKNN', 'original']:
             representation = adata.obsm[f'{layer}|{method}|{embedding_type}']
             ndim_original = adata.uns[f'{layer}|original|PCA']['n_pcs']
             ndim_integrated = representation.shape[1]
             representation = representation[:,:ndim_original]
-            logger.info(f'Original embeddings associated to the {layer} layer have ndim={ndim_original}')
-            logger.info(f'Integrated (method={method}) embeddings associated to the {layer} layer have ndim={ndim_integrated}')
-            logger.info(f'Using subsetted {embedding_type} embeddings (ndim={ndim_original})')
+            # logger.info(f'Original embeddings associated to the {layer} layer have ndim={ndim_original}')
+            # logger.info(f'Integrated (method={method}) embeddings associated to the {layer} layer have ndim={ndim_integrated}')
+            # logger.info(f'Using subsetted {embedding_type} embeddings (ndim={ndim_original})')
         
     elif kNN:
         representation = (
@@ -213,13 +213,14 @@ def get_representation(adata, layer='lognorm', method='original',
         k = representation[0].shape[1]
 
         if not only_index and not only_conn:
-            logger.info(f'Using kNN (k={k}) graph associated to the {layer} layer and the {method} integration method...')
+            pass 
+            # logger.info(f'Using kNN (k={k}) graph associated to the {layer} layer and the {method} integration method...')
         elif only_index:
             representation = representation[0]
-            logger.info(f'Using kNN (k={k}) indeces associated to the {layer} layer and the {method} integration method...')
+            # logger.info(f'Using kNN (k={k}) indeces associated to the {layer} layer and the {method} integration method...')
         elif only_conn:
             representation = representation[2]
-            logger.info(f'Using kNN (k={k}) connectivities associated to the {layer} layer and the {method} integration method...')
+            # logger.info(f'Using kNN (k={k}) connectivities associated to the {layer} layer and the {method} integration method...')
             
     return representation
 

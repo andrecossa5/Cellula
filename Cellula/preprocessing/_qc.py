@@ -14,6 +14,8 @@ from random import seed, sample
 import scanpy as sc
 import matplotlib.pyplot as plt 
 from matplotlib.backends.backend_pdf import PdfPages 
+from joblib import parallel_backend, Parallel, delayed, cpu_count
+from itertools import chain
 
 from ..plotting._plotting_base import *
 from .._utils import *
@@ -57,45 +59,51 @@ def read_matrices(path, mode='filtered'):
     """
 
     # Logging 
-    T = Timer()
-    T.start()
+    t = Timer()
+    t.start()
     logger = logging.getLogger("Cellula_logs")  
 
-    matrices = [ s for s in os.listdir(path) if s != '.DS_Store' ]
-    logger.info(f'Start reading matrices (n={len(matrices)})...')
+    samples = [ s for s in os.listdir(path) if s != '.DS_Store' ]
+    logger.info(f'Read matrices (n={len(samples)})...')
 
-    adatas = {}
-    if mode == 'raw':
-        t = Timer()
-        for i, s in enumerate(matrices):
-            t.start()
-            logger.info(f'Reading matrix {s} ({i+1}/{len(matrices)})...')
-            a = sc.read_10x_mtx(path + f'/{s}/{mode}_gene_bc_matrix/')
-            cells = pd.read_csv(path + f'/{s}/summary_sheet_cells.csv', index_col=0)
-            cells = cells.loc[:, ['GBC']]
-            cells_to_retain = [ x for x in cells.index if x in a.obs_names ]
-            cells = cells.loc[cells_to_retain, :]
-            a = a[cells_to_retain, :].copy()
-            a.obs = a.obs.assign(GBC=cells['GBC'], sample=s)
-            a = adata_name_formatter(a)
-            adatas[s] = a
-            logger.info(f'Finished reading matrix {s}: {t.stop()}')
-    else:
-        t = Timer()
-        for i, s in enumerate(matrices):
-            t.start()
-            logger.info(f'Reading matrix {s} ({i+1}/{len(matrices)})...')
-            a = sc.read_10x_mtx(path + f'/{s}/{mode}_gene_bc_matrix/')
-            a.obs = a.obs.assign(sample=s)
-            a = adata_name_formatter(a)
-            adatas[s] = a
-            adatas[s] = a     
-            logger.info(f'Finished reading matrix {s}: {t.stop()}')
-
-    # Final I/O time
-    logger.info(f'Finished reading: {T.stop()}')
+    # Parallel 
+    with parallel_backend("loky"):
+        adatas = Parallel(n_jobs=cpu_count())(
+            delayed(read_matrix)(path, x, mode)
+            for x in samples
+        ) 
+    logger.info(f'Finished read matrices: {t.stop()}')
+    
+    # To dict and output
+    adatas = {  
+        adatas[i].obs['sample'].unique()[0] : \
+        adatas[i] for i in range(len(adatas)) 
+    }
 
     return adatas
+
+
+##
+
+
+def read_matrix(path, sample_name=None, mode='filtered'):
+    """
+    Read a single sample from its CellRanger/STARsolo folder.
+    """
+    a = sc.read_10x_mtx(path + f'/{sample_name}/filtered/')
+    if mode == 'raw':
+        cells = pd.read_csv(path + f'/{sample_name}/summary_sheet_cells.csv', index_col=0)
+        cells = cells.loc[:, ['GBC']]
+        cells_to_retain = [ x for x in cells.index if x in a.obs_names ]
+        cells = cells.loc[cells_to_retain, :]
+        a = a[cells_to_retain, :].copy()
+        a.obs = a.obs.assign(GBC=cells['GBC'], sample=sample_name)
+        a = adata_name_formatter(a)
+    else:
+        a.obs = a.obs.assign(sample=sample_name)
+        a = adata_name_formatter(a)
+    
+    return a
 
 
 ##
@@ -145,25 +153,23 @@ def QC_plot(adata, ax, title=None):
 ##  
 
 
-def QC(adatas, mode='mads', min_cells=3, min_genes=200, nmads=5, path_viz=None, tresh=None):
+def QC_one_sample(adata, sample=None, mode='mads', nmads=5, path_viz=None, tresh=None):
     """
-    Perform quality control on a dictionary of AnnData objects.
+    Perform quality control on a AnnData object.
     This function calculates several QC metrics, including mitochondrial percentage, nUMIs, 
-    and detected genes, and produces several plots visualizing the QC metrics for each sample. 
-    The function performs doublet detection using scrublet and filtering using either 
-    Seurat or MADs (Median Absolute Deviations)-based tresholds. The function returns a merged AnnData object with cells 
-    that passed QC filters and a list of cells that did not pass QC on all samples.
+    and detected genes, and produces several plots visualizing the QC metrics for the sample. 
+    It also performs doublet detection using scrublet and filtering using either 
+    Seurat or MADs (Median Absolute Deviations)-based tresholds. The cleaned adata is returned,
+    along with the visualization produced that is written at path_viz.
 
     Parameters
     ----------
-    adatas : dict
-        A dictionary of AnnData objects, one for each sample.
+    adata : AnnData
+        A sample-unique AnnData object.
+    sample : str, optional
+        Sample name. Default: None.
     mode : str, optional
         The filtering method to use. Valid options are 'seurat' and 'mads'. Default is 'seurat'.
-    min_cells : int, optional
-        The minimum number of cells for a sample to pass QC. Default is 3.
-    min_genes : int, optional
-        The minimum number of genes for a cell to pass QC. Default is 200.
     nmads : int, optional
         The number of MADs to use for MADs filtering. Default is 5.
     path_viz : str, optional
@@ -177,105 +183,97 @@ def QC(adatas, mode='mads', min_cells=3, min_genes=200, nmads=5, path_viz=None, 
     adata : AnnData
         An AnnData object containing cells that passed QC filters.
     removed_cells : list
-        List of cells that did not pass QC on all samples.
+        List of cells that did not pass QC for the specific sample.
     """
-    
-    # Logging 
-    logger = logging.getLogger("Cellula_logs")  
-    
-    # For each adata, produce a figure
-    removed_cells = []
-    for s, adata in adatas.items():
 
-        t = Timer()
-        logger.info(f'Sample {s} QC...')
+    # Fig
+    fig, axs = plt.subplots(1,3,figsize=(15,5))
+    
+    # QC metrics
+    adata.var_names_make_unique()
+    adata.var['mt'] = adata.var_names.str.startswith("MT-") | adata.var_names.str.startswith("mt-")
+    adata.obs['nUMIs'] = adata.X.toarray().sum(axis=1)  
+    adata.obs['mito_perc'] = adata[:, adata.var["mt"]].X.A.sum(axis=1) / adata.obs['nUMIs'].values
+    adata.obs['detected_genes'] = (adata.X.A > 0).sum(axis=1)  
+    adata.obs['cell_complexity'] = adata.obs['detected_genes'] / adata.obs['nUMIs']
+
+    n0 = adata.shape[0]
+    QC_plot(adata, axs[0], title='Original')
+
+    # Doublets
+    sc.external.pp.scrublet(adata, random_state=1234)
+    removed_cells = adata.obs['predicted_doublet'].loc[lambda x : x == True].index.to_list()
+    adata = adata[~adata.obs['predicted_doublet'], :].copy()
+    n1 = adata.shape[0]
+    QC_plot(adata, axs[1], title='After scublet')
+
+    # Filters on QC metrics
+    if mode == 'seurat':
+        adata.obs['passing_mt'] = adata.obs['mito_perc'] < tresh['mito_perc']
+        adata.obs['passing_nUMIs'] = adata.obs['nUMIs'] > tresh['nUMIs']
+        adata.obs['passing_ngenes'] = adata.obs['detected_genes'] > tresh['detected_genes']
+        axs[2].axvline(tresh["nUMIs"], color='r')
+        axs[2].axhline(tresh["detected_genes"], color='r')
+    elif mode == 'mads':
+        adata.obs['passing_mt'] = adata.obs['mito_perc'] < tresh['mito_perc']
+        adata.obs['passing_nUMIs'] = mads_test(adata.obs, 'nUMIs', nmads=nmads, lt=tresh)
+        adata.obs['passing_ngenes'] = mads_test(adata.obs, 'detected_genes', nmads=nmads, lt=tresh)  
+        nUMIs_t = mads(adata.obs, 'nUMIs', nmads=nmads, lt=tresh)
+        n_genes_t = mads(adata.obs, 'detected_genes', nmads=nmads, lt=tresh)
+
+    # Final
+    QC_test = (adata.obs['passing_mt']) & (adata.obs['passing_nUMIs']) & (adata.obs['passing_ngenes'])
+    removed_cells.extend(QC_test.loc[lambda x : x == False].index.to_list())
+    adata = adata[QC_test, :].copy()
+    n2 = adata.shape[0]
+    QC_plot(adata, axs[2], title='Final')
         
-        fig, axs = plt.subplots(1,3,figsize=(15,5))
+    if mode == 'seurat':
+        axs[2].axvline(tresh["nUMIs"], color='r')
+        axs[2].axhline(tresh["detected_genes"], color='r')
+    elif mode == 'mads':
+        axs[2].axvline(nUMIs_t[0], color='r')
+        axs[2].axvline(nUMIs_t[1], color='r')
+        axs[2].axhline(n_genes_t[0], color='r')
+        axs[2].axhline(n_genes_t[1], color='r')
 
-        # QC metrics
-        t.start()
-        logger.info('Calculate QC metrics')
-        adata.var_names_make_unique()
-        adata.var["mt"] = adata.var_names.str.startswith("MT-") | adata.var_names.str.startswith("mt-")
-        adata.obs['nUMIs'] = adata.X.toarray().sum(axis=1)  
-        adata.obs['mito_perc'] = adata[:, adata.var["mt"]].X.toarray().sum(axis=1) / adata.obs['nUMIs'].values
-        adata.obs['detected_genes'] = (adata.X.toarray() > 0).sum(axis=1)  
-        adata.obs['cell_complexity'] = adata.obs['detected_genes'] / adata.obs['nUMIs']
-        logger.info(f'End calculation of QC metrics: {t.stop()}')
+    # Close current fig
+    fig.suptitle(sample)
+    fig.tight_layout()
+    fig.savefig(path_viz + f'QC_sample_{sample}.png')
 
-        # Original QC plot
-        n0 = adata.shape[0]
-        logger.info(f'Original cell number in the input matrix: {n0}')
-        QC_plot(adata, axs[0], title='Original')
+    return adata, removed_cells
 
-        # Post doublets removal QC plot
-        t.start()
-        logger.info('Remove cell doublets and visualize QC metrics...')
-        sc.external.pp.scrublet(adata, random_state=1234)
-        adata_remove = adata[adata.obs['predicted_doublet'], :]
-        removed_cells.extend(list(adata_remove.obs_names))
-        adata = adata[~adata.obs['predicted_doublet'], :].copy()
-        n1 = adata.shape[0]
-        logger.info(f'Cells retained after doublet removal (with scroublet): {n1} ({n0-n1} removed)')
-        QC_plot(adata, axs[1], title='After scublet')
-        logger.info(f'Finished removing cell doublets and visualizing QC metrics: {t.stop()}')
 
-        # Post seurat or mads filtering QC plot
+##
 
-        # Filters
-        t.start()
-        logger.info(f'Apply {mode} filters...')
-        if mode == 'seurat':
-            adata.obs['passing_mt'] = adata.obs['mito_perc'] < tresh['mito_perc']
-            adata.obs['passing_nUMIs'] = adata.obs['nUMIs'] > tresh['nUMIs']
-            adata.obs['passing_ngenes'] = adata.obs['detected_genes'] > tresh['detected_genes']
-        elif mode == 'mads':
-            adata.obs['passing_mt'] = adata.obs['mito_perc'] < tresh['mito_perc']
-            adata.obs['passing_nUMIs'] = mads_test(adata.obs, 'nUMIs', nmads=nmads, lt=tresh)
-            adata.obs['passing_ngenes'] = mads_test(adata.obs, 'detected_genes', nmads=nmads, lt=tresh)  
 
-        # Report 
-        if mode == 'seurat':
-            logger.info(f'Lower treshold, nUMIs: {tresh["nUMIs"]}; filtered-out-cells: {n1-np.sum(adata.obs["passing_nUMIs"])}')
-            logger.info(f'Lower treshold, n genes: {tresh["detected_genes"]}; filtered-out-cells: {n1-np.sum(adata.obs["passing_ngenes"])}')
-            logger.info(f'Lower treshold, mito %: {tresh["mito_perc"]}; filtered-out-cells: {n1-np.sum(adata.obs["passing_mt"])}')
-            axs[2].axvline(tresh["nUMIs"], color='r')
-            axs[2].axhline(tresh["detected_genes"], color='r')
-        elif mode == 'mads':
-            nUMIs_t = mads(adata.obs, 'nUMIs', nmads=nmads, lt=tresh)
-            n_genes_t = mads(adata.obs, 'detected_genes', nmads=nmads, lt=tresh)
-            logger.info(f'Tresholds used, nUMIs: ({nUMIs_t[0]}, {nUMIs_t[1]}); filtered-out-cells: {n1-np.sum(adata.obs["passing_nUMIs"])}')
-            logger.info(f'Tresholds used, n genes: ({n_genes_t[0]}, {n_genes_t[1]}); filtered-out-cells: {n1-np.sum(adata.obs["passing_ngenes"])}')
-            logger.info(f'Lower treshold, mito %: {tresh["mito_perc"]}; filtered-out-cells: {n1-np.sum(adata.obs["passing_mt"])}')
-        logger.info(f'{mode} filters applied: {t.stop()}')
+def QC(adatas, mode='mads', min_cells=3, min_genes=200, nmads=5, path_viz=None, tresh=None):
+    """
+    Parallel QC on a dictionary of AnnData.
+    """
+    # Logging 
+    t = Timer()
+    t.start()
+    logger = logging.getLogger("Cellula_logs")  
 
-        # QC plot
-        QC_test = (adata.obs['passing_mt']) & (adata.obs['passing_nUMIs']) & (adata.obs['passing_ngenes'])
-        removed = QC_test.loc[lambda x : x == False]
-        removed_cells.extend(list(removed.index.values))
-        adata = adata[QC_test, :].copy()
-        n2 = adata.shape[0]
-        QC_plot(adata, axs[2], title='Final')
-            
-        if mode == 'seurat':
-            axs[2].axvline(tresh["nUMIs"], color='r')
-            axs[2].axhline(tresh["detected_genes"], color='r')
-        elif mode == 'mads':
-            axs[2].axvline(nUMIs_t[0], color='r')
-            axs[2].axvline(nUMIs_t[1], color='r')
-            axs[2].axhline(n_genes_t[0], color='r')
-            axs[2].axhline(n_genes_t[1], color='r')
+    # Parallel QC
+    logger.info(f'QC individual matrices...')
+    with parallel_backend("loky"):
+        results = Parallel(n_jobs=cpu_count())(
+            delayed(QC_one_sample)(adatas[k], k, mode, nmads, path_viz, tresh)
+            for k in adatas
+        ) 
+    logger.info(f'Finished QC on individual matrices: {t.stop()}')
 
-        # Store cleaned adata
-        logger.info(f'Final n of cells retained after both doublet removal and {mode} filtering: {n2}; ({n1-n2} removed with {mode} filtering)')
-        adatas[s] = adata
-
-        # Close current fig
-        fig.suptitle(s)
-        fig.tight_layout()
-        fig.savefig(path_viz + f'QC_sample_{s}.png')
-
-    # Concenate
+    # Unpack
+    adatas = {
+        x[0].obs['sample'].unique()[0] : x[0]
+        for x in results
+    }
+    removed_cells = list(chain.from_iterable([ x[1] for x in results ]))
+    
+    # Final, cleaned AnnData
     universe = sorted(
         list(reduce(lambda x,y: x&y, [ set(adatas[k].var_names) for k in adatas ]))
     )

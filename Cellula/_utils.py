@@ -121,7 +121,8 @@ def run_command(func, *args, verbose=False, **kwargs):
     t = Timer()
     t.start()
     out = func(*args, **kwargs)
-    print(f'Elapsed time: {t.stop()}')
+    if verbose:
+        print(f'Elapsed time: {t.stop()}')
     
     return out
 
@@ -189,17 +190,12 @@ def get_representation(adata, layer='lognorm', method='original',
     if embeddings:
         if method == 'BBKNN':
             representation = adata.obsm[f'{layer}|original|X_pca']
-            ndim = adata.uns[f'{layer}|original|PCA']['n_pcs']
             # logger.info(f'Using {embedding_type} embeddings (ndim={ndim}) associated to the {layer} layer and the {method} integration method...')
         elif method == 'original':
             representation = adata.obsm[f'{layer}|{method}|{embedding_type}']
-            ndim = adata.uns[f'{layer}|original|PCA']['n_pcs']
             # logger.info(f'Using {embedding_type} embeddings (ndim={ndim}) associated to the {layer} layer and the {method} integration method...')
         elif method not in ['BBKNN', 'original']:
             representation = adata.obsm[f'{layer}|{method}|{embedding_type}']
-            ndim_original = adata.uns[f'{layer}|original|PCA']['n_pcs']
-            ndim_integrated = representation.shape[1]
-            representation = representation[:,:ndim_original]
             # logger.info(f'Original embeddings associated to the {layer} layer have ndim={ndim_original}')
             # logger.info(f'Integrated (method={method}) embeddings associated to the {layer} layer have ndim={ndim_integrated}')
             # logger.info(f'Using subsetted {embedding_type} embeddings (ndim={ndim_original})')

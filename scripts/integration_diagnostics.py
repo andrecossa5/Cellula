@@ -80,6 +80,14 @@ my_parser.add_argument(
 # Parse arguments
 args = my_parser.parse_args()
 
+
+# path_main = '/Users/IEO5505/Desktop/cellula_example/'
+# version = 'default'
+# categorical = 'sample'
+# chosen = None
+# k = 15
+
+
 path_main = args.path_main
 version = args.version
 categorical = args.categorical
@@ -92,6 +100,7 @@ k = args.k
 # Preparing run: import code, prepare directories, set logger
 
 # Code
+from itertools import product
 from Cellula._utils import *
 from Cellula.plotting._plotting import *
 from Cellula.preprocessing._Int_evaluator import *
@@ -156,20 +165,14 @@ def integration_diagnostics():
     # Here we go
     logger.info(f'Begin embeddings visualization...')
 
-    # Compute and compare embeddings
-    for layer in I.adata.layers:
+    # Compute integrated embeddings
+    combos = find_combos(adata, I.int_methods)
+    for layer, int_rep in combos:
         t.start()
-        logger.info(f'Visualization of all the embeddings for the {layer} layer...')
-        for int_rep in I.int_methods:
-            try:
-                logger.info(f'Integration method: {int_rep}...')
-                fig = plot_embeddings(adata, layer=layer, rep=int_rep)  
-                tot = layer + '_' + int_rep
-                fig.suptitle(tot)
-                fig.savefig(path_viz + f'{layer}_{int_rep}_embeddings.png') 
-            except:
-                logger.info(f'Embedding {int_rep} is not available for layer {layer}')
-        logger.info(f'End visualization for layer {layer}: {t.stop()} s.')
+        fig = plot_embeddings(adata, layer=layer, rep=int_rep)  
+        title = layer + '_' + int_rep
+        fig.suptitle(title)
+        logger.info(f'Visualization {layer} layer, {int_rep}: {t.stop()} s.')
 
     # Compute diagnostics metrics
     t.start()
@@ -181,8 +184,12 @@ def integration_diagnostics():
     t.start()
     df, df_summary, df_rankings, top_3 = I.evaluate_runs(path_results, by='cumulative_score')
     logger.info(f'Methods ranking: {t.stop()} s.')
-    logger.info(f'Top 3 integration options are: {top_3[0]}, {top_3[1]} and {top_3[2]}')
-
+    
+    if len(top_3) >=3:
+        logger.info(f'Top 3 integration runs are: {top_3[0]}, {top_3[1]} and {top_3[2]}')
+    else:
+        logger.info(f'Ranked integration runs: {top_3}')
+        
     # Plotting and saving outputs
     t.start()
     fig = I.viz_results(df, df_summary, df_rankings)
@@ -222,7 +229,7 @@ def choose_preprocessing_option():
     # Cells and gene metadata, log-normalized (size) and raw counts metrices
     adata = sc.AnnData(X=lognorm.X, obs=pp.obs, var=lognorm.var)
     adata.X = lognorm.X
-    adata.layers['raw'] = pp.raw.to_adata().X
+    adata.layers['raw'] = pp.raw.to_adata()[:, adata.var_names].X
 
     # Chosen, cleaned dimension reduced embeddings
     adata.obsm['X_reduced'] = get_representation(pp, layer=layer, method=chosen_method)

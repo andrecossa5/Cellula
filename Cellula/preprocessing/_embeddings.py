@@ -15,7 +15,7 @@ from .._utils import get_representation
 ##
 
 
-def embeddings(adata, paga_groups='sample', layer='lognorm', rep='original', red_key=None, nn_key=None, 
+def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', red_key=None, nn_key=None, 
             n_diff=15, random_state=1234, umap_only=True, with_adata=False):
     """
     From a preprocessed adata object, compute cells embedding in some reduced dimension space. 

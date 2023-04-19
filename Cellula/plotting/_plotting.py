@@ -78,7 +78,7 @@ def plot_heatmap(df, palette='mako', ax=None, title=None, x_names=True, y_names=
 ##
 
 
-def plot_rankings(df, df_rankings, df_summary, feature='rescaled_score', by='score', loc='upper right', 
+def plot_rankings(df, df_rankings, df_summary, feature='rescaled_score', by='score', loc='upper left', 
     bbox_to_anchor=(1,1), figsize=(13,5), title='', legend=True):
     """
     Plot rankings. 
@@ -123,7 +123,9 @@ def plot_rankings(df, df_rankings, df_summary, feature='rescaled_score', by='sco
     # Remove dafault legend, and add custom if requested 
     if legend:
         ax.legend([], [], frameon=False)
-        add_legend(label='Metric', colors=colors, ax=ax, loc=loc, bbox_to_anchor=bbox_to_anchor, ncols=2)
+        add_legend(label='Metric', colors=colors, ax=ax, loc=loc, 
+            bbox_to_anchor=bbox_to_anchor, ncols=1, label_size=9, ticks_size=7
+        )
     
     # Ticks and axis``
     format_ax(ax, xlabel='', title=title, ylabel='Rescaled score', rotx=90)
@@ -334,8 +336,8 @@ def plot_embeddings(adata, layer=None, rep='original', k=15):
     df = embeddings(
         adata, 
         paga_groups='sample', 
-        rep=rep, 
-        layer=layer, 
+        rep=rep, # rep = 'scVI'
+        layer=layer, # layer = 'raw'
         umap_only=True
     )
     covariates = ['nUMIs', 'cycle_diff', 'seq_run', 'sample']

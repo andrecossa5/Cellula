@@ -155,12 +155,14 @@ def graph_conn(A, labels=None, resolution=0.2):
     """
     # Compute the graph connectivity metric, for each separate cluster
     per_group_results = []
+
     # Labels 
     if labels is None:    
         labels = leiden_clustering(A, res=resolution) #A e' la matrice di connectivities
         labels = pd.Categorical(labels)
     else:
         pass
+    
     # Here we go
     for g in labels.categories:
         test = labels == g

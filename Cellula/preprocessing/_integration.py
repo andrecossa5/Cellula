@@ -116,7 +116,7 @@ def compute_Harmony(adata, layer='scaled', categorical='sample', **kwargs):
 
 
 def compute_scVI(adata, categorical='seq_run', layer='raw', continuous=['mito_perc', 'nUMIs'],
-    n_layers=2, n_latent=30, n_hidden=128, max_epochs=None, k=15):
+    n_layers=2, n_latent=30, n_hidden=128, max_epochs=300, k=15):
     """
     Compute scVI latent space and KNN graph for the given AnnData object for the raw layer.
 
@@ -332,7 +332,6 @@ def parse_integration_options(
     """
     Function to parse integration options.
     """
-
     # All methods and their wrapper functions
     all_functions = {
         'Scanorama' : compute_Scanorama, 
@@ -346,7 +345,7 @@ def parse_integration_options(
     # Produce options
     integration_d = {}
     jobs = list(product(
-        methods, 
+        [ x for x in methods if x != 'scVI' ],
         [ x for x in adata.layers if x in ['sct', 'scaled', 'regressed'] ]
     ))
     # Add scVI if needed
@@ -367,3 +366,38 @@ def parse_integration_options(
         integration_d[analysis] = [ functions_int[method], kwargs ]
 
     return integration_d
+
+
+##
+
+
+def find_integrated_layers(adata):
+    """
+    Util to find all the integrated layers in a AnnData object.
+    """
+    integrated_layers = []
+    for x in adata.obsp.keys():
+        l = x.split('|')[0]
+        m = x.split('|')[1]
+        int_type = x.split('|')[2]
+        if int_type == 'X_corrected' and l not in integrated_layers:
+            integrated_layers.append(l)
+            
+    return integrated_layers
+
+
+##
+
+
+def find_combos(adata, int_methods):
+    """
+    Util to find all the integrated runs to plot embeddings for.
+    """
+    combos = []
+    for x in product(find_integrated_layers(adata), int_methods):
+        if ((x[0]=='raw') and (x[1]=='scVI')):
+            combos.append(x)
+        elif ((x[0]!='raw') and (x[1]!='scVI')):
+            combos.append(x)
+    
+    return combos

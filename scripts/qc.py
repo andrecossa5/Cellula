@@ -189,7 +189,7 @@ def qc():
     # Save removed cells 
     logger.info(f'Removed cells stored at: data/removed_cells/QC_{qc_mode}_{nUMIs_t}_{detected_genes_t}_{mito_perc_t}.csv path')
     pd.DataFrame({'cell':removed_cells}).to_csv(
-        os.path.join(path_main, f'/data/removed_cells/QC_{qc_mode}_{nUMIs_t}_{detected_genes_t}_{mito_perc_t}.csv')
+        path_main +f'/data/removed_cells/QC_{qc_mode}_{nUMIs_t}_{detected_genes_t}_{mito_perc_t}.csv'
     )
 
     # Write final exec time

@@ -90,9 +90,18 @@ def read_matrix(path, sample_name=None, mode='tenx'):
     """
     Read a single sample from its CellRanger/STARsolo folder.
     """
-    a = sc.read_10x_mtx(path + f'/{sample_name}/filtered/')
+    a = sc.read_10x_mtx(os.path.join(path, sample_name, 'filtered'))
     if mode == 'gbc':
-        cells = pd.read_csv(path + f'/{sample_name}/cells_summary_table.csv', index_col=0)
+        try:
+            cells = pd.read_csv(
+                os.path.join(path, sample_name, 'cells_summary_table_refined.csv'),
+                index_col=0
+            )
+        except:
+            cells = pd.read_csv(
+                os.path.join(path, sample_name, 'cells_summary_table.csv'),
+                index_col=0
+            )
         cells = cells.loc[:, ['GBC']]
         cells_to_retain = [ x for x in cells.index if x in a.obs_names ]
         cells = cells.loc[cells_to_retain, :]

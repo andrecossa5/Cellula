@@ -183,13 +183,13 @@ def qc():
 
     # Save adata and cells_meta.csv
     logger.info(f'Final "cleaned" AnnData:\n {adata}')
-    adata.write(path_data + 'QC.h5ad')
-    adata.obs.to_csv(path_data + 'cells_meta.csv')
+    adata.write(os.path.join(path_data, 'QC.h5ad'))
+    adata.obs.to_csv(os.path.join(path_data, 'cells_meta.csv'))
 
     # Save removed cells 
     logger.info(f'Removed cells stored at: data/removed_cells/QC_{qc_mode}_{nUMIs_t}_{detected_genes_t}_{mito_perc_t}.csv path')
     pd.DataFrame({'cell':removed_cells}).to_csv(
-        path_main + f'/data/removed_cells/QC_{qc_mode}_{nUMIs_t}_{detected_genes_t}_{mito_perc_t}.csv'
+        os.path.join(path_main, f'/data/removed_cells/QC_{qc_mode}_{nUMIs_t}_{detected_genes_t}_{mito_perc_t}.csv')
     )
 
     # Write final exec time

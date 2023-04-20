@@ -48,8 +48,8 @@ my_parser.add_argument(
 my_parser.add_argument( 
     '--mode', 
     type=str,
-    default='filtered',
-    help='Input mode. Default: filtered. Other option available: raw (sclt data).'
+    default='tenx',
+    help='Input mode. Default: filtered. Other option available: gbc (sclt data).'
 )
 
 # QC mode
@@ -116,10 +116,10 @@ warnings.filterwarnings("ignore")
 
 #-----------------------------------------------------------------#
 # Set other paths 
-path_matrices = path_main + '/matrices/'
-path_data = path_main + '/data/'
-path_runs = path_main + '/runs/'
-path_viz = path_main + '/results_and_plots/vizualization/QC/'
+path_matrices = os.path.join(path_main, 'matrices')
+path_data = os.path.join(path_main, 'data')
+path_runs = os.path.join(path_main, 'runs')
+path_viz = os.path.join(path_main, 'results_and_plots/vizualization/QC')
 
 # Create step_{i} folders. Overwrite, if they have already been created
 to_make = [ (path_runs, version), (path_viz, version), (path_data, version) ]
@@ -127,9 +127,9 @@ for x, y in to_make:
     make_folder(x, y, overwrite=True)
 
 # Update paths
-path_data += f'/{version}/'
-path_runs += f'/{version}/'
-path_viz += f'/{version}/' 
+path_data = os.path.join(path_data, version)
+path_runs = os.path.join(path_runs, version)
+path_viz = os.path.join(path_viz, version)
 
 #-----------------------------------------------------------------#
 

@@ -39,7 +39,7 @@ def adata_name_formatter(adata):
 ##
 
 
-def read_matrices(path, mode='filtered'):
+def read_matrices(path, mode='tenx'):
     """
     Reads 10x Genomics matrices from a specified path and returns a dictionary of AnnData objects.
 
@@ -86,13 +86,13 @@ def read_matrices(path, mode='filtered'):
 ##
 
 
-def read_matrix(path, sample_name=None, mode='filtered'):
+def read_matrix(path, sample_name=None, mode='tenx'):
     """
     Read a single sample from its CellRanger/STARsolo folder.
     """
     a = sc.read_10x_mtx(path + f'/{sample_name}/filtered/')
-    if mode == 'raw':
-        cells = pd.read_csv(path + f'/{sample_name}/summary_sheet_cells.csv', index_col=0)
+    if mode == 'gbc':
+        cells = pd.read_csv(path + f'/{sample_name}/cells_summary_table.csv', index_col=0)
         cells = cells.loc[:, ['GBC']]
         cells_to_retain = [ x for x in cells.index if x in a.obs_names ]
         cells = cells.loc[cells_to_retain, :]

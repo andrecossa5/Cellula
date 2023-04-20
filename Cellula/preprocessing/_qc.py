@@ -249,7 +249,7 @@ def QC_one_sample(adata, sample=None, mode='mads', nmads=5, path_viz=None, tresh
     # Close current fig
     fig.suptitle(sample)
     fig.tight_layout()
-    fig.savefig(path_viz + f'QC_sample_{sample}.png')
+    fig.savefig(os.path.join(path_viz, f'QC_sample_{sample}.png'))
 
     return adata, removed_cells
 

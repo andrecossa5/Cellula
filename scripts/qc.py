@@ -49,7 +49,7 @@ my_parser.add_argument(
     '--mode', 
     type=str,
     default='tenx',
-    help='Input mode. Default: filtered. Other option available: gbc (sclt data).'
+    help='Input mode. Default: tenx. Other option available: gbc (sclt data).'
 )
 
 # QC mode

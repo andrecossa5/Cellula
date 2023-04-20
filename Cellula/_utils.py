@@ -68,8 +68,8 @@ def make_folder(path, name, overwrite=True):
     """
     os.chdir(path)
     if not os.path.exists(name) or overwrite:
-        rmtree(path + name, ignore_errors=True)
-        os.makedirs(name)
+        rmtree(os.path.join(path, name), ignore_errors=True)
+        os.mkdir(name)
     else:
         pass
 

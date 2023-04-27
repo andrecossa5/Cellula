@@ -43,8 +43,8 @@ def create_colors(meta, chosen=None):
     }
     
     # Add cluster colors, if needed
-    n = len(meta[chosen].cat.categories)
     if chosen is not None:
+        n = len(meta[chosen].cat.categories)
         if n <= 20:
             c = sc.pl.palettes.default_20[:n]
         else:

@@ -196,8 +196,12 @@ class Scores():
             logger.info(f'End of {method} computation: {g.stop()} s.') 
 
         d = {**self.wu, **self.barkley, **self.Hotspot, **self.curated}
-        d = { k : Gene_set(v, self.matrix.var, name=k, organism=self.organism) for k, v in d.items() }
-        self.gene_sets = d
+        gene_sets = {}
+        for k in d:
+            g = Gene_set(d[k], self.matrix.var, name=k, organism=self.organism)
+            if g != 'No genes':
+                gene_sets[k] = g
+        self.gene_sets = gene_sets
 
         print(f'Finished GMs calculation')
 

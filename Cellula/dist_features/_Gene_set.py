@@ -117,7 +117,8 @@ class Gene_set:
         if isinstance(results, list): 
             filtered_results = [ x for x in results if x in genes_meta.index ] # Curated signatures could contain undetected genes
             if len(filtered_results) == 0:
-                raise ValueError("All passed genes were not detected in data.")
+                print("All passed genes were not detected in data.")
+                return 'No genes'
             self.stats = genes_meta.loc[
                     filtered_results, ['percent_cells', 'highly_variable_features', 'mean', 'var']
             ]

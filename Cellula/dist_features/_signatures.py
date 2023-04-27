@@ -285,14 +285,15 @@ def format_curated(path_main):
         name = x.split('.')[0]
         if x != '.DS_Store':
             try:
-               genes = pd.read_csv(path_main + f'/data/curated_signatures/{x}', sep='\t').iloc[:, 0].to_list()
+               genes = pd.read_csv(path_main + f'/data/curated_signatures/{x}', sep='\t', index_col=0).iloc[:,0].to_list()
                curated[name] = genes
             except:
-               try:
-                   genes = pd.read_csv(path_main + f'/data/curated_signatures/{x}', sep=',').iloc[:, 0].to_list()
-                   curated[name] = genes
-               except:
-                 sys.exit("Error: the following .txt file is not correctly formatted with 'tab' or ',' separators " + path_main + f'data/curated_signatures/{x}')
+                try:
+                    genes = pd.read_csv(path_main + f'/data/curated_signatures/{x}', sep=',', index_col=0).iloc[:,0].to_list()
+                    curated[name] = genes
+                except:
+                    sys.exit("Error: the following .txt file is not correctly formatted with\
+                            'tab' or ',' separators " + path_main + f'data/curated_signatures/{x}')
             
             for i in genes:
                 if type(i) is float:

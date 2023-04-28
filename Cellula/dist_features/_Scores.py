@@ -197,15 +197,12 @@ class Scores():
 
         d = {**self.wu, **self.barkley, **self.Hotspot, **self.curated}
 
-        import pickle
-        with open(path_results + 'sign_dict.pickle', 'wb') as f:
-            pickle.dump(d, f)
-
         gene_sets = {}
         for k in d:
-            g = Gene_set(d[k], self.matrix.var, name=k, organism=self.organism)
-            if g != 'No genes':
-                gene_sets[k] = g
+            try:
+                gene_sets[k] = Gene_set(d[k], self.matrix.var, name=k, organism=self.organism)
+            except:
+                logger.info(f'{k} genes have not been found in the original matrix...') 
         self.gene_sets = gene_sets
 
         print(f'Finished GMs calculation')

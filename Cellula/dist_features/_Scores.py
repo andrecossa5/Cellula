@@ -182,11 +182,11 @@ class Scores():
 
     ##
 
-    def compute_GMs(self):
+    def compute_GMs(self, path_results):
         """
         Compute GMs of some kind. Three kinds implemented.
         """
-        logger = logging.getLogger("my_logger") 
+        logger = logging.getLogger("Cellula_logs") 
         g = Timer()
         for method in self.methods:
             g.start()
@@ -196,6 +196,11 @@ class Scores():
             logger.info(f'End of {method} computation: {g.stop()} s.') 
 
         d = {**self.wu, **self.barkley, **self.Hotspot, **self.curated}
+
+        import pickle
+        with open(path_results + 'sign_dict.pickle', 'wb') as f:
+            pickle.dump(d, f)
+
         gene_sets = {}
         for k in d:
             g = Gene_set(d[k], self.matrix.var, name=k, organism=self.organism)

@@ -175,7 +175,7 @@ def Signatures():
 
     t.start()
     logger.info('Begin GMs retrieval...')
-    S.compute_GMs(path_results)
+    S.compute_GMs()
     logger.info(f'GMs retrieval: {t.stop()}')
 
     t.start()

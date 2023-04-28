@@ -182,7 +182,7 @@ class Scores():
 
     ##
 
-    def compute_GMs(self, path_results):
+    def compute_GMs(self):
         """
         Compute GMs of some kind. Three kinds implemented.
         """

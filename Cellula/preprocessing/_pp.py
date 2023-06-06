@@ -214,7 +214,7 @@ def regress(adata, covariates=['mito_perc', 'nUMIs']):
 ##
 
 
-def pca(adata, n_pcs=50, layer='scaled', auto=True, GSEA=False, random_seed=1234,
+def pca(adata, n_pcs=50, layer='scaled', auto=False, GSEA=True, random_seed=1234,
     return_adata=False, biplot=False, path_viz=None, organism='human', colors=None):
     """
     Performs Principal Component Analysis (PCA) on some AnnData layer.

@@ -59,8 +59,9 @@ def plot_clustermap(df, row_colors=None, palette='mako', title=None, label=None,
 ## 
 
 
-def plot_heatmap(df, palette='mako', ax=None, title=None, x_names=True, y_names=True, x_names_size=7,
-    y_names_size=7, xlabel=None, ylabel=None, annot=False, annot_size=5, label=None, shrink=1.0, cb=True):
+def plot_heatmap(df, palette='mako', ax=None, title=None, x_names=True, 
+    y_names=True, x_names_size=7, y_names_size=7, xlabel=None, ylabel=None, 
+    annot=False, annot_size=5, label=None, shrink=1.0, cb=True):
     """
     Heatmap.
     """
@@ -78,8 +79,9 @@ def plot_heatmap(df, palette='mako', ax=None, title=None, x_names=True, y_names=
 ##
 
 
-def plot_rankings(df, df_rankings, df_summary, feature='rescaled_score', by='score', loc='upper left', 
-    bbox_to_anchor=(1,1), figsize=(13,5), title='', legend=True):
+def plot_rankings(df, df_rankings, df_summary, feature='rescaled_score', 
+    by='score', loc='upper left', bbox_to_anchor=(1,1), 
+    figsize=(13,5), title='', legend=True):
     """
     Plot rankings. 
     """

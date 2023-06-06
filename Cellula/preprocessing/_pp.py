@@ -23,7 +23,7 @@ from ..plotting._plotting import *
 ##
 
 
-def sig_scores(adata, layer=None, score_method='scanpy', organism='human'):
+def sig_scores(adata, layer=None, score_method='scanpy', organism='human', with_categories=False):
     """
     Calculate pegasus scores for cell cycle, ribosomal and apoptotic genes.
     """
@@ -55,15 +55,15 @@ def sig_scores(adata, layer=None, score_method='scanpy', organism='human'):
     scores['cycling'] = cc_values.max(axis=1)
 
     # Calculate cc_phase
-    z_scored_cycling = (scores['cycling'] - scores['cycling'].mean()) / scores['cycling'].std()
-    kmeans = KMeans(n_clusters=2, random_state=1234)
-    kmeans.fit(z_scored_cycling.values.reshape(-1, 1))
-    cycle_idx = kmeans.labels_ == np.argmax(kmeans.cluster_centers_[:,0])
-    codes = np.zeros(scores.shape[0], dtype=np.int32)
-    codes[cycle_idx & (cc_values[:, 0] == scores['cycling'].values)] = 1
-    codes[cycle_idx & (cc_values[:, 1] == scores['cycling'].values)] = 2
-
-    scores['cc_phase'] = pd.Categorical.from_codes(codes, categories = ['Others', 'G1/S', 'G2/M'])
+    if with_categories:
+        z_scored_cycling = (scores['cycling'] - scores['cycling'].mean()) / scores['cycling'].std()
+        kmeans = KMeans(n_clusters=2, random_state=1234)
+        kmeans.fit(z_scored_cycling.values.reshape(-1, 1))
+        cycle_idx = kmeans.labels_ == np.argmax(kmeans.cluster_centers_[:,0])
+        codes = np.zeros(scores.shape[0], dtype=np.int32)
+        codes[cycle_idx & (cc_values[:, 0] == scores['cycling'].values)] = 1
+        codes[cycle_idx & (cc_values[:, 1] == scores['cycling'].values)] = 2
+        scores['cc_phase'] = pd.Categorical.from_codes(codes, categories = ['Others', 'G1/S', 'G2/M'])
 
     return scores
 
@@ -214,7 +214,7 @@ def regress(adata, covariates=['mito_perc', 'nUMIs']):
 ##
 
 
-def pca(adata, n_pcs=50, layer='scaled', auto=True, 
+def pca(adata, n_pcs=50, layer='scaled', auto=True, GSEA=False, random_seed=1234,
     return_adata=False, biplot=False, path_viz=None, organism='human', colors=None):
     """
     Performs Principal Component Analysis (PCA) on some AnnData layer.
@@ -231,6 +231,8 @@ def pca(adata, n_pcs=50, layer='scaled', auto=True,
     auto : bool, optional (default: True)
         Automatic selection of the optimal number of PCs with the dadapy 
         intrinsic dimension method, Glielmo et al., 2022.
+    GSEA : bool, optional (default: False)
+        Annotate the first 5 PCs with GSEA.
     return_adata : bool, optional (default: False)
         Wheter to return updated AnnData or a dictionary of outputs.
     biplot : bool, optional (default: False)
@@ -246,7 +248,7 @@ def pca(adata, n_pcs=50, layer='scaled', auto=True,
     -------
     Either a modified AnnData or a dictionary.
     """
-
+    
     if layer in adata.layers: 
         X = adata.layers[layer].copy()
         key = f'{layer}|original'
@@ -260,7 +262,7 @@ def pca(adata, n_pcs=50, layer='scaled', auto=True,
     else:
         X[np.isnan(X)] = 0
 
-    np.random.seed(1234)
+    np.random.seed(random_seed)
     X_pca, sv, loads = fbpca.pca(X, k=n_pcs, raw=True)
     loads = loads.T
     sqvars = sv**2
@@ -271,16 +273,18 @@ def pca(adata, n_pcs=50, layer='scaled', auto=True,
     if auto:
         data = Data(X_pca)
         data.compute_distances(maxk=15)
-        np.random.seed(1234)
+        np.random.seed(random_seed)
         n_pcs, a, b = data.compute_id_2NN()
         X_pca = X_pca[:,:round(n_pcs)]
     
     if biplot:
         make_folder(path_viz, layer)
         for cov in ['seq_run', 'sample', 'nUMIs', 'cycle_diff']:
-            fig = plot_biplot_PCs(adata, X_pca, covariate=cov, colors=colors)
-            fig.savefig(path_viz + f'{layer}/PCs_{cov}.png')
-        # Inspection of top genes loadings
+            fig = plot_biplot_PCs(adata, X_pca, covariate='sample', colors=colors)
+            plt.show()
+            fig.savefig(os.path.join(path_viz, f'PCs_{cov}.png'))
+            
+    if GSEA:
         df = pd.DataFrame(
             loads[:,:5],
             index=adata.var_names,
@@ -288,7 +292,7 @@ def pca(adata, n_pcs=50, layer='scaled', auto=True,
         )
         for i in range(1,6):
             fig = PCA_gsea_loadings_plot(df, adata.var, organism=organism, i=i)
-            fig.savefig(path_viz + f'{layer}/PC{i}_loadings.png')
+            fig.savefig(os.path.join(path_viz, f'PC{i}_loadings.png'))
 
     # Return
     if return_adata:

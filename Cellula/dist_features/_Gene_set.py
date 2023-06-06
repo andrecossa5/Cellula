@@ -294,7 +294,12 @@ class Gene_set:
             if self.organism == 'human':
                 ranked_gene_list = self.stats[covariate]
             elif self.organism == 'mouse':
-                ranked_gene_list = self.stats.loc[:, [covariate]].reset_index().rename(columns={'index':'mouse'})
+                ranked_gene_list = (
+                    self.stats
+                    .loc[:, [covariate]]
+                    .reset_index()
+                    .rename(columns={'index':'mouse'})
+                )
         else:
             raise ValueError('GSEA can be performed only on ordered gene sets.')
 
@@ -306,7 +311,10 @@ class Gene_set:
             m2h = bm.query(
                 dataset='mmusculus_gene_ensembl',
                 attributes=['external_gene_name', 'hsapiens_homolog_associated_gene_name']
-            ).rename(columns={'external_gene_name':'mouse', 'hsapiens_homolog_associated_gene_name':'human'})
+            ).rename(columns={
+                'external_gene_name':'mouse', 
+                'hsapiens_homolog_associated_gene_name':'human'}
+            )
 
             # Filter and convert
             conversion_df = ranked_gene_list.merge(m2h, on='mouse', how='left').dropna(
@@ -319,8 +327,8 @@ class Gene_set:
             rnk=ranked_gene_list,
             gene_sets=[collection],
             threads=cpu_count(),
-            min_size=50,
-            max_size=1000,
+            min_size=15,
+            max_size=500,
             permutation_num=200, 
             outdir=None, 
             seed=1234,

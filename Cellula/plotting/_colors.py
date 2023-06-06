@@ -52,3 +52,24 @@ def create_colors(meta, chosen=None):
         colors[chosen] = { cluster : color for cluster, color in zip(meta[chosen].cat.categories, c)}
 
     return colors
+
+
+##
+
+
+# Palettes
+ten_godisnot = [
+    
+    '#001E09', 
+    '#885578',
+    '#FF913F', 
+    '#1CE6FF', 
+    '#549E79', 
+    'C9E850', #'#00FECF', 
+    '#EEC3FF', 
+    '#FFEF00',#'#0000A6', 
+    '#D157A0', 
+    '#922329'
+    
+]
+

@@ -15,8 +15,8 @@ from .._utils import get_representation
 ##
 
 
-def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', red_key=None, nn_key=None, 
-            n_diff=15, random_state=1234, umap_only=True, with_adata=False):
+def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', red_key=None, 
+            nn_key=None, n_diff=15, random_state=1234, umap_only=True, with_adata=False):
     """
     From a preprocessed adata object, compute cells embedding in some reduced dimension space. 
 
@@ -101,7 +101,10 @@ def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', red_
 
     # Calculate paga over the chosen kNN graph
     sc.tl.paga(a, groups=paga_groups, neighbors_key='nn')
-    sc.pl.paga(a, show=False, plot=False)
+    sc.pl.paga(a, show=False, plot=False, random_state=random_state)
+    
+    # Random state
+    # random_state = np.random.seed(random_state)
 
     # Embeddings calculations
     if not umap_only:
@@ -112,9 +115,9 @@ def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', red_
 
         # Diffusion maps and embeds their graph
         sc.tl.diffmap(a, n_comps=n_diff, neighbors_key='nn', random_state=random_state)
-        sc.pp.neighbors(a, use_rep='X_diffmap', key_added='nn_diff')
+        sc.pp.neighbors(a, use_rep='X_diffmap', key_added='nn_diff', random_state=random_state)
         sc.tl.paga(a, groups=paga_groups, neighbors_key='nn_diff')
-        sc.pl.paga(a, show=False, plot=False)
+        sc.pl.paga(a, show=False, plot=False, random_state=random_state)
         sc.tl.draw_graph(a, init_pos='paga', layout='fa', random_state=random_state, 
                         n_jobs=cpu_count(), neighbors_key='nn_diff', key_added_ext='fa_diff')
 

@@ -32,21 +32,31 @@ def standard_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None):
     adata = adata[:, adata.var['robust']].copy()
     sc.pp.normalize_total(adata, target_sum=1e4)
     sc.pp.log1p(adata)
-    pg.highly_variable_features(adata, batch='sample', n_top=n_HVGs, min_mean=0.0125, max_mean=3, min_disp=0.5)
+    pg.highly_variable_features(
+        adata, 
+        batch='sample' if 'sample' in adata.obs.columns else None, 
+        n_top=n_HVGs, 
+        min_mean=0.0125, max_mean=3, min_disp=0.5
+    )
     adata.obs = adata.obs.join(sig_scores(adata, score_method='scanpy', organism=organism))
 
     # Visualization mean variance trend (and HVGs selection) upon normalization
-    fig = mean_variance_plot(adata)
-    fig.savefig(path_viz + 'mean_variance_plot.png')
-
-    fig, axs = plt.subplots(1,2,figsize=(9,4.5))
-    HVGs = adata.var['highly_variable_features'].loc[lambda x:x].index
-    df_ = adata.var.loc[HVGs, ['mean', 'hvf_loess']]
-    rank_plot(df_, cov='mean', ylabel='mean', ax=axs[0], fig=fig)
-    rank_plot(df_, cov='hvf_loess', ylabel='HVF loess', ax=axs[1], fig=fig)
-    fig.suptitle(f'Log-normalized counts, top {n_HVGs} HVGs')
-    fig.tight_layout()
-    fig.savefig(path_viz + 'mean_variance_compare_ranks.png')
+    if path_viz is not None:
+        
+        fig = mean_variance_plot(adata)
+        fig.savefig(os.path.join(path_viz, 'mean_variance_plot.png'))
+    
+        fig, axs = plt.subplots(1,2,figsize=(9,4.5))
+        HVGs = adata.var['highly_variable_features'].loc[lambda x:x].index
+        df_ = adata.var.loc[HVGs, ['mean', 'hvf_loess']]
+        rank_plot(df_, cov='mean', ylabel='mean', ax=axs[0], fig=fig)
+        rank_plot(df_, cov='hvf_loess', ylabel='HVF loess', ax=axs[1], fig=fig)
+        fig.suptitle(f'Log-normalized counts, top {n_HVGs} HVGs')
+        fig.tight_layout()
+        fig.savefig(os.path.join(path_viz, 'mean_variance_compare_ranks.png'))
+        
+    else:
+        pass
 
     # Red, scale, regress
     adata_red = red(adata)
@@ -80,17 +90,19 @@ def remove_cc_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None):
     adata.obs = adata.obs.join(sig_scores(adata, score_method='scanpy', organism=organism))
 
     # Viz
-    fig = mean_variance_plot(adata)
-    fig.savefig(path_viz + 'mean_variance_plot.png')
+    if path_viz is not None:
+        
+        fig = mean_variance_plot(adata)
+        fig.savefig(os.path.join(path_viz, 'mean_variance_plot.png'))
 
-    fig, axs = plt.subplots(1,2,figsize=(9,4.5))
-    HVGs = adata.var['highly_variable_features'].loc[lambda x:x].index
-    df_ = adata.var.loc[HVGs, ['mean', 'hvf_loess']]
-    rank_plot(df_, cov='mean', ylabel='mean', ax=axs[0], fig=fig)
-    rank_plot(df_, cov='hvf_loess', ylabel='HVF loess', ax=axs[1], fig=fig)
-    fig.suptitle(f'Log-normalized counts, top {n_HVGs} HVGs')
-    fig.tight_layout()
-    fig.savefig(path_viz + 'mean_variance_compare_ranks.png')
+        fig, axs = plt.subplots(1,2,figsize=(9,4.5))
+        HVGs = adata.var['highly_variable_features'].loc[lambda x:x].index
+        df_ = adata.var.loc[HVGs, ['mean', 'hvf_loess']]
+        rank_plot(df_, cov='mean', ylabel='mean', ax=axs[0], fig=fig)
+        rank_plot(df_, cov='hvf_loess', ylabel='HVF loess', ax=axs[1], fig=fig)
+        fig.suptitle(f'Log-normalized counts, top {n_HVGs} HVGs')
+        fig.tight_layout()
+        fig.savefig(os.path.join(path_viz, 'mean_variance_compare_ranks.png'))
 
     # Red, scale, regress
     adata_red = red(adata)
@@ -103,7 +115,7 @@ def remove_cc_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None):
 ##
 
 
-def regress_cc_pp_recipe(adata, n_HVGs=2000, organism='human',path_viz=None): 
+def regress_cc_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None): 
     """
     regress_cc pre-processing recipe: robust genes filtering, library size log-normalization, pegasus HVGs selection,
     reduction, first scaling, regression of both technical (i.e., 'nUMIS', 'mito_perc') and biological (i.e., 'cell_cycle_diff') 
@@ -122,17 +134,19 @@ def regress_cc_pp_recipe(adata, n_HVGs=2000, organism='human',path_viz=None):
     adata.obs = adata.obs.join(sig_scores(adata, score_method='scanpy', organism=organism))
 
     # Viz
-    fig = mean_variance_plot(adata)
-    fig.savefig(path_viz + 'mean_variance_plot.png')
+    if path_viz is not None:
+        
+        fig = mean_variance_plot(adata)
+        fig.savefig(os.path.join(path_viz, 'mean_variance_plot.png'))
 
-    fig, axs = plt.subplots(1,2,figsize=(9,4.5))
-    HVGs = adata.var['highly_variable_features'].loc[lambda x:x].index
-    df_ = adata.var.loc[HVGs, ['mean', 'hvf_loess']]
-    rank_plot(df_, cov='mean', ylabel='mean', ax=axs[0], fig=fig)
-    rank_plot(df_, cov='hvf_loess', ylabel='HVF loess', ax=axs[1], fig=fig)
-    fig.suptitle(f'Log-normalized counts, top {n_HVGs} HVGs')
-    fig.tight_layout()
-    fig.savefig(path_viz + 'mean_variance_compare_ranks.png')
+        fig, axs = plt.subplots(1,2,figsize=(9,4.5))
+        HVGs = adata.var['highly_variable_features'].loc[lambda x:x].index
+        df_ = adata.var.loc[HVGs, ['mean', 'hvf_loess']]
+        rank_plot(df_, cov='mean', ylabel='mean', ax=axs[0], fig=fig)
+        rank_plot(df_, cov='hvf_loess', ylabel='HVF loess', ax=axs[1], fig=fig)
+        fig.suptitle(f'Log-normalized counts, top {n_HVGs} HVGs')
+        fig.tight_layout()
+        fig.savefig(os.path.join(path_viz, 'mean_variance_compare_ranks.png'))
 
     # Red and scale
     adata_red = red(adata)
@@ -171,18 +185,20 @@ def sct_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None):
     adata.obs = adata.obs.join(sig_scores(adata, layer='lognorm', score_method='scanpy', organism=organism)) # Use lognorm layer to calculate signatures
 
     # Viz
-    fig = mean_variance_plot(adata, recipe='sct')
-    fig.savefig(path_viz + 'mean_variance_plot.png')
+    if path_viz is not None:
+        
+        fig = mean_variance_plot(adata, recipe='sct')
+        fig.savefig(os.path.join(path_viz, 'mean_variance_plot.png'))
 
-    fig, axs = plt.subplots(1,2,figsize=(9,4.5))
-    HVGs = adata.var['highly_variable_features'].loc[lambda x:x].index
+        fig, axs = plt.subplots(1,2,figsize=(9,4.5))
+        HVGs = adata.var['highly_variable_features'].loc[lambda x:x].index
 
-    df_ = adata.var.loc[HVGs, ['mean', 'residual_variances']]
-    rank_plot(df_, cov='mean', ylabel='mean', ax=axs[0], fig=fig)
-    rank_plot(df_, cov='residual_variances', ylabel='residual variance', ax=axs[1], fig=fig)
-    fig.suptitle(f'Log-normalized counts, top {n_HVGs} HVGs')
-    fig.tight_layout()
-    fig.savefig(path_viz + 'mean_variance_compare_ranks.png')
+        df_ = adata.var.loc[HVGs, ['mean', 'residual_variances']]
+        rank_plot(df_, cov='mean', ylabel='mean', ax=axs[0], fig=fig)
+        rank_plot(df_, cov='residual_variances', ylabel='residual variance', ax=axs[1], fig=fig)
+        fig.suptitle(f'Log-normalized counts, top {n_HVGs} HVGs')
+        fig.tight_layout()
+        fig.savefig(os.path.join(path_viz, 'mean_variance_compare_ranks.png'))
 
     # Reduction and sct normalization
     adata_red = adata[:, adata.var['highly_variable_features']].copy() # Subsetted, raw counts

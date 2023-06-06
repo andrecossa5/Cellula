@@ -349,3 +349,22 @@ def compute_pca_all(adata, **kwargs):
     del results
 
     return adata
+
+
+##
+
+
+def remove_unwanted(a):
+    
+    mt = set(a.var_names[a.var_names.str.startswith('MT-')])
+    ribo_1 = set(a.var_names[a.var_names.str.startswith('RPL')])
+    ribo_2 = set(a.var_names[a.var_names.str.startswith('RPS')])
+    anti_1 = set(a.var_names[a.var_names.str.contains('-AS')])
+    anti_2 = set(a.var_names[a.var_names.str.startswith('AC0')])
+    to_exclude = mt | ribo_1 | ribo_2 | anti_1 | anti_2
+    a = a[:, ~a.var_names.isin(to_exclude)].copy()
+    
+    return a
+
+
+##

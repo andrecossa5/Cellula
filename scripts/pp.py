@@ -287,6 +287,7 @@ def main():
     # PCA, all pre-processed layers
     logger.info('PCA...')
     t.start()
+    adata_red = remove_unwanted(adata_red)
     adata_red = compute_pca_all(
         adata_red, 
         auto=args.auto_pcs,

@@ -289,13 +289,13 @@ def main():
     t.start()
     adata_red = remove_unwanted(adata_red)
     adata_red = compute_pca_all(
-        adata_red, 
+        adata_red,
         auto=args.auto_pcs,
         biplot=args.biplot, 
         path_viz=path_viz, 
         organism=organism, 
         colors=colors
-    )
+    )``````
     logger.info(f'Finished PCA: {t.stop()}')
 
     #-----------------------------------------------------------------#
@@ -312,7 +312,7 @@ def main():
            fig = plot_embeddings(adata_red, layer=layer)
            logger.info(f'Draw default UMAP embeddings for the {layer} layer: {t.stop()}')
            fig.suptitle(layer)
-           fig.savefig(path_viz + f'{layer}_original_embeddings.png')
+           fig.savefig(os.path.join(path_viz, f'{layer}_original_embeddings.png'))
     
     # Save
     logger.info(f'Save adata with processed metrices, original PCA spaces and kNN graphs...')

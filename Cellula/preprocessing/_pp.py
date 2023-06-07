@@ -214,7 +214,7 @@ def regress(adata, covariates=['mito_perc', 'nUMIs']):
 ##
 
 
-def pca(adata, n_pcs=50, layer='scaled', auto=False, GSEA=True, random_seed=1234,
+def pca(adata, n_pcs=50, layer='scaled', auto=True, GSEA=True, random_seed=1234,
     return_adata=False, biplot=False, path_viz=None, organism='human', colors=None):
     """
     Performs Principal Component Analysis (PCA) on some AnnData layer.
@@ -278,13 +278,14 @@ def pca(adata, n_pcs=50, layer='scaled', auto=False, GSEA=True, random_seed=1234
         X_pca = X_pca[:,:round(n_pcs)]
     
     if biplot:
-        make_folder(path_viz, layer)
+        make_folder(path_viz, layer, overwrite=False)
         for cov in ['seq_run', 'sample', 'nUMIs', 'cycle_diff']:
             fig = plot_biplot_PCs(adata, X_pca, covariate='sample', colors=colors)
             plt.show()
             fig.savefig(os.path.join(path_viz, f'PCs_{cov}.png'))
             
     if GSEA:
+        make_folder(path_viz, layer, overwrite=False)
         df = pd.DataFrame(
             loads[:,:5],
             index=adata.var_names,

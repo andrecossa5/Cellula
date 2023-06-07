@@ -277,14 +277,14 @@ def pca(adata, n_pcs=50, layer='scaled', auto=True, GSEA=True, random_seed=1234,
         n_pcs, a, b = data.compute_id_2NN()
         X_pca = X_pca[:,:round(n_pcs)]
     
-    if biplot:
+    if biplot and path_viz is not None:
         make_folder(path_viz, layer, overwrite=False)
         for cov in ['seq_run', 'sample', 'nUMIs', 'cycle_diff']:
             fig = plot_biplot_PCs(adata, X_pca, covariate='sample', colors=colors)
             plt.show()
-            fig.savefig(os.path.join(path_viz, f'PCs_{cov}.png'))
+            fig.savefig(os.path.join(path_viz, layer, f'PCs_{cov}.png'))
             
-    if GSEA:
+    if GSEA and path_viz is not None:
         make_folder(path_viz, layer, overwrite=False)
         df = pd.DataFrame(
             loads[:,:5],
@@ -293,7 +293,7 @@ def pca(adata, n_pcs=50, layer='scaled', auto=True, GSEA=True, random_seed=1234,
         )
         for i in range(1,6):
             fig = PCA_gsea_loadings_plot(df, adata.var, organism=organism, i=i)
-            fig.savefig(os.path.join(path_viz, f'PC{i}_loadings.png'))
+            fig.savefig(os.path.join(path_viz, layer, f'PC{i}_loadings.png'))
 
     # Return
     if return_adata:

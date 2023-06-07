@@ -295,7 +295,7 @@ def main():
         path_viz=path_viz, 
         organism=organism, 
         colors=colors
-    )``````
+    )
     logger.info(f'Finished PCA: {t.stop()}')
 
     #-----------------------------------------------------------------#

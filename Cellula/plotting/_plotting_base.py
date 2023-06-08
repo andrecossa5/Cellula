@@ -44,6 +44,7 @@ axins_pos = {
 
 ##
 
+
 def create_handles(categories, marker='o', colors=None, size=10, width=0.5):
     """
     Create quick and dirty circular and labels for legends.
@@ -69,19 +70,24 @@ def create_handles(categories, marker='o', colors=None, size=10, width=0.5):
 ##
 
 
-def add_cbar(x, color='viridis', ax=None, label_size=7, ticks_size=5, 
-    label=None, orientation='v', pos=2):
+def add_cbar(x, palette='viridis', ax=None, label_size=7, ticks_size=5, 
+    vmin=None, vmax=None, label=None, layout='v2'):
     """
     Draw cbar on an axes object inset.
     """
-    if pos == 'outside':
-        pos, xticks_position = axins_pos[pos]
+    
+    if layout == 'outside':
+        pos, xticks_position = axins_pos[layout]
         orientation = 'vertical'
     else:
-        pos, xticks_position = axins_pos[orientation+str(pos)]
-        orientation = 'vertical' if orientation == 'v' else 'horizontal'
-    cmap = matplotlib.colormaps[color]
-    norm = matplotlib.colors.Normalize(vmin=np.percentile(x, q=5), vmax=np.percentile(x, q=95))
+        pos, xticks_position = layout 
+        orientation = 'vertical'
+        
+    cmap = matplotlib.colormaps[palette]
+    if vmin is None and vmax is None:
+        norm = matplotlib.colors.Normalize(vmin=np.percentile(x, q=5), vmax=np.percentile(x, q=95))
+    else:
+        norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
     axins = ax.inset_axes(pos) 
     cb = plt.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap), 
         cax=axins, orientation=orientation, ticklocation=xticks_position
@@ -250,7 +256,8 @@ def line(df, x, y, c='r', s=1, l=None, ax=None):
 ##
 
 
-def scatter(df, x, y, by=None, c='r', s=1.0, a=1, l=None, ax=None, scale_x=None, ordered=False):
+def scatter(df, x, y, by=None, c='r', s=1.0, a=1, l=None, ax=None, scale_x=None, 
+            vmin=None, vmax=None, ordered=False):
     """
     Base scatter plot.
     """
@@ -270,8 +277,10 @@ def scatter(df, x, y, by=None, c='r', s=1.0, a=1, l=None, ax=None, scale_x=None,
         ax.scatter(df[x], df[y], color=c, label=l, marker='.', s=size, alpha=a)
 
     elif isinstance(c, str) and by is not None:
-        ax.scatter(df[x], df[y], c=df[by], label=l, marker='.', s=size, 
-            cmap=c, alpha=a)
+        
+        vmin = vmin if vmin is not None else np.percentile(df[by],5)
+        vmax = vmax if vmax is not None else np.percentile(df[by],5)
+        ax.scatter(df[x], df[y], c=df[by], cmap=c, vmin=vmin, vmax=vmax, label=l, marker='.', s=size, alpha=a)
 
     elif isinstance(c, dict) and by is not None:
         assert all([ x in c for x in df[by].unique() ])
@@ -538,9 +547,7 @@ def bb_plot(df, cov1=None, cov2=None, show_y=True, legend=True, colors=None,
     )
 
     if legend:
-        add_legend(label=cov2, colors=colors, ax=ax, only_top=10, ncols=1,
-            loc='upper left', bbox_to_anchor=(1.01,1), ticks_size=7  
-        )
+        add_legend(label=cov2, colors=colors, ax=ax, **kwargs)
     
     if with_data:
         return ax, data

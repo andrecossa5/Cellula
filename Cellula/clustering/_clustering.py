@@ -154,3 +154,17 @@ all_functions = {
     'silhouette' : silhouette_score,
     'kNN_purity' : kNN_purity
 }
+
+
+##
+
+
+def leiden(adata, obsp_key=None, obs_key='leiden', res=.8):
+    """
+    Wrapper around leiden_clustering. Adata input.
+    """
+    adata.obs[obs_key] = leiden_clustering(adata.obsp[obsp_key], res=res)
+    adata.obs[obs_key] = pd.Categorical(adata.obs[obs_key])
+    
+
+##

@@ -372,7 +372,7 @@ def format_draw_embeddings(
 
     if title is None:
         cov = cat if cat is not None else cont 
-        title = cov.capitalize()
+        title = cov
     else:
         assert isinstance(title, str)
 
@@ -385,7 +385,7 @@ def format_draw_embeddings(
     
     if axes_params['legend'] and cat is not None:
         if 'label' not in legend_params or legend_params['label'] is None:
-            legend_params['label'] = cat.capitalize()
+            legend_params['label'] = cat
         add_legend(ax=ax, **legend_params)
     
     elif axes_params['cbar'] and cont is not None:
@@ -435,11 +435,12 @@ def draw_embeddings(
     """
 
     cbar_params={
-        'color' : 'viridis',
+        'palette' : 'viridis',
         'label_size' : 8, 
         'ticks_size' : 6,  
-        'pos' : 2,
-        'orientation' : 'v'
+        'vmin' : None,
+        'vmax' : None,
+        'layout' : 'v2'
     }
 
     legend_params={
@@ -495,7 +496,8 @@ def draw_embeddings(
     elif cat is None and cont is not None:
         
         if query is None:
-            scatter(df, x=x, y=y, by=cont, c=cbar_params['color'], ax=ax, s=s)
+            scatter(df, x=x, y=y, by=cont, ax=ax, s=s,
+                    c=cbar_params['palette'], vmin=cbar_params['vmin'], vmax=cbar_params['vmax'])
             format_draw_embeddings(ax, df, x, y, title=title, cont=cont, axes_params=axes_params)
         else:
             if isinstance(query, str):
@@ -504,7 +506,8 @@ def draw_embeddings(
                 subset = query
             if subset.size > 0:
                 scatter(df.loc[~df.index.isin(subset), :], x=x, y=y, c='darkgrey', ax=ax, s=s/3)
-                scatter(df.loc[subset, :], x=x, y=y, by=cont, c=cbar_params['color'], ax=ax, s=s)
+                scatter(df.loc[subset, :], x=x, y=y, by=cont, ax=ax, s=s,
+                        c=cbar_params['palette'], vmin=cbar_params['vmin'], vmax=cbar_params['vmax'])
                 format_draw_embeddings(
                     ax, df.loc[subset, :], x, y, title=title, cont=cont, axes_params=axes_params
                 )
@@ -804,6 +807,8 @@ def dot_plot(adata, markers, s, n=5, ax=None, size=10, legend=True):
     ax.set(title=s, ylabel='', xlabel='Cluster')
     ax.tick_params(axis='both', which='both', labelsize=size)
     ax.legend(loc='center left', bbox_to_anchor=(1.05, 0.5), frameon=False)
+    
+    return ax
 
 
 ##
@@ -983,3 +988,49 @@ def mean_variance_plot(adata, recipe='standard', figsize=(5,4.5)):
 
     return fig
 
+
+##
+
+
+# Utils
+def volcano(df_, t=1, n=10, title=None, xlim=(-8,8), max_distance=0.5, pseudocount=0):
+    
+    choices = [
+        (df_['effect_size'] >= t) & (df_['evidence'] <= 0.1),
+        (df_['effect_size'] <= -t) & (df_['evidence'] <= 0.1),
+    ]
+    df_['type'] = np.select(choices, ['up', 'down'], default='other')
+    df_['to_annotate'] = False
+    df_['to_annotate'][:n] = True
+    df_['to_annotate'][-n:] = True
+    df_['evidence'] = -np.log10(df_['evidence']+pseudocount)
+
+    fig, ax = plt.subplots(figsize=(5,5))
+    scatter(df_.query('type == "other"'), 'effect_size', 'evidence',  c='darkgrey', s=5, ax=ax)
+    scatter(df_.query('type == "up"'), 'effect_size', 'evidence',  c='red', s=10, ax=ax)
+    scatter(df_.query('type == "down"'), 'effect_size', 'evidence',  c='b', s=10, ax=ax)
+
+    ax.set(xlim=xlim)
+
+    ax.vlines(1, df_['evidence'].min(), df_['evidence'].max(), linestyles='dashed', colors='r')
+    ax.vlines(-1, df_['evidence'].min(), df_['evidence'].max(), linestyles='dashed', colors='b')
+    ax.hlines(-np.log10(0.1), -6, 6, linestyles='dashed', colors='k')
+
+    format_ax(ax, title=title, xlabel=f'log2FC', ylabel=f'-log10(FDR)')
+
+    ax.spines[['top', 'right']].set_visible(False)
+
+    ta.allocate_text(
+        fig, ax, 
+        df_.loc[lambda x: x['to_annotate']]['effect_size'],
+        df_.loc[lambda x: x['to_annotate']]['evidence'],
+        df_.loc[lambda x: x['to_annotate']].index,
+        x_scatter=df_['effect_size'], y_scatter=df_['evidence'], 
+        linecolor='black', textsize=8, 
+        max_distance=max_distance, linewidth=0.5, nbr_candidates=100
+    )
+    
+    return fig
+
+
+##

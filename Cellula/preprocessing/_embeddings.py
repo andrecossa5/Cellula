@@ -142,3 +142,27 @@ def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', red_
         return a, df_
     
 
+##
+
+
+def sanitize_neighbors(adata, obsm_key=None, old_neighbors_key=None, new_neighbors_key='nn', NN=15):
+    """
+    Sanititize obsp and uns neighbors for scanpy compatibility.
+    """
+    latent_space = obsm_key
+    
+    adata.obsp[f'{new_neighbors_key}_distances'] = adata.obsp['scaled|Scanorama|X_corrected|NN_dist']
+    del adata.obsp[f'{old_neighbors_key}|NN_dist']
+    adata.obsp[f'{new_neighbors_key}_connectivities'] = adata.obsp['scaled|Scanorama|X_corrected|NN_conn']
+    del adata.obsp[f'{old_neighbors_key}|NN_conn']
+    
+    adata.uns[new_neighbors_key] = {
+        'connectivities_key': f'{new_neighbors_key}_connectivities',
+        'distances_key': f'{new_neighbors_key}_distances', 
+        'params' : { 
+            'n_neighbors' : 15, 
+            'method' : 'umap', 
+            'use_rep' : obsm_key, 
+            'n_pcs' : adata.obsm[obsm_key].shape[1] # Even if they may not PCs..
+        }
+    }

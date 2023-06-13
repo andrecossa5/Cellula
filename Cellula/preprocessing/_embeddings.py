@@ -8,7 +8,6 @@ import pandas as pd
 import scanpy as sc
 from joblib import cpu_count
 import pegasus as pg
-import pegasusio
 from .._utils import get_representation
 
 
@@ -16,7 +15,7 @@ from .._utils import get_representation
 
 
 def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', red_key=None, 
-            nn_key=None, n_diff=15, random_state=1234, umap_only=True, with_adata=False):
+            nn_key=None, n_diff=15, random_state=1234, umap_only=True, with_tsne=False, with_adata=False):
     """
     From a preprocessed adata object, compute cells embedding in some reduced dimension space. 
 
@@ -111,7 +110,8 @@ def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', red_
         sc.tl.draw_graph(a, init_pos='paga', layout='fa', random_state=random_state, 
                         n_jobs=cpu_count(), neighbors_key='nn', key_added_ext='fa_reduced')
         sc.tl.umap(a, init_pos='paga', random_state=random_state, neighbors_key='nn')
-        sc.tl.tsne(a, use_rep='X_latent_space', random_state=random_state, n_jobs=cpu_count())
+        if with_tsne:
+            sc.tl.tsne(a, use_rep='X_latent_space', random_state=random_state, n_jobs=cpu_count())
 
         # Diffusion maps and embeds their graph
         sc.tl.diffmap(a, n_comps=n_diff, neighbors_key='nn', random_state=random_state)
@@ -124,10 +124,15 @@ def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', red_
         # Get embeddings coordinates: 5 embeddings types
         umap = pd.DataFrame(data=a.obsm['X_umap'], columns=['UMAP1', 'UMAP2'], index=a.obs_names)
         fa = pd.DataFrame(data=a.obsm['X_draw_graph_fa_reduced'], columns=['FA1', 'FA2'], index=a.obs_names)
-        tsne = pd.DataFrame(data=a.obsm['X_tsne'], columns=['tSNE1', 'tSNE2'], index=a.obs_names)
+        if with_tsne:
+            tsne = pd.DataFrame(data=a.obsm['X_tsne'], columns=['tSNE1', 'tSNE2'], index=a.obs_names)
         fa_diff = pd.DataFrame(data=a.obsm['X_draw_graph_fa_diff'], columns=['FA_diff1', 'FA_diff2'], index=a.obs_names)
         diff = pd.DataFrame(data=a.obsm['X_diffmap'], columns=[ f'Diff{i+1}' for i in range(n_diff) ], index=a.obs_names)
-        df_ = adata.obs.join([umap, fa, tsne, fa_diff, diff])
+        if with_tsne:
+            L = [umap, fa, tsne, fa_diff, diff]
+        else:
+            L = [umap, fa, fa_diff, diff]
+        df_ = adata.obs.join(L)
     
     # Fast, only umap
     else:
@@ -151,9 +156,9 @@ def sanitize_neighbors(adata, obsm_key=None, old_neighbors_key=None, new_neighbo
     """
     latent_space = obsm_key
     
-    adata.obsp[f'{new_neighbors_key}_distances'] = adata.obsp['scaled|Scanorama|X_corrected|NN_dist']
+    adata.obsp[f'{new_neighbors_key}_distances'] = adata.obsp[f'{old_neighbors_key}|NN_dist']
     del adata.obsp[f'{old_neighbors_key}|NN_dist']
-    adata.obsp[f'{new_neighbors_key}_connectivities'] = adata.obsp['scaled|Scanorama|X_corrected|NN_conn']
+    adata.obsp[f'{new_neighbors_key}_connectivities'] = adata.obsp[f'{old_neighbors_key}|NN_conn']
     del adata.obsp[f'{old_neighbors_key}|NN_conn']
     
     adata.uns[new_neighbors_key] = {

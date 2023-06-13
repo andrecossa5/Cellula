@@ -20,7 +20,7 @@ from ..plotting._plotting_base import *
 ##
 
 
-def standard_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None): 
+def standard_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None, remove_messy=True): 
     """
     Standard pre-processing recipe: robust genes filtering, library size log-normalization, pegasus HVGs selection,
     reduction, scaling and regression of technical covariates. Produce a log-normalized (i.e., library size), full feature matrix,
@@ -32,13 +32,17 @@ def standard_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None):
     adata = adata[:, adata.var['robust']].copy()
     sc.pp.normalize_total(adata, target_sum=1e4)
     sc.pp.log1p(adata)
+    adata.obs = adata.obs.join(sig_scores(adata, score_method='scanpy', organism=organism))
+    
+    # HVGs
+    if remove_messy:
+        adata = remove_unwanted(adata)
     pg.highly_variable_features(
         adata, 
         batch='sample' if 'sample' in adata.obs.columns else None, 
         n_top=n_HVGs, 
         min_mean=0.0125, max_mean=3, min_disp=0.5
     )
-    adata.obs = adata.obs.join(sig_scores(adata, score_method='scanpy', organism=organism))
 
     # Visualization mean variance trend (and HVGs selection) upon normalization
     if path_viz is not None:
@@ -69,7 +73,7 @@ def standard_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None):
 ##
 
 
-def remove_cc_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None): 
+def remove_cc_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None, remove_messy=True): 
     """
     remove_cc pre-processing recipe: robust genes filtering, library size log-normalization, pegasus HVGs selection,
     removal of genes correlated with CC transitional genes (G1/S and G2/M genes), reduction, scaling and regression 
@@ -84,11 +88,15 @@ def remove_cc_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None):
     adata = adata[:, adata.var['robust']]
     sc.pp.normalize_total(adata, target_sum=1e4)
     sc.pp.log1p(adata)
+    adata.obs = adata.obs.join(sig_scores(adata, score_method='scanpy', organism=organism))
+    
+    # HVGs 
+    if remove_messy:
+        adata = remove_unwanted(adata)
     pg.highly_variable_features(adata, batch='sample', n_top=n_HVGs, min_mean=0.0125, max_mean=3, min_disp=0.5)
     # CC genes marked for removal here
     remove_cc_genes(adata, organism=organism, corr_threshold=0.1) 
-    adata.obs = adata.obs.join(sig_scores(adata, score_method='scanpy', organism=organism))
-
+    
     # Viz
     if path_viz is not None:
         
@@ -107,7 +115,7 @@ def remove_cc_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None):
     # Red, scale, regress
     adata_red = red(adata)
     adata_red = scale(adata_red)
-    adata_red = regress(adata_red, covariates=['mito_perc', 'nUMIs'])
+    adata_red = regress(adata_red, covariates=['mito_perc', 'nUMIs', 'ribo_genes'])
 
     return adata, adata_red
 
@@ -115,7 +123,7 @@ def remove_cc_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None):
 ##
 
 
-def regress_cc_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None): 
+def regress_cc_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None, remove_messy=True): 
     """
     regress_cc pre-processing recipe: robust genes filtering, library size log-normalization, pegasus HVGs selection,
     reduction, first scaling, regression of both technical (i.e., 'nUMIS', 'mito_perc') and biological (i.e., 'cell_cycle_diff') 
@@ -130,8 +138,12 @@ def regress_cc_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None):
     adata = adata[:, adata.var['robust']]
     sc.pp.normalize_total(adata, target_sum=1e4)
     sc.pp.log1p(adata)
-    pg.highly_variable_features(adata, batch='sample', n_top=n_HVGs, min_mean=0.0125, max_mean=3, min_disp=0.5)
     adata.obs = adata.obs.join(sig_scores(adata, score_method='scanpy', organism=organism))
+    
+    # HVGs
+    if remove_messy:
+        adata = remove_unwanted(adata)
+    pg.highly_variable_features(adata, batch='sample', n_top=n_HVGs, min_mean=0.0125, max_mean=3, min_disp=0.5)
 
     # Viz
     if path_viz is not None:
@@ -151,7 +163,7 @@ def regress_cc_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None):
     # Red and scale
     adata_red = red(adata)
     adata_red = scale(adata_red)
-    adata_red = regress(adata_red, covariates=['mito_perc', 'nUMIs', 'cycle_diff']) # cycle_diff regressed out!
+    adata_red = regress(adata_red, covariates=['mito_perc', 'nUMIs', 'cycle_diff', 'ribo_genes']) # cycle_diff regressed out!
 
     return adata, adata_red
 
@@ -159,7 +171,7 @@ def regress_cc_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None):
 ##
 
 
-def sct_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None): 
+def sct_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None, remove_messy=True):  
     """
     sct (de Lause et al., 2021) pre-processing recipe: robust genes filtering, sct HVGs selection,
     reduction and sct transformation.
@@ -181,8 +193,12 @@ def sct_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None):
     adata_mock = AnnData(X=adata.X.copy(), obs=adata.obs, var=adata.var)
     sc.pp.normalize_total(adata_mock, target_sum=1e4)
     sc.pp.log1p(adata_mock)
-    adata.layers['lognorm'] = adata_mock.X # Still raw counts in adata.X here
-    adata.obs = adata.obs.join(sig_scores(adata, layer='lognorm', score_method='scanpy', organism=organism)) # Use lognorm layer to calculate signatures
+    adata.layers['lognorm'] = adata_mock.X.A.copy() 
+    adata.obs = adata.obs.join(sig_scores(adata, layer='lognorm', score_method='scanpy', organism=organism))
+    
+    # HVGs
+    if remove_messy:
+        adata = remove_unwanted(adata)
 
     # Viz
     if path_viz is not None:

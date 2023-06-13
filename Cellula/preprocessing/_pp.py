@@ -357,12 +357,15 @@ def compute_pca_all(adata, **kwargs):
 
 def remove_unwanted(a):
     
-    mt = set(a.var_names[a.var_names.str.startswith('MT-')])
-    ribo_1 = set(a.var_names[a.var_names.str.startswith('RPL')])
-    ribo_2 = set(a.var_names[a.var_names.str.startswith('RPS')])
-    anti_1 = set(a.var_names[a.var_names.str.contains('-AS')])
-    anti_2 = set(a.var_names[a.var_names.str.startswith('AC0')])
-    to_exclude = mt | ribo_1 | ribo_2 | anti_1 | anti_2
+    to_exclude = set(a.var_names[a.var_names.str.startswith('MT-')]) | \
+                set(a.var_names[a.var_names.str.startswith('RPL')]) | \
+                set(a.var_names[a.var_names.str.startswith('RPS')]) | \
+                set(a.var_names[a.var_names.str.contains('-AS')]) | \
+                set(a.var_names[a.var_names.str.match('^AC[0-9]')]) | \
+                set(a.var_names[a.var_names.str.match('^AL[0-9]')]) | \
+                set(a.var_names[a.var_names.str.match('^LINC[0-9]')]) | \
+                set(a.var_names[a.var_names.str.match('^AP00')])
+                
     a = a[:, ~a.var_names.isin(to_exclude)].copy()
     
     return a

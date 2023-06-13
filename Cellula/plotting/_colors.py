@@ -65,7 +65,7 @@ ten_godisnot = [
     '#FF913F', 
     '#1CE6FF', 
     '#549E79', 
-    'C9E850', #'#00FECF', 
+    '#C9E850', #'#00FECF', 
     '#EEC3FF', 
     '#FFEF00',#'#0000A6', 
     '#D157A0', 

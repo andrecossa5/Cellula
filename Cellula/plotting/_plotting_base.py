@@ -385,8 +385,7 @@ def box(df, x, y, by=None, c=None, a=1, l=None, ax=None, with_stats=False,
             
     elif isinstance(c, dict) and by is not None:
         if all([ True if k in df[by].unique() else False for k in c.keys() ]):
-            ax = sns.boxplot(data=df, x=x, y=y, palette=c.values(), hue=by, width=s,
-                ax=ax, saturation=a, **params)
+            ax = sns.boxplot(data=df, x=x, y=y, palette=c.values(), hue=by, ax=ax, saturation=a, **params)
             ax.legend([], [], frameon=False)
             ax.set(xlabel='')
         else:

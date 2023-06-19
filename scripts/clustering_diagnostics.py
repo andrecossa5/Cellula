@@ -277,7 +277,7 @@ def clustering_diagnostics():
         # Load markers
         if os.path.exists(os.path.join(path_main, f'results_and_plots/dist_features/{version}/clusters_markers.pickle')):
             with open(os.path.join(path_main, f'results_and_plots/dist_features/{version}/clusters_markers.pickle'), mode='rb') as f:
-                markers = pickle.load(f)
+                markers = pickle.load(f).results
         else:
             sys.exit('Compute markers first!')
 

@@ -116,7 +116,7 @@ def compute_Harmony(adata, layer='scaled', categorical='sample', **kwargs):
 
 
 def compute_scVI(adata, categorical='seq_run', layer='raw', continuous=['mito_perc', 'nUMIs'],
-    n_layers=2, n_latent=30, n_hidden=128, max_epochs=300, k=15):
+    n_layers=2, n_latent=30, n_hidden=128, max_epochs=None, k=15):
     """
     Compute scVI latent space and KNN graph for the given AnnData object for the raw layer.
 

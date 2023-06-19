@@ -143,7 +143,9 @@ def regress_cc_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None, re
     # HVGs
     if remove_messy:
         adata = remove_unwanted(adata)
-    pg.highly_variable_features(adata, batch='sample', n_top=n_HVGs, min_mean=0.0125, max_mean=3, min_disp=0.5)
+    pg.highly_variable_features(
+        adata, batch='sample', n_top=n_HVGs, min_mean=0.0125, max_mean=3, min_disp=0.5
+    )
 
     # Viz
     if path_viz is not None:

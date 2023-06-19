@@ -261,7 +261,7 @@ def markers_all():
 
     logger.info('Saving markers...')
     with open(path_markers + 'clusters_markers.pickle', 'wb') as f:
-        pickle.dump(D.Results.results, f)
+        pickle.dump(D.Results, f)
 
     logger.info(f'Finished markers computation: {t.stop()}')
 

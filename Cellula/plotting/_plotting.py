@@ -139,7 +139,8 @@ def plot_rankings(df, df_rankings, df_summary, feature='rescaled_score',
 ##
 
 
-def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), labels=False, rotate=False, legend=True):
+def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), 
+            labels=False, rotate=False, legend=True):
     """
     Plot boxplot of QC covariates, by some cell goruping.
     """

@@ -156,7 +156,7 @@ def QC_plot(adata, ax, title=None):
     ax.text(.5, .21, f'n UMIs: {np.median(adata.obs["nUMIs"])} (+- {np.std(adata.obs["nUMIs"]):.2f})', transform=ax.transAxes, fontsize=8)
     ax.text(.5, .17, f'n genes: {np.median(adata.obs["detected_genes"])} (+- {np.std(adata.obs["detected_genes"]):.2f})', transform=ax.transAxes, fontsize=8)
     ax.text(.5, .13, f'MT-perc: {np.median(adata.obs["mito_perc"]):.2f} (+- {np.std(adata.obs["mito_perc"]):.2f})', transform=ax.transAxes, fontsize=8)
-    add_cbar(adata.obs["mito_perc"], color='viridis', ax=ax, label_size=7, ticks_size=5, 
+    add_cbar(adata.obs["mito_perc"], palette='viridis', ax=ax, label_size=7, ticks_size=5, 
         label='MT-perc', orientation='v', pos=1)
 
 ##  

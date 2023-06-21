@@ -76,7 +76,7 @@ def add_cbar(x, palette='viridis', ax=None, label_size=7, ticks_size=5,
     Draw cbar on an axes object inset.
     """
     
-    if layout == 'outside':
+    if layout in axins_pos:
         pos, xticks_position = axins_pos[layout]
         orientation = 'vertical'
     else:

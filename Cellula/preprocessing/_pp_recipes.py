@@ -65,7 +65,7 @@ def standard_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None, remo
     # Red, scale, regress
     adata_red = red(adata)
     adata_red = scale(adata_red)
-    adata_red = regress(adata_red, covariates=['mito_perc', 'nUMIs'])
+    adata_red = regress(adata_red, covariates=['mito_perc', 'nUMIs', 'ribo_genes'])
 
     return adata, adata_red
 
@@ -115,7 +115,7 @@ def remove_cc_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None, rem
     # Red, scale, regress
     adata_red = red(adata)
     adata_red = scale(adata_red)
-    adata_red = regress(adata_red, covariates=['mito_perc', 'nUMIs', 'ribo_genes'])
+    adata_red = regress(adata_red, covariates=['mito_perc', 'nUMIs'])
 
     return adata, adata_red
 

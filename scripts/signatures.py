@@ -167,7 +167,7 @@ def Signatures():
     S = Scores(
         adata, 
         clusters, 
-        markers.results, 
+        markers, 
         curated=curated, 
         organism=organism,  
         methods=methods

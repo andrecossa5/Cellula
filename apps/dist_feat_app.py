@@ -14,8 +14,9 @@ import streamlit as st
 ##
  
 
+# path_main = '/Users/IEO5505/Desktop/cell_app/'
 def load_data(path_objects, version, obj):
-    with open(f'{path_objects}/{version}/{obj}', 'rb') as f:
+    with open(os.path.join(path_objects, version, obj), 'rb') as f:
         results = pickle.load(f)
     return results
 
@@ -28,14 +29,18 @@ def distinguishing_features(path_main):
     # Data operations
 
     # Paths
-    path_objects = path_main + '/dist_features_objects/' 
+    path_objects = os.path.join(path_main, 'dist_features_objects')
 
     # Choose version
     st.sidebar.header('Distinguishing Features options')
     form_version = st.sidebar.form(key='Version')
     version = form_version.selectbox(
         'Choose version',
-        [ x for x in os.listdir(path_objects) if x != '.DS_Store' and len(os.listdir(f'{path_objects}/{x}/')) > 0 ],
+        [ 
+            x for x in os.listdir(path_objects) if \
+            x != '.DS_Store' and \
+            len(os.listdir(os.path.join(path_objects, x))) > 0 
+        ],
         key='Version',
     )
     submit_version = form_version.form_submit_button('Choose')
@@ -44,14 +49,13 @@ def distinguishing_features(path_main):
     form_obj = st.sidebar.form(key='Results object')
     obj = form_obj.selectbox(
         'Choose object',
-        [ x for x in os.listdir(f'{path_objects}/{version}/') if x != '.DS_Store' ],
+        [ x for x in os.listdir(os.path.join(path_objects, version)) if x != '.DS_Store' ],
         key='obj',
     )
     submit_obj = form_obj.form_submit_button('Choose')
 
     # Load
     results = load_data(path_objects, version, obj)
-    result_ = results
 
 
     ##
@@ -109,11 +113,14 @@ def distinguishing_features(path_main):
         submit_2 = form_2.form_submit_button('Run')
 
         if submit_2:
-            result_.summary_one_comparison(
+            results.summary_one_comparison(
                 job_key=job_key, 
                 comparison_key=comparison, 
-                show_genes=show_genes, show_contrast=show_contrast, print_last=False, 
-                n=int(n), collection=collection
+                show_genes=show_genes, 
+                show_contrast=show_contrast, 
+                print_last=False, 
+                n=int(n), 
+                collection=collection
             )
 
     ## One job form
@@ -142,7 +149,7 @@ def distinguishing_features(path_main):
 
         submit_2 = form_2.form_submit_button('Run')
         if submit_2:
-            result_.summary_one_job(
+            results.summary_one_job(
                 job_key=job_key, 
                 n=int(n), 
                 show_genes=show_genes, 

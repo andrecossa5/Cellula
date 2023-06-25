@@ -103,19 +103,19 @@ warnings.filterwarnings("ignore")
 #-----------------------------------------------------------------#
 
 # Set other paths 
-path_data = path_main + f'/data/{version}/'
-path_results = path_main + '/results_and_plots/dist_features/'
-path_runs = path_main + '/runs/'
-path_signatures = path_main + '/results_and_plots/signatures/'
+path_data = os.path.join(path_main, 'data', version)
+path_results = os.path.join(path_main, 'results_and_plots', 'dist_features')
+path_runs = os.path.join(path_main, 'runs')
+path_signatures = os.path.join(path_main, 'results_and_plots', 'signatures')
 
 # Folders
 to_make = [ (path_results, version) ]
 for x, y in to_make:
     make_folder(x, y, overwrite=False)
 # Update paths
-path_runs += f'/{version}/'
-path_results += f'/{version}/' 
-path_signatures += f'/{version}/' 
+path_runs = os.path.join(path_runs, version)
+path_results = os.path.join(path_results, version)
+path_signatures = os.path.join(path_signatures, version)
 
 #-----------------------------------------------------------------#
 # Set logger 
@@ -145,10 +145,12 @@ def main():
 
     # Load adata, signatures and prep contrasts and jobs
     logger.info('Loading adata and signatures, prepare contrasts and jobs...')
-    adata = sc.read(path_data + 'clustered.h5ad')
-    with open(path_signatures + 'signatures.pickle', 'rb') as f:
+    adata = sc.read(os.path.join(path_data, 'clustered.h5ad'))
+    with open(os.path.join(path_signatures, 'signatures.pickle'), 'rb') as f:
         signatures = pickle.load(f)
-    jobs, contrasts = prep_jobs_contrasts(adata, path_main + '/contrasts/', contrasts_name)
+    jobs, contrasts = prep_jobs_contrasts(
+        adata, os.path.join(path_main, 'contrasts'), contrasts_name
+    )
     logger.info(f'Data preparated before computation in: {t.stop()} s.')
 
     # Here we go

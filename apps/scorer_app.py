@@ -4,7 +4,6 @@ scorer_app. An interface to signature scores and DE.
 
 import sys
 import os
-import Cellula
 import pickle
 from Cellula.plotting._plotting_base import *
 from Cellula.plotting._plotting import *
@@ -24,8 +23,8 @@ def load_data(path_data, version):
     """
     Load data.
     """
-    adata = sc.read(path_data + f'/{version}/clustered.h5ad')
-    with open(path_data + f'/{version}/signatures.pickle', 'rb') as f:
+    adata = sc.read(os.path.join(path_data, version, 'clustered.h5ad'))
+    with open(os.path.join(path_data, version, 'signatures.pickle'), 'rb') as f:
         signatures = pickle.load(f)
 
     return adata, signatures
@@ -119,21 +118,20 @@ def viz(embs, feature, adata, q1, q2):
         df_, 
         cont='feature', 
         ax=axs[1], 
-        query=query,
-        cbar_kwargs={
-            'pos' : 2
-        }
+        query=query
     )
     
     # Violin
     if query is not None:
         c = {
-            **create_palette(df_.query(query_others.replace('==', '!=')), 'group', sc.pl.palettes.vega_20_scanpy), 
+            **create_palette(df_.query(query_others.replace('==', '!=')), 
+                            'group', sc.pl.palettes.vega_20_scanpy), 
             **{'others':'darkgrey'}
         }
         order = ['q1', 'q2', 'others']
     else:
-        c = create_palette(df_.query(query_others.replace('==', '!=')), 'group', sc.pl.palettes.vega_20_scanpy)
+        c = create_palette(df_.query(query_others.replace('==', '!=')), 
+                            'group', sc.pl.palettes.vega_20_scanpy)
         order = ['q1', 'q2']
 
     violin(df_, x='group', y='feature', c=c, ax=axs[2], order=order)
@@ -166,19 +164,23 @@ def gene_sets(path_main):
     st.markdown(    
         '''
         This is an app to explore the __expression__ of both __pre-computed__ 
-        and __user-defined__ __gene sets__. This is coupled to __Differential Expression__ among user-defined
+        and __user-defined__ __gene sets__. 
+        This is coupled to __Differential Expression__ among user-defined
         groups of cells.
         '''
     )
 
     # Paths
     path_main = sys.argv[1]
-    path_data = path_main + '/data/'
+    path_data = os.path.join(path_main, 'data')
 
     form_data = st.sidebar.form(key='Data object')
     version = form_data.selectbox(
         'Choose data from a Cellula version',
-        [ x for x in os.listdir(path_data) if x != '.DS_Store' and len(os.listdir(f'{path_data}/{x}/')) > 0 ],
+        [   
+            x for x in os.listdir(path_data) \
+            if x != '.DS_Store' and len(os.listdir(f'{path_data}/{x}/')) > 0 
+        ],
         key='Version'
     )
     submit_data = form_data.form_submit_button('Load')

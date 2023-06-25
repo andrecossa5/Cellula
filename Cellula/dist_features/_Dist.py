@@ -2,6 +2,7 @@
 _Scores.py: The Dist_features class. The most important class of Cellula.
 """
 
+import os
 import pickle
 import logging
 import re
@@ -470,5 +471,5 @@ class Dist_features:
         """
         Dump self.Results to path_results.
         """
-        with open(path_results + f'{name}.pickle', 'wb') as f:
+        with open(os.path.join(path_results, f'{name}.pickle'), 'wb') as f:
             pickle.dump(self.Results, f)

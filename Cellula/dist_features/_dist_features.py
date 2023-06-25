@@ -2,6 +2,7 @@
 _dist_features.py: utils for Dist_features.
 """
 
+import os
 import yaml
 import numpy as np
 import pandas as pd
@@ -58,7 +59,7 @@ def prep_jobs_contrasts(adata, path, contrasts_name):
     """
     Load contrasts, specified in a .yml file at path_contrasts.
     """
-    with open(path + f'{contrasts_name}.yml', 'r') as f:
+    with open(os.path.join(path, f'{contrasts_name}.yml'), 'r') as f:
         d = yaml.load(f, Loader=yaml.FullLoader)
     
     jobs = {}

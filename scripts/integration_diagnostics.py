@@ -80,14 +80,6 @@ my_parser.add_argument(
 # Parse arguments
 args = my_parser.parse_args()
 
-
-# path_main = '/Users/IEO5505/Desktop/cellula_example/'
-# version = 'default'
-# categorical = 'sample'
-# chosen = None
-# k = 15
-
-
 path_main = args.path_main
 version = args.version
 categorical = args.categorical
@@ -113,16 +105,17 @@ warnings.filterwarnings("ignore")
 #-----------------------------------------------------------------#
 
 # Set other paths
-path_data = path_main + f'/data/{version}/'  
-path_results = path_main + '/results_and_plots/pp/'
-path_runs = path_main + '/runs/'
-path_viz = path_main + '/results_and_plots/vizualization/pp/'
+path_data = os.path.join(path_main, 'data', version)  
+path_results =  os.path.join(path_main, 'results_and_plots', 'pp')
+path_runs =  os.path.join(path_main, 'runs')
+path_viz =  os.path.join(path_main, 'results_and_plots', 'vizualization', 'pp')
 
 # Update paths
-path_runs += f'/{version}/'
-path_results += f'/{version}/' 
-path_viz += f'/{version}/' 
-if not os.path.exists(path_data + 'integration.h5ad') and chosen is None:
+path_runs = os.path.join(path_runs, version)
+path_results = os.path.join(path_results, version)
+path_viz = os.path.join(path_viz, version)
+
+if not os.path.exists(os.path.join(path_data, 'integration.h5ad')) and chosen is None:
     print('Run pp or integration algorithm(s) beforehand!')
     sys.exit()
 
@@ -156,7 +149,7 @@ def integration_diagnostics():
     )
 
     # Load Integration.h5ad and instantiate an Int_evaluator class
-    adata = sc.read(path_data + 'integration.h5ad')
+    adata = sc.read(os.path.join(path_data, 'integration.h5ad'))
     I = Int_evaluator(adata)
     logger.info(f'Loading data: {t.stop()} s.')
         
@@ -193,7 +186,7 @@ def integration_diagnostics():
     # Plotting and saving outputs
     t.start()
     fig = I.viz_results(df, df_summary, df_rankings)
-    fig.savefig(path_viz + 'integration_diagnostics.png')
+    fig.savefig(os.path.join(path_viz, 'integration_diagnostics.png'))
     logger.info(f'Plotting and saving: {t.stop()} s.')
     
     #-----------------------------------------------------------------#
@@ -213,14 +206,14 @@ def choose_preprocessing_option():
     # Data loading and preparation
 
     # Read adatas: lognorm and reduced/integration
-    lognorm = sc.read(path_data + 'lognorm.h5ad')
+    lognorm = sc.read(os.path.join(path_data, 'lognorm.h5ad'))
     layer, chosen_method = chosen.split(':') 
     logger.info('Choosing integrated preprocessing option: ' + '|'.join([layer, chosen_method]))
 
-    if not os.path.exists(path_data + 'integration.h5ad') and chosen is not None:
-        pp = sc.read(path_data + 'reduced.h5ad')
-    elif os.path.exists(path_data + 'integration.h5ad') and chosen is not None:
-        pp = sc.read(path_data + 'integration.h5ad')
+    if not os.path.exists(os.path.join(path_data, 'integration.h5ad')) and chosen is not None:
+        pp = sc.read(os.path.join(path_data, 'reduced.h5ad'))
+    elif os.path.exists(os.path.join(path_data, 'integration.h5ad')) and chosen is not None:
+        pp = sc.read(os.path.join(path_data, 'integration.h5ad'))
     else:
         raise ValueError('No reduced or integration adatas available.')
 
@@ -253,14 +246,17 @@ def choose_preprocessing_option():
         logger.info(f'Finished recomputing kNN graph (k={k}): {t.stop()}')
     else:
         logger.info(f'kNN graph already present (k={k})...')
-    idx, conn, dist = get_representation(pp, layer=layer, method=chosen_method, kNN=True, embeddings=False)
+
+    idx, conn, dist = get_representation(
+        pp, layer=layer, method=chosen_method, kNN=True, embeddings=False
+    )
     adata.obsm['NN_idx'] = idx
     adata.obsp['NN_conn'] = conn
     adata.obsp['NN_dist'] = dist
     adata.uns['NN'] = pp.uns[f'{layer}|{chosen_method}|{embeddings_type}|NN']
 
     # Save
-    adata.write(path_data + 'preprocessed.h5ad')
+    adata.write(os.path.join(path_data, 'preprocessed.h5ad'))
 
     # Write final exec time
     logger.info(f'Assemble the definitive preprocessed adata took total {T.stop()} s.')

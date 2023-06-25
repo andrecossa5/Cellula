@@ -98,11 +98,11 @@ warnings.filterwarnings("ignore")
 #-----------------------------------------------------------------#
 
 # Set other paths 
-path_data = path_main + f'/data/{version}/'
-path_clusters = path_main + f'/results_and_plots/clustering/{version}/'
-path_markers = path_main + f'/results_and_plots/dist_features/{version}/'
-path_results = path_main + '/results_and_plots/signatures/'
-path_runs = path_main + '/runs/'
+path_data = os.path.join(path_main, 'data', version)
+path_clusters = os.path.join(path_main, 'results_and_plots', 'clustering', version)
+path_markers = os.path.join(path_main, 'results_and_plots', 'dist_features', version)
+path_results = os.path.join(path_main, 'results_and_plots', 'signatures')
+path_runs = os.path.join(path_main, 'runs')
 
 # Create step_{i} clustering folders. Overwrite, if they have already been created
 to_make = [ (path_results, version) ]
@@ -110,8 +110,8 @@ for x, y in to_make:
     make_folder(x, y, overwrite=True)
 
 # Update paths
-path_runs += f'/{version}/'
-path_results += f'/{version}/' 
+path_runs = os.path.join(path_runs, version)
+path_results = os.path.join(path_results, version)
 
 #-----------------------------------------------------------------#
 
@@ -143,9 +143,12 @@ def Signatures():
 
     # Load adata, clusters, markers and curated
     logger.info('Load data...')
-    adata = sc.read(path_data + 'clustered.h5ad')
-    clusters = pd.read_csv(path_clusters + 'clustering_solutions.csv', index_col=0)
-    with open(path_markers + 'clusters_markers.pickle', 'rb') as f:
+    adata = sc.read(os.path.join(path_data, 'clustered.h5ad'))
+    clusters = pd.read_csv(
+        os.path.join(path_clusters, 'clustering_solutions.csv'),
+        index_col=0
+    )
+    with open(os.path.join(path_markers, 'clusters_markers.pickle'), 'rb') as f:
         markers = pickle.load(f)
     
     #Selected integration methods
@@ -186,7 +189,7 @@ def Signatures():
     # Save scores
     t.start()
     signatures = S.format_results()
-    with open(path_results + 'signatures.pickle', 'wb') as f:
+    with open(os.path.join(path_results, 'signatures.pickle'), 'wb') as f:
         pickle.dump(signatures, f)
     logger.info(f'Save signatures.pickle file: {t.stop()}')
 

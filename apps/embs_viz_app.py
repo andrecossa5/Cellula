@@ -22,7 +22,7 @@ def load(path_main, version):
     """
     Load adata and create plotting df.
     """
-    adata = sc.read(path_main + f'/data/{version}/clustered.h5ad')
+    adata = sc.read(os.path.join(path_main, 'data', version, 'clustered.h5ad'))
     umap = pd.DataFrame(
         adata.obsm['X_umap'], 
         columns=['UMAP1', 'UMAP2'], 
@@ -46,7 +46,10 @@ def embeddings_visualization(path_main):
     form_data = st.sidebar.form(key='Data', clear_on_submit=False)
     version = form_data.selectbox(
         'Choose data from a Cellula version',
-        [ x for x in os.listdir(path_data) if x != '.DS_Store' and len(os.listdir(f'{path_data}/{x}/')) > 0 ],
+        [ 
+            x for x in os.listdir(path_data) if x != '.DS_Store' \
+            and len(os.listdir(os.path.join(path_data, x))) > 0 
+        ],
         key='version'
     )
     submit_data = form_data.form_submit_button('Load')
@@ -166,7 +169,7 @@ def embeddings_visualization(path_main):
                     query=query,
                     s=float(size),
                     cbar_kwargs={
-                        'pos' : 'outside'
+                        'layout' : 'outside'
                     }
                 )
                 

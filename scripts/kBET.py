@@ -75,18 +75,19 @@ warnings.filterwarnings("ignore")
 #-----------------------------------------------------------------#
 
 # Set other paths 
-path_data = path_main + f'/data/{version}/' # Set here, do not overwrite
-path_results = path_main + '/results_and_plots/pp/'
-path_runs = path_main + '/runs/'
-path_viz = path_main + '/results_and_plots/vizualization/pp/'
+path_data = os.path.join(path_main, 'data')
+path_results = os.path.join(path_main, 'results_and_plots', 'pp')
+path_runs = os.path.join(path_main, 'runs')
+path_viz = os.path.join(path_main, 'results_and_plots', 'vizualization', 'pp')
 
 # Update paths
-path_results += f'/{version}/'
-path_runs += f'/{version}/' 
-path_viz += f'/{version}/' 
+path_data = os.path.join(path_data, version)
+path_runs = os.path.join(path_runs, version)
+path_results = os.path.join(path_results, version)
+path_viz = os.path.join(path_viz, version) 
 
 # Check if reduced.h5ad is present in folder 
-if not os.path.exists(path_data + 'reduced.h5ad'):
+if not os.path.exists(os.path.join(path_data, 'reduced.h5ad')):
     print('Run pp or integration algorithm(s) beforehand!')
     sys.exit()
 
@@ -117,7 +118,7 @@ def kBET():
     )
 
     # Load reduced adata, with PCA spaces
-    adata = sc.read(path_data + 'reduced.h5ad')
+    adata = sc.read(os.path.join(path_data, 'reduced.h5ad'))
     logger.info(f'Data loading and preparation: {t.stop()}')
 
     #-----------------------------------------------------------------#
@@ -155,14 +156,21 @@ def kBET():
     logger.info(f'Extract results and take the integration decision...')
 
     # Create df
-    df = pd.DataFrame().from_dict(kbet_computation, 
-            orient='index'
-        ).reset_index().rename(columns={'index':'rep', 0:'acceptance_rate'})
+    df = (
+        pd.DataFrame()
+        .from_dict(kbet_computation, orient='index')
+        .reset_index()
+        .rename(columns={'index':'rep', 0:'acceptance_rate'})
+    )
     df['pp_option'] = df['rep'].map(lambda x: x.split('|')[0])
     df['kNN'] = df['rep'].map(lambda x: x.split('|')[2])
     df['k'] = df['kNN'].map(lambda x: x.split('_')[:1][0]).astype(int)
     df.pop('rep')
-    df.sort_values(by='acceptance_rate', ascending=False).to_excel(path_results + 'kBET_df.xlsx')
+    (
+        df
+        .sort_values(by='acceptance_rate', ascending=False)
+        .to_excel(os.path.join(path_results, 'kBET_df.xlsx'))
+    )
     
     logger.info(f'kBET_df.xlsx finished in: {t.stop()} s.')
 

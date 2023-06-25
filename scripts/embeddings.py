@@ -40,6 +40,15 @@ my_parser.add_argument(
     help='The pipeline step to run. Default: default.'
 )
 
+# Path_main
+my_parser.add_argument(
+    '--n_diff', 
+    type=int,
+    default=10,
+    help='n diffusion components to compute. Default: 10.'
+)
+
+# Random state
 my_parser.add_argument( 
     '--random_state', 
     type=int,
@@ -51,6 +60,7 @@ my_parser.add_argument(
 args = my_parser.parse_args()
 path_main = args.path_main
 version = args.version
+n_diff = args.n_diff
 random_state = args.random_state
 
 ########################################################################
@@ -71,8 +81,8 @@ warnings.filterwarnings("ignore")
 #-----------------------------------------------------------------#
 
 # Set other paths
-path_data = path_main + f'/data/{version}/'
-path_runs = path_main + f'/runs/{version}/'
+path_data = os.path.join(path_main, 'data', version)
+path_runs = os.path.join(path_main, 'runs', version)
 
 #-----------------------------------------------------------------#
 
@@ -94,7 +104,7 @@ def Embs():
     logger.info('Execute embeddings...')
 
     # Load anndata
-    adata = sc.read(path_data + 'clustered.h5ad')
+    adata = sc.read(os.path.join(path_data, 'clustered.h5ad'))
     logger.info(f'Data loading and preparation: {t.stop()} s.')
     
     #-----------------------------------------------------------------#
@@ -106,6 +116,7 @@ def Embs():
         adata, 
         nn_key='NN',
         red_key='X_reduced',
+        n_diff=n_diff,
         random_state=1234, 
         umap_only=False
     )
@@ -114,7 +125,7 @@ def Embs():
     # Save results
     t.start()
     logger.info('Write the full_embs .csv')
-    df.to_csv(path_data + 'full_embs.csv')
+    df.to_csv(os.path.join(path_data, 'full_embs.csv'))
     logger.info(f'End of writing {t.stop()} s.') 
 
     #-----------------------------------------------------------------#

@@ -92,17 +92,18 @@ warnings.filterwarnings("ignore")
 #-----------------------------------------------------------------#
 
 # Set other paths 
-path_data = path_main + f'/data/{version}/'
-path_results = path_main + '/results_and_plots/clustering/'
-path_runs = path_main + '/runs/'
-path_viz = path_main + '/results_and_plots/vizualization/clustering/'
+path_data = os.path.join(path_main, 'data', version)
+path_results = os.path.join(path_main, 'results_and_plots', 'clustering')
+path_runs = os.path.join(path_main, 'runs')
+path_viz = os.path.join(path_main, 'results_and_plots', 'vizualization', 'clustering')
+
 # Update paths
-path_runs += f'/{version}/'
-path_results += f'/{version}/' 
-path_viz += f'/{version}/' 
+path_runs = os.path.join(path_runs, version)
+path_results = os.path.join(path_results, version)
+path_viz = os.path.join(path_viz, version)
 
 # Check if clustering has already been performed 
-if not os.path.exists(path_results + 'clustering_solutions.csv'):
+if not os.path.exists(os.path.join(path_results, 'clustering_solutions.csv')):
     print('Run clustering first!')
     sys.exit()
 
@@ -125,13 +126,13 @@ def clustering_diagnostics():
     logger.info('Loading data: preprocessed adata., clustering solutions and kNN graphs...')
 
     # Load data
-    adata = sc.read(path_data + 'preprocessed.h5ad')
+    adata = sc.read(os.path.join(path_data, 'preprocessed.h5ad'))
     clustering_solutions = pd.read_csv(
-        path_results + 'clustering_solutions.csv', 
+        os.path.join(path_results, 'clustering_solutions.csv'), 
         index_col=0, 
         dtype='category'
     )
-    with open(path_results + 'kNN_graphs.pickle', 'rb') as f:
+    with open(os.path.join(path_results, 'kNN_graphs.pickle'), 'rb') as f:
         kNN_graphs = pickle.load(f)
     logger.info(f'Data loaded: {t.stop()}')
 
@@ -166,14 +167,14 @@ def clustering_diagnostics():
 
         # Summary QC covariate per cluster, for each clustering solution
         summary_QC = cluster_QC(df_QC, QC_covariates)
-        summary_QC.to_excel(path_results + 'summary_QC.xlsx')
+        summary_QC.to_excel(os.path.join(path_results, 'summary_QC.xlsx'))
 
         # Assess if there are some very bad partitions
         q = f'nUMIs < {250} and detected_genes < {500} and mito_perc > {0.2}'
         very_bad_boys = summary_QC.query(q).loc[:, ['solution', 'partition']]
 
         if len(very_bad_boys.index) > 0:
-            very_bad_boys.to_excel(path_results + 'bad_boys.xlsx')
+            very_bad_boys.to_excel(os.path.join(path_results, 'bad_boys.xlsx'))
             logger.info(f'Found {len(very_bad_boys.index)} bad quality clusters...')
         else:
             logger.info(f'No bad quality clusters found...')
@@ -202,7 +203,7 @@ def clustering_diagnostics():
             legend=True, 
             labels=True,
         )
-        fig.savefig(path_viz + f'QC_{chosen}.png')
+        fig.savefig(os.path.join(path_viz, f'QC_{chosen}.png'))
 
         logger.info(f'Adding {chosen} solution QC vizualization: {t.stop()} s.')
 
@@ -225,7 +226,7 @@ def clustering_diagnostics():
             annot_size=3,
             figsize=(11, 10)
         )
-        fig.savefig(path_viz + 'ARI_among_solutions.png')
+        fig.savefig(os.path.join(path_viz, 'ARI_among_solutions.png'))
         logger.info(f'ARI among solutions: total {t.stop()} s.')
 
         # Calculate metrics (NB. all intrinsic metrics. No ground truth needed.)
@@ -248,14 +249,14 @@ def clustering_diagnostics():
 
         # Overall solution rankings 
         fig = C.viz_results(df, df_summary, df_rankings)
-        fig.savefig(path_viz + 'clustering_solutions_rankings.png')
+        fig.savefig(os.path.join(path_viz, 'clustering_solutions_rankings.png'))
 
         # Cluster separation trends
         df = df.assign(
             NN = df['run'].map(lambda x: int(x.split('_')[0])),
             resolution = df['run'].map(lambda x: float(x.split('_')[2]))
         )
-        with PdfPages(path_viz + 'clusters_separation.pdf') as pdf:
+        with PdfPages(os.path.join(path_viz, 'clusters_separation.pdf')) as pdf:
             for k in sorted(df['NN'].unique()):
                 df_kNN = df.loc[df['NN'] == k]
                 fig = cluster_separation_plot(clustering_solutions, df_kNN)
@@ -275,8 +276,15 @@ def clustering_diagnostics():
         logger.info('Diagnostics 3: Top clustering solutions relationships.')
 
         # Load markers
-        if os.path.exists(os.path.join(path_main, f'results_and_plots/dist_features/{version}/clusters_markers.pickle')):
-            with open(os.path.join(path_main, f'results_and_plots/dist_features/{version}/clusters_markers.pickle'), mode='rb') as f:
+        if os.path.exists(
+            os.path.join(
+                path_main, 
+                f'results_and_plots/dist_features/{version}/clusters_markers.pickle')
+            ):
+            with open(os.path.join(
+                path_main, 
+                f'results_and_plots/dist_features/{version}/clusters_markers.pickle'), 
+                mode='rb') as f:
                 markers = pickle.load(f).results
         else:
             sys.exit('Compute markers first!')
@@ -288,9 +296,10 @@ def clustering_diagnostics():
 
         # Here we go
         logger.info('Begin visualizations: PAGA and UMAP, JI and dotplots...')
-        with PdfPages(path_viz + 'top_3.pdf') as pdf:
+        with PdfPages(os.path.join(path_viz, 'top_3.pdf')) as pdf:
             # Paga and umap
-            fig = top_3_paga_umap(adata, clustering_solutions, top_3, s=13, color_fun=create_colors)
+            fig = top_3_paga_umap(
+                adata, clustering_solutions, top_3, s=13, color_fun=create_colors)
             pdf.savefig()  
             # JI
             fig = top_3_ji_cells(markers, sol)
@@ -342,7 +351,7 @@ def clustering_diagnostics():
 
         # Save clustered adata and cells_embeddings
         logger.info(adata)
-        adata.write(path_data + 'clustered.h5ad')
+        adata.write(os.path.join(path_data, 'clustered.h5ad'))
         logger.info(f'Creating final clustered adata: {t.stop()} s.')
 
 #######################################################################
@@ -355,7 +364,7 @@ def remove_partition():
 
     # Load clustering solutions
     sol = pd.read_csv(
-        path_results + 'clustering_solutions.csv', 
+        os.path.join(path_results, 'clustering_solutions.csv'), 
         index_col=0, 
         dtype='category'
     )
@@ -365,12 +374,14 @@ def remove_partition():
     to_remove = sol[sol[s] == p].index.to_list()
 
     # Write to data/removed_cells/step/
-    path_remove = path_data + '/removed_cells/'
+    path_remove = os.path.join(path_data, 'removed_cells')
     pd.DataFrame(
         data=to_remove, 
         index=to_remove, 
         columns=['cell']
-    ).to_csv(path_remove + f'/{version}_clustering_{s}_{p}_cells.csv')
+    ).to_csv(
+        os.path.join(path_remove, f'{version}_clustering_{s}_{p}_cells.csv')
+    )
 
     # Print exec time and exit
     logger.info(f'Remove cells from {remove}: {T.stop()} s.')

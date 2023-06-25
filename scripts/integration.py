@@ -93,8 +93,8 @@ warnings.filterwarnings("ignore")
 #-----------------------------------------------------------------#
 
 # Set other paths
-path_data = path_main + f'/data/{version}/'
-path_runs = path_main + f'/runs/{version}/'
+path_data = os.path.join(path_main, 'data', version)
+path_runs = os.path.join(path_main, 'runs', version)
 
 #-----------------------------------------------------------------#
 
@@ -125,7 +125,7 @@ def Integration():
     )
 
     # Load anndata
-    adata = sc.read(path_data + 'reduced.h5ad')
+    adata = sc.read(os.path.join(path_data, 'reduced.h5ad'))
     logger.info(f'Data loading and preparation: {t.stop()} s.')
     
     #-----------------------------------------------------------------#
@@ -153,7 +153,7 @@ def Integration():
 
     # Save results
     t.start()
-    adata.write(path_data + 'integration.h5ad')
+    adata.write(os.path.join(path_data, 'integration.h5ad'))
     logger.info(f'Writing of the integrated adata: {t.stop()} s.') 
 
     #-----------------------------------------------------------------#

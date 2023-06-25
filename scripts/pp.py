@@ -155,13 +155,16 @@ warnings.filterwarnings("ignore")
 #-----------------------------------------------------------------#
 
 # Set other paths 
-path_data = path_main + '/data/'
-path_results = path_main + '/results_and_plots/pp/'
-path_runs = path_main + '/runs/'
-path_viz = path_main + '/results_and_plots/vizualization/pp/'
+path_data = os.path.join(path_main, 'data')
+path_results = os.path.join(path_main, 'results_and_plots', 'pp')
+path_runs = os.path.join(path_main, 'runs')
+path_viz = os.path.join(path_main, 'results_and_plots', 'vizualization', 'pp')
 
 # Create step_{i} folders. Overwrite, if they have already been created
-to_make = [ (path_runs, version), (path_results, version), (path_viz, version), (path_data, version) ]
+to_make = [ 
+    (path_runs, version), (path_results, version), 
+    (path_viz, version), (path_data, version) 
+]
 for x, y in to_make:
     if x == path_data or x == path_runs:
         make_folder(x, y, overwrite=False)
@@ -169,10 +172,10 @@ for x, y in to_make:
         make_folder(x, y, overwrite=True)
 
 # Update paths
-path_data += f'/{version}/'
-path_runs += f'/{version}/'
-path_results += f'/{version}/' 
-path_viz += f'/{version}/' 
+path_data = os.path.join(path_data, version)
+path_runs = os.path.join(path_runs, version)
+path_results = os.path.join(path_results, version)
+path_viz = os.path.join(path_viz, version) 
 
 #-----------------------------------------------------------------#
 
@@ -208,19 +211,23 @@ def main():
 
     # Read QC
     logger.info(f'Data preparation...')
-    adata = sc.read(path_data + 'QC.h5ad')
+    adata = sc.read(os.path.join(path_data, 'QC.h5ad'))
 
     # Remove cells, if necessary
     if args.remove:
-        path_cells = path_main + '/data/removed_cells/'
-        removed = pd.concat([ pd.read_csv(path_cells + x, index_col=0) for x in os.listdir(path_cells) ], axis=0)
+        path_cells = os.path.join(path_main, 'data', 'removed_cells')
+        removed = pd.concat([ 
+            pd.read_csv(path_cells + x, index_col=0) \
+            for x in os.listdir(path_cells) ], 
+            axis=0
+        )
         removed_cells = removed['cell'].to_list()
         adata = adata[~adata.obs_names.isin(removed_cells), :]
 
     # Format adata.obs
     if args.custom_meta:
         try:
-            meta = pd.read_csv(path_data + 'cells_meta.csv', index_col=0)
+            meta = pd.read_csv(os.path.join(path_data, 'cells_meta.csv'), index_col=0)
             for x in meta.columns:
                 test = meta[x].dtype in ['int64', 'int32', 'int8'] and meta[x].unique().size < 50
                 if meta[x].dtype == 'object' or test:
@@ -258,8 +265,8 @@ def main():
     logger.info(f'Pre-processing with recipe {recipe} finished: {t.stop()}')
 
     # Save adata and adata_red
-    adata.write(path_data + 'lognorm.h5ad')
-    adata_red.write(path_data + 'reduced.h5ad')
+    adata.write(os.path.join(path_data, 'lognorm.h5ad'))
+    adata_red.write(os.path.join(path_data, 'reduced.h5ad'))
 
     #-----------------------------------------------------------------#
 
@@ -275,11 +282,11 @@ def main():
                     ]
     QC_df = adata.obs.loc[:, QC_covariates + ['sample']]
     summary = QC_df.groupby('sample').median()
-    summary.to_excel(path_results + 'QC_results.xlsx')
+    summary.to_excel(os.path.join(path_results, 'QC_results.xlsx'))
 
     # Visualize QC metrics 
     fig = QC_plot(adata.obs, 'sample', QC_covariates, colors, labels=False, figsize=(12, 10))
-    fig.savefig(path_viz + 'QC.png')
+    fig.savefig(os.path.join(path_viz, 'QC.png'))
     logger.info(f'Cell QC, merged samples: {t.stop()}')
 
     #-----------------------------------------------------------------#
@@ -287,7 +294,6 @@ def main():
     # PCA, all pre-processed layers
     logger.info('PCA...')
     t.start()
-    adata_red = remove_unwanted(adata_red)
     adata_red = compute_pca_all(
         adata_red,
         auto=args.auto_pcs,
@@ -316,7 +322,7 @@ def main():
     
     # Save
     logger.info(f'Save adata with processed metrices, original PCA spaces and kNN graphs...')
-    adata_red.write(path_data + 'reduced.h5ad')
+    adata_red.write(os.path.join(path_data, 'reduced.h5ad'))
 
     #-----------------------------------------------------------------#
 

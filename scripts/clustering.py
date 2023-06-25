@@ -116,10 +116,10 @@ warnings.filterwarnings("ignore")
 #-----------------------------------------------------------------#
 
 # Set other paths 
-path_data = path_main + f'/data/{version}/'
-path_results = path_main + '/results_and_plots/clustering/'
-path_runs = path_main + '/runs/'
-path_viz = path_main + '/results_and_plots/vizualization/clustering/'
+path_data = os.path.join(path_main, 'data', version)
+path_results = os.path.join(path_main, 'results_and_plots', 'clustering')
+path_runs = os.path.join(path_main, 'runs')
+path_viz = os.path.join(path_main, 'results_and_plots', 'vizualization', 'clustering')
 
 # Create step_{i} clustering folders. 
 to_make = [ (path_results, version), (path_viz, version) ]
@@ -131,8 +131,8 @@ elif args.skip_clustering and not all([ os.path.exists(x+y) for x, y in to_make 
     sys.exit()
 
 # Update paths
-path_runs += f'/{version}/'
-path_results += f'/{version}/' 
+path_runs = os.path.join(path_runs, version)
+path_results = os.path.join(path_results, version) 
 
 #-----------------------------------------------------------------#
 # Set logger 
@@ -162,7 +162,7 @@ def clustering():
 
     # Load preprocessed and lognorm
     logger.info('Loading preprocessed adata...')
-    adata = sc.read(path_data + 'preprocessed.h5ad')
+    adata = sc.read(os.path.join(path_data, 'preprocessed.h5ad'))
 
     # Define resolution range
     resolution_range = np.linspace(range_[0], range_[1], n)
@@ -200,13 +200,14 @@ def clustering():
     t.start()
     logger.info('Saving objects...')
     # kNNs
-    with open(path_results + 'kNN_graphs.pickle', 'wb') as f:
+    with open(os.path.join(path_results, 'kNN_graphs.pickle'), 'wb') as f:
         pickle.dump(kNN_graphs, f)
     # Clustering solutions
     pd.DataFrame(
         clustering_solutions, 
         index=adata.obs_names
-    ).to_csv(path_results + 'clustering_solutions.csv')
+    ).to_csv(os.path.join(path_results, 'clustering_solutions.csv'))
+
     logger.info(f'Saving objects: {t.stop()}')
 
     #-----------------------------------------------------------------#
@@ -229,14 +230,17 @@ def markers_all():
 
     # Load adata and clustering solutions
     logger.info('Loading preprocessed adata...')
-    adata = sc.read(path_data + 'preprocessed.h5ad')
+    adata = sc.read(os.path.join(path_data, 'preprocessed.h5ad'))
     logger.info('Loading clustering solutions, creating jobs...')
 
-    if not os.path.exists(path_results + 'clustering_solutions.csv'):
+    if not os.path.exists(os.path.join(path_results, 'clustering_solutions.csv')):
         print('Run without --skip_clustering, first!')
         sys.exit()
     else:
-        clustering_solutions = pd.read_csv(path_results + 'clustering_solutions.csv', index_col=0)
+        clustering_solutions = pd.read_csv(
+            os.path.join(path_results, 'clustering_solutions.csv'), 
+            index_col=0
+        )
 
     # Create contrasts and jobs
     contrasts = {
@@ -250,18 +254,18 @@ def markers_all():
 
     # Here we go
     t.start()
-    D = Dist_features(adata, contrasts, jobs=jobs, organism=organism)   # Job mode here
+    D = Dist_features(adata, contrasts, jobs=jobs, organism=organism, app=True)
     logger.info(f'Running markers computations...')
     D.run_all_jobs()
 
-    # Save markers, as Gene_sets dictionary only
-    path_markers = path_main + '/results_and_plots/dist_features/'
+    # Save markers
+    path_markers = os.path.join(path_main, 'results_and_plots', 'dist_features')
     make_folder(path_markers, version, overwrite=False)
-    path_markers += f'/{version}/' 
-
     logger.info('Saving markers...')
-    with open(path_markers + 'clusters_markers.pickle', 'wb') as f:
-        pickle.dump(D.Results, f)
+    D.to_pickle(
+        os.path.join(path_markers, version),
+        'clusters_markers'
+    )
 
     logger.info(f'Finished markers computation: {t.stop()}')
 

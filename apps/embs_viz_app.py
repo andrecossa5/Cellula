@@ -39,7 +39,7 @@ def embeddings_visualization(path_main):
 
 
     # Load args
-    path_data = path_main + '/data/'
+    path_data = os.path.join(path_main, 'data')
     
     # Version
     st.sidebar.header('Embeddings Visualization options')
@@ -172,8 +172,6 @@ def embeddings_visualization(path_main):
                         'layout' : 'outside'
                     }
                 )
-                
-            #fig.subplots_adjust(right=0.8, bottom=0.15, left=0.15)
             st.pyplot(fig) 
 
 

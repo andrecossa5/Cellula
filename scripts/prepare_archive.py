@@ -57,8 +57,8 @@ from Cellula._utils import *
 #-----------------------------------------------------------------#
 
 # Set other paths
-path_data = path_main + '/data/'
-path_results = path_main + '/results_and_plots/'
+path_data = os.path.join(path_main, 'data')
+path_results = os.path.join(path_main, 'results_and_plots')
 
 ########################################################################
 
@@ -75,7 +75,7 @@ def prep_archive():
     os.chdir(name)
 
     # Get versions
-    versions = os.listdir(path_main + 'runs')
+    versions = os.listdir(os.path.join(path_main, 'runs'))
 
     # dist_features_object: make and fill
     make_folder(os.getcwd(), 'dist_features_objects')
@@ -83,7 +83,6 @@ def prep_archive():
     for v in versions:
         make_folder(os.getcwd(), v)
         os.system(f'cp {path_results}/dist_features/{v}/* ./{v}/')
-        os.system(f'rm ./{v}/clusters_markers.pickle')
 
     # data: make and fill
     os.chdir('..')
@@ -92,10 +91,6 @@ def prep_archive():
     for v in versions:
         make_folder(os.getcwd(), v)
         os.system(f'cp {path_data}/{v}/clustered.h5ad ./{v}/')
-        #os.system(f'cp {path_data}/{v}/integration.h5ad ./{v}/')
-        #os.system(f'cp {path_data}/{v}/lognorm.h5ad ./{v}/')
-        #os.system(f'cp {path_data}/{v}/embeddings.csv ./{v}/')
-        #os.system(f'cp {path_results}/clustering/{v}/clustering_solutions.csv ./{v}/')
         os.system(f'cp {path_results}/signatures/{v}/signatures.pickle ./{v}/')
 
     # Tar and gzip

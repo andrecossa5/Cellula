@@ -71,7 +71,7 @@ def create_handles(categories, marker='o', colors=None, size=10, width=0.5):
 
 
 def add_cbar(x, palette='viridis', ax=None, label_size=7, ticks_size=5, 
-    vmin=None, vmax=None, label=None, layout='v2'):
+    vmin=None, vmax=None, label=None, layout='outside'):
     """
     Draw cbar on an axes object inset.
     """
@@ -85,7 +85,8 @@ def add_cbar(x, palette='viridis', ax=None, label_size=7, ticks_size=5,
         
     cmap = matplotlib.colormaps[palette]
     if vmin is None and vmax is None:
-        norm = matplotlib.colors.Normalize(vmin=np.percentile(x, q=5), vmax=np.percentile(x, q=95))
+        norm = matplotlib.colors.Normalize(
+            vmin=np.percentile(x, q=25), vmax=np.percentile(x, q=75))
     else:
         norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
     axins = ax.inset_axes(pos) 

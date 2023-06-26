@@ -21,7 +21,10 @@ def main():
     st.sidebar.title("Navigation menu")
     app_mode = st.sidebar.selectbox(
         "Choose one app:",
-        ["Home", "Distinguishing features", "Embeddings visualization", "Gene Sets", "Composition"],
+        [   
+            "Home", "Distinguishing features", "Embeddings visualization", 
+            "Gene Sets", "Composition"
+        ],
         key='app_mode'
     )
 

@@ -20,7 +20,11 @@ def load(path_main, version):
     Load adata and create plotting df.
     """
     adata = sc.read(os.path.join(path_main , 'data', version, 'clustered.h5ad'))
-    return adata.obs
+    df = adata.obs.join(
+        adata.uns['all_clustering_sol']
+        .loc[:, ~adata.uns['all_clustering_sol'].columns.isin(adata.obs)]
+    )
+    return df
 
 
 ##

@@ -14,10 +14,6 @@ from Cellula.plotting._plotting import *
 from Cellula.dist_features._signatures import scanpy_score
 
 
-# path_main = '/Users/IEO5505/Desktop/cell_app'
-# version = 'default'
-
-
 ##
 
 
@@ -32,6 +28,10 @@ def load(path_main, version):
         columns=['UMAP1', 'UMAP2'], 
         index=adata.obs_names
     ).join(adata.obs)
+    umap = umap.join(
+        adata.uns['all_clustering_sol']
+        .loc[:, ~adata.uns['all_clustering_sol'].columns.isin(umap)]
+    )
 
     return adata, umap
 
@@ -97,7 +97,7 @@ def embeddings_visualization(path_main):
     else:
         covariate = st.sidebar.selectbox(
             "Enter a single covariate:", 
-            adata.obs.columns, 
+            umap.columns[2:], 
             key='covariate'
         )
  
@@ -106,7 +106,7 @@ def embeddings_visualization(path_main):
 
     facet = form_draw.selectbox(
         'Enter an optional faceting covariate:', 
-        [None] + list(adata.obs.columns), 
+        [None] + list(umap.columns[2:]), 
     )
     n_cols = form_draw.number_input('Enter the number of columns to display the plot on:', value=1)
     query = form_draw.text_input('Enter a query to filter the data to plot:', value=None)

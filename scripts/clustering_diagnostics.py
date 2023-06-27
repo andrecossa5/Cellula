@@ -348,6 +348,7 @@ def clustering_diagnostics():
 
         # Clustering options
         adata.uns['clustering'] = {'chosen_solution' : chosen }
+        adata.uns['all_clustering_sol'] = clustering_solutions
 
         # Save clustered adata and cells_embeddings
         logger.info(adata)

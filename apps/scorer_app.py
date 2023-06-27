@@ -24,6 +24,10 @@ def load_data(path_data, version):
     Load data.
     """
     adata = sc.read(os.path.join(path_data, version, 'clustered.h5ad'))
+    adata.obs = adata.obs.join(
+        adata.uns['all_clustering_sol']
+        .loc[:, ~adata.uns['all_clustering_sol'].columns.isin(adata.obs)]
+    )
     with open(os.path.join(path_data, version, 'signatures.pickle'), 'rb') as f:
         signatures = pickle.load(f)
 

@@ -14,6 +14,10 @@ from Cellula.plotting._plotting import *
 from Cellula.dist_features._signatures import scanpy_score
 
 
+# path_main = '/Users/IEO5505/Desktop/cell_app'
+# version = 'default'
+
+
 ##
 
 
@@ -80,6 +84,7 @@ def embeddings_visualization(path_main):
 
         if len(gene_l) == 1:
             gene = gene_l[0]
+            # gene = 'IFI6'
             x = adata.X[:, adata.var_names == gene].toarray().flatten()
             covariate = gene
         else:
@@ -144,7 +149,7 @@ def embeddings_visualization(path_main):
     
         else:
 
-            fig, ax = plt.subplots(figsize=figsize)
+            fig, ax = plt.subplots(figsize=figsize) 
             if pd.api.types.is_categorical_dtype(df[covariate]):
                 draw_embeddings(
                     df, 
@@ -166,11 +171,8 @@ def embeddings_visualization(path_main):
                     df, 
                     cont=covariate, 
                     ax=ax, 
-                    query=query,
-                    s=float(size),
-                    cbar_kwargs={
-                        'layout' : 'outside'
-                    }
+                    query=query, # query = None
+                    s=float(size) # size = 2
                 )
             st.pyplot(fig) 
 
@@ -179,4 +181,4 @@ def embeddings_visualization(path_main):
 
             
 if __name__ == "__main__":
-    embeddings_visualization() 
+    embeddings_visualization()

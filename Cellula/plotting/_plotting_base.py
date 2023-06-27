@@ -38,7 +38,7 @@ axins_pos = {
     'h1' : ( (0.05,.95,.22,.01), 'bottom' ),
     'h4' : ( (0.05,.05,.22,.01), 'top' ),
 
-    'outside' : ( (1.05,.25,.01,.5), 'right' )
+    'outside' : ( (1.05,.25,.025,.5), 'right' )
 }
 
 
@@ -75,13 +75,11 @@ def add_cbar(x, palette='viridis', ax=None, label_size=7, ticks_size=5,
     """
     Draw cbar on an axes object inset.
     """
-    
+    orientation = 'vertical'
     if layout in axins_pos:
         pos, xticks_position = axins_pos[layout]
-        orientation = 'vertical'
     else:
-        pos, xticks_position = layout 
-        orientation = 'vertical'
+        pos, xticks_position = layout
         
     cmap = matplotlib.colormaps[palette]
     if vmin is None and vmax is None:
@@ -115,7 +113,7 @@ def add_legend(label=None, colors=None, ax=None, loc='center', artists_size=7, l
         
     if ncols is None:
         ncols = len(colors) // 2 + 1
-    title = label.capitalize() if label is not None else None
+    title = label if label is not None else None
 
     handles = create_handles(colors.keys(), colors=colors.values(), size=artists_size)
     ax.legend(handles, colors.keys(), frameon=False, loc=loc, fontsize=ticks_size, title_fontsize=label_size,
@@ -279,8 +277,8 @@ def scatter(df, x, y, by=None, c='r', s=1.0, a=1, l=None, ax=None, scale_x=None,
 
     elif isinstance(c, str) and by is not None:
         
-        vmin = vmin if vmin is not None else np.percentile(df[by],5)
-        vmax = vmax if vmax is not None else np.percentile(df[by],5)
+        vmin = vmin if vmin is not None else np.percentile(df[by],25)
+        vmax = vmax if vmax is not None else np.percentile(df[by],75)
         ax.scatter(df[x], df[y], c=df[by], cmap=c, vmin=vmin, vmax=vmax, label=l, marker='.', s=size, alpha=a)
 
     elif isinstance(c, dict) and by is not None:

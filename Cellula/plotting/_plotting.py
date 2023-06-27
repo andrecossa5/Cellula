@@ -372,8 +372,7 @@ def format_draw_embeddings(
     format_kwargs = { k : axes_params[k] for k in axes_params if k not in not_format_keys }
 
     if title is None:
-        cov = cat if cat is not None else cont 
-        title = cov
+        title = cat if cat is not None else cont 
     else:
         assert isinstance(title, str)
 
@@ -407,7 +406,11 @@ def handle_colors(df, cat, legend_params, query=None):
     else:
         df_ = df
 
-    categories = df_[cat].unique()
+    try:
+        categories = df_[cat].cat.categories
+    except:
+        categories = df_[cat].unique()
+        
     if categories.size <=20 and legend_params['colors'] is None:
         palette_cat = sc.pl.palettes.vega_20_scanpy
         legend_params['colors'] = create_palette(df_, cat, palette_cat)
@@ -415,10 +418,8 @@ def handle_colors(df, cat, legend_params, query=None):
         palette_cat = sc.pl.palettes.godsnot_102
         legend_params['colors'] = create_palette(df_, cat, palette_cat)
     elif isinstance(legend_params['colors'], dict):
-        legend_params['colors'] = { 
-            k: legend_params['colors'][k] for k in legend_params['colors'] \
-            if k in categories
-        }
+        assert all([ k in categories for k in legend_params['colors']])
+        print('Provided colors are OK...')
     else:
         raise ValueError('Provide a correctly formatted palette for your categorical labels!')
 
@@ -437,11 +438,11 @@ def draw_embeddings(
 
     cbar_params={
         'palette' : 'viridis',
+        'vmin': None,
+        'vmax':None,
         'label_size' : 8, 
         'ticks_size' : 6,  
-        'vmin' : None,
-        'vmax' : None,
-        'layout' : 'v2'
+        'layout' : 'outside'
     }
 
     legend_params={
@@ -497,8 +498,8 @@ def draw_embeddings(
     elif cat is None and cont is not None:
         
         if query is None:
-            scatter(df, x=x, y=y, by=cont, ax=ax, s=s,
-                    c=cbar_params['palette'], vmin=cbar_params['vmin'], vmax=cbar_params['vmax'])
+            scatter(df, x=x, y=y, by=cont, c=cbar_params['palette'], 
+                    vmin=cbar_params['vmin'], vmax=cbar_params['vmax'], ax=ax, s=s)
             format_draw_embeddings(ax, df, x, y, title=title, cont=cont, axes_params=axes_params)
         else:
             if isinstance(query, str):
@@ -507,8 +508,8 @@ def draw_embeddings(
                 subset = query
             if subset.size > 0:
                 scatter(df.loc[~df.index.isin(subset), :], x=x, y=y, c='darkgrey', ax=ax, s=s/3)
-                scatter(df.loc[subset, :], x=x, y=y, by=cont, ax=ax, s=s,
-                        c=cbar_params['palette'], vmin=cbar_params['vmin'], vmax=cbar_params['vmax'])
+                scatter(df.loc[subset, :], x=x, y=y, by=cont, c=cbar_params['palette'], 
+                        vmin=cbar_params['vmin'], vmax=cbar_params['vmax'], ax=ax, s=s)
                 format_draw_embeddings(
                     ax, df.loc[subset, :], x, y, title=title, cont=cont, axes_params=axes_params
                 )

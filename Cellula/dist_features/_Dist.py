@@ -159,16 +159,16 @@ class Dist_features:
 
     ##
 
-    def select_genes(self, cell_perc=0.15, no_miribo=True, only_HVGs=False):
+    def select_genes(self, cell_perc=1, no_miribo=True, only_HVGs=False):
         """
-        Filter genes expressed in less than cell_perc cells &| only HVGs &| no MIT or ribosomal genes.
+        Filter genes expressed in more than {cell_perc} % cells &| only HVGs &| no MIT or ribosomal genes.
         Add these filtered matrix self.genes.
         """
         original_genes = self.genes['original']
         genes_meta = self.features_meta['genes'] # Need to map lambda afterwards
 
         # Prep individual tests
-        test_perc = genes_meta['percent_cells'] > cell_perc
+        test_perc = genes_meta['percent_cells'] >= cell_perc # Default >= 1% 
         if no_miribo:
             idx = genes_meta.index
             test_miribo = ~(idx.str.startswith('MT-') | idx.str.startswith('RPL') | idx.str.startswith('RPS'))
@@ -252,27 +252,30 @@ class Dist_features:
 
             # Collect info and reformat
             test = lambda x: bool(re.search(f'^{cat}:', x)) and bool(re.search('log2FC|qval|percentage_fold', x))
-            one_df = de_raw.loc[:, map(test, de_raw.columns)].rename(
-                columns={
+            one_df = (
+                de_raw
+                .loc[:, map(test, de_raw.columns)]
+                .rename(columns={
                     f'{cat}:log2FC' : 'effect_size',
                     f'{cat}:mwu_qval' : 'evidence',
                     f'{cat}:percentage_fold_change' : 'perc_FC',
-                }
-            ).assign(
-                effect_type='log2FC', 
-                evidence_type='FDR',
-                feature_type='genes', 
-                comparison=comparison
+                })
+                .assign(
+                    effect_type='log2FC', 
+                    evidence_type='FDR',
+                    feature_type='genes', 
+                    comparison=comparison
+                )
             )
 
             one_df['es_rescaled'] = rescale(one_df['effect_size']) # Rescaled for within methods comparisons
             idx = rank_top(one_df['effect_size']) 
             one_df = one_df.iloc[idx, :].assign(rank=[ i for i in range(1, one_df.shape[0]+1) ])
-            one_df_harmonized = one_df.loc[:,
-                ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'es_rescaled',
-                'effect_type', 'comparison']
-            ]
-
+            one_df_harmonized = one_df.loc[:, [
+                'feature_type', 'rank', 'evidence', 
+                'evidence_type', 'effect_size', 'es_rescaled',
+                'effect_type', 'comparison'
+            ]]
             DF.append(one_df_harmonized) # Without perc_FC
             d[comparison] = Gene_set(one_df, self.features_meta['genes'], organism=self.organism)
 
@@ -283,7 +286,7 @@ class Dist_features:
 
     ##
 
-    def compute_DE(self, contrast_key=None, which='perc_0.15_no_miribo'):
+    def compute_DE(self, contrast_key=None, which='perc_1_no_miribo'):
         """
         Compute Wilcoxon test-based DE over some filtered gene matrix for all the specified contrasts.
         Use super-duper fast MWU test implementation from pegasus.
@@ -430,7 +433,7 @@ class Dist_features:
         if self.Results is None:
             raise ValueError('Dist_features needs to be instantiated with some jobs...')
         logger = logging.getLogger("my_logger")
-        self.select_genes()                          # Default is 0.15, no_miribo for DE and 0.15, no_miribo HVGs only for ML with genes 
+        self.select_genes()                   # Default is perc_1_no_miribo for DE, and perc_1_no_miribo_only_HVGs for ML with genes 
         self.select_genes(only_HVGs=True)
 
         # Here, no multithreading. Needs to be implemented if we want to take advantage of the 'full' ML mode...
@@ -451,13 +454,11 @@ class Dist_features:
                 t.start() 
 
                 if x['model'] == 'wilcoxon':
-                    de_results, gene_set_dict = self.compute_DE(contrast_key=k,
-                                                which='perc_0.15_no_miribo'
-                                                )
+                    de_results, gene_set_dict = self.compute_DE(contrast_key=k, which='perc_1_no_miribo')
                     self.Results.add_job_results(de_results, gene_set_dict, job_key=job_key)
                 else:
                     ML_results, gene_set_dict = self.compute_ML(contrast_key=k, 
-                                    feat_type=x['features'], which='perc_0.15_no_miribo_only_HVGs', 
+                                    feat_type=x['features'], which='perc_1_no_miribo_only_HVGs', 
                                     model=x['model'], mode=x['mode']
                                 )
                     self.Results.add_job_results(ML_results, gene_set_dict, job_key=job_key)

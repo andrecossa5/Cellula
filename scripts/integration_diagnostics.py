@@ -226,7 +226,7 @@ def choose_preprocessing_option():
 
     # Chosen, cleaned dimension reduced embeddings
     adata.obsm['X_reduced'] = get_representation(pp, layer=layer, method=chosen_method)
-    adata.uns['lognorm'] = { 'method' : 'scanpy, library size, target sum 50k' }
+    adata.uns['lognorm'] = { 'method' : 'scanpy, library size, target sum 10k' }
     adata.uns['dimred'] = { 
         'layer' : layer, 
         'n_HVGs' : pp.shape[1], 

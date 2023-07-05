@@ -94,7 +94,7 @@ def remove_cc_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None, rem
     if remove_messy:
         adata = remove_unwanted(adata)
     pg.highly_variable_features(adata, batch='sample', n_top=n_HVGs, min_mean=0.0125, max_mean=3, min_disp=0.5)
-    # CC genes marked for removal here
+    # CC-correlated genes marked for removal here
     remove_cc_genes(adata, organism=organism, corr_threshold=0.1) 
     
     # Viz

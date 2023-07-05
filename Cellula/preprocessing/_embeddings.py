@@ -150,17 +150,27 @@ def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', red_
 ##
 
 
-def sanitize_neighbors(adata, obsm_key=None, old_neighbors_key=None, new_neighbors_key='nn', NN=15):
+def sanitize_neighbors(
+    adata, obsm_key=None, old_neighbors_key=None, 
+    old_dist_key=None, old_conn_key=None,
+    new_neighbors_key='nn', NN=15):
     """
     Sanititize obsp and uns neighbors for scanpy compatibility.
     """
     latent_space = obsm_key
+
+    if old_neighbors_key is not None:
+        adata.obsp[f'{new_neighbors_key}_distances'] = adata.obsp[f'{old_neighbors_key}|NN_dist']
+        del adata.obsp[f'{old_neighbors_key}|NN_dist']
+        adata.obsp[f'{new_neighbors_key}_connectivities'] = adata.obsp[f'{old_neighbors_key}|NN_conn']
+        del adata.obsp[f'{old_neighbors_key}|NN_conn']
     
-    adata.obsp[f'{new_neighbors_key}_distances'] = adata.obsp[f'{old_neighbors_key}|NN_dist']
-    del adata.obsp[f'{old_neighbors_key}|NN_dist']
-    adata.obsp[f'{new_neighbors_key}_connectivities'] = adata.obsp[f'{old_neighbors_key}|NN_conn']
-    del adata.obsp[f'{old_neighbors_key}|NN_conn']
-    
+    elif old_dist_key is not None and old_conn_key is not None:
+        adata.obsp[f'{new_neighbors_key}_distances'] = adata.obsp[old_dist_key]
+        del adata.obsp[old_dist_key]
+        adata.obsp[f'{new_neighbors_key}_connectivities'] = adata.obsp[old_conn_key]
+        del adata.obsp[old_conn_key]
+
     adata.uns[new_neighbors_key] = {
         'connectivities_key': f'{new_neighbors_key}_connectivities',
         'distances_key': f'{new_neighbors_key}_distances', 

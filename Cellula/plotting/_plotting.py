@@ -394,6 +394,8 @@ def format_draw_embeddings(
     return ax
 
 
+add_labels_on_loc
+
 ##
 
 

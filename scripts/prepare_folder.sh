@@ -6,9 +6,9 @@ begin=$1
 # Set initial folder
 cd $begin 
 
-# Create a report.txt file and update data with the removed_cells folder
+# Create a report.txt file and update data with the removed_cells and subsets folders
 cd data 
-mkdir removed_cells 
+mkdir removed_cells subsets
 
 # Go back to main folder, create the results_and_plots and runs folders
 cd ..

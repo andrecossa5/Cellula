@@ -8,7 +8,6 @@ dependencies:
   - setuptools-rust
   - R=4.2
   - rust=1.63.0
-  - igraph=0.9.10
   - jax=0.3.16
   - leidenalg=0.8.10
   - matplotlib=3.5.3
@@ -17,7 +16,7 @@ dependencies:
   - numpy=1.22.4
   - scrublet=0.2.3
   - python=3.10.6
-  - scanpy=1.9.1
+  - scanpy
   - scikit-learn=1.1.2
   - scipy=1.9.0
   - seaborn=0.12.0
@@ -27,15 +26,14 @@ dependencies:
   - lightgbm
   - pip
   - python-annoy
+  - python-igraph=0.9.10
   - pip:
     - gseapy==0.13.0
     - jaxlib==0.3.15
-    - git+https://github.com/YosefLab/Hotspot.git@c8bc56d689cc0b770ca59080e194a2d9e93f3c5e
     - bbknn==1.5.1
     - cython==0.29.32
     - harmony-pytorch==0.1.7
     - hnswlib==0.6.2
-    - louvain==0.7.1
     - markdown==3.4.1
     - pandas==1.4.4
     - pegasusio==0.7.1
@@ -44,7 +42,6 @@ dependencies:
     - pyro-api==0.1.2
     - pyro-ppl==1.8.1
     - pyrsistent==0.18.1
-    - python-igraph==0.9.11
     - pytorch-lightning==1.6.5
     - scanorama==1.7.2
     - scib==1.0.3

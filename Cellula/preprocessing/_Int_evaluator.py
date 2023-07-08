@@ -216,18 +216,18 @@ class Int_evaluator:
         df['type'] = np.where(df['metric'].isin(self.bio_metrics), 'bio', 'batch')
 
         # Save
-        df.to_excel(path + 'integration_diagnostics_results.xlsx', index=False)
+        df.to_csv(os.path.join(path, 'integration_diagnostics_results.csv'), index=False)
 
         # Rankings df
         df_rankings = rank_runs(df)
-        df_rankings.to_excel(path + 'rankings_by_metric.xlsx', index=False)
+        df_rankings.to_csv(os.path.join(path, 'rankings_by_metric.csv'), index=False)
 
         # Summary df
         direction_up = True if by == 'cumulative_ranking' else False 
         df_summary = summary_metrics(df, df_rankings, evaluation='integration').sort_values(
             by=by, ascending=direction_up
         )
-        df_summary.to_excel(path + 'summary_results.xlsx', index=False)
+        df_summary.to_csv(os.path.join(path, 'summary_results.csv'), index=False)
 
         # Top 3 runs
         top_3 = df_summary['run'][:3].to_list()

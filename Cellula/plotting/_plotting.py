@@ -298,7 +298,8 @@ def plot_biplot_PCs(adata, embs, covariate='sample', colors=None):
 ##
 
 
-def PCA_gsea_loadings_plot(df, genes_meta, organism='human', i=1):
+def PCA_gsea_loadings_plot(df, genes_meta, organism='human', 
+                        collection='GO_Biological_Process_2021', i=1):
     """
     Plot stem-plots of top 5 PCs GSEA-enriched pathways, and genes.
     """
@@ -307,7 +308,7 @@ def PCA_gsea_loadings_plot(df, genes_meta, organism='human', i=1):
         genes_meta,
         organism=organism
     )
-    g.compute_GSEA()
+    g.compute_GSEA(collection=collection)
     fig, axs = plt.subplots(1,2,figsize=(11,5))
     stem_plot(
         g.GSEA['original'].iloc[:, [0,1,3]].sort_values('NES', ascending=False).head(25),
@@ -331,13 +332,14 @@ def PCA_gsea_loadings_plot(df, genes_meta, organism='human', i=1):
 ##
 
 
-def plot_embeddings(adata, layer=None, rep='original', k=15):
+def plot_embeddings(adata, layer=None, rep='original', with_paga=True):
     """
     Plot QC covariates in the UMAP embeddings obtained from original or original and integrated data.
     """
     # Prep embedding
     df = embeddings(
         adata, 
+        with_paga=with_paga,
         paga_groups='sample', 
         rep=rep, # rep = 'scVI'
         layer=layer, # layer = 'raw'

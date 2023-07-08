@@ -282,7 +282,7 @@ def main():
                     ]
     QC_df = adata.obs.loc[:, QC_covariates + ['sample']]
     summary = QC_df.groupby('sample').median()
-    summary.to_excel(os.path.join(path_results, 'QC_results.xlsx'))
+    summary.to_csv(os.path.join(path_results, 'QC_results.csv'))
 
     # Visualize QC metrics 
     fig = QC_plot(adata.obs, 'sample', QC_covariates, colors, labels=False, figsize=(12, 10))
@@ -315,7 +315,7 @@ def main():
            adata_red = compute_kNN(adata_red, layer=layer, int_method='original') # Already parallel
            logger.info(f'kNN graph computation for the {layer} layer: {t.stop()}')
            t.start()
-           fig = plot_embeddings(adata_red, layer=layer)
+           fig = plot_embeddings(adata_red, layer=layer, with_paga=False)
            logger.info(f'Draw default UMAP embeddings for the {layer} layer: {t.stop()}')
            fig.suptitle(layer)
            fig.savefig(os.path.join(path_viz, f'{layer}_original_embeddings.png'))

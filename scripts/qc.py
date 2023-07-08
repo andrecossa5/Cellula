@@ -92,10 +92,17 @@ my_parser.add_argument(
     help='n MADs for adaptive tresholds filtering. Default: 5.'
 )
 
+# From subset
+my_parser.add_argument(
+    '--from_subset', 
+    action='store_true',
+    help='If the qc needs to be done of a subsetted .h5ad matrix. Default: False.'
+)
+
 # Parse arguments
 args = my_parser.parse_args()
 mode = args.mode
-qc_mode = args.qc_mode
+qc_mode = args.qc_mode if not args.from_subset else 'seurat'
 version = args.version
 path_main = args.path_main
 nUMIs_t = args.nUMIs
@@ -124,7 +131,7 @@ path_viz = os.path.join(path_main, 'results_and_plots/vizualization/QC')
 # Create step_{i} folders. Overwrite, if they have already been created
 to_make = [ (path_runs, version), (path_viz, version), (path_data, version) ]
 for x, y in to_make:
-    make_folder(x, y, overwrite=True)
+    make_folder(x, y, overwrite=False if args.from_subset else True)
 
 # Update paths
 path_data = os.path.join(path_data, version)
@@ -158,14 +165,26 @@ def qc():
     --nUMIs {nUMIs_t}
     --detected_genes {detected_genes_t}
     --mito_perc {mito_perc_t}
-    --nmads {nmads}\n
+    --nmads {nmads}
+    --from_subset {args.from_subset}\n
     """
     )
 
-    # Read and format 10x/STARsolo matrices 
-    adatas = read_matrices(path_matrices, mode=mode)
+    # QC
+    if not args.from_subset:
 
-    # QC them
+        # Read and format 10x/STARsolo matrices and QC them
+        adatas = read_matrices(path_matrices, mode=mode)
+    
+    else:
+        logger.info(f'Reading already QCed subset, default seurat mode here...')
+        adata = sc.read(os.path.join(path_data, 'QC.h5ad'))
+        adatas = {
+            k : adata[adata.obs.query('sample == @k').index, :].copy() \
+            for k in adata.obs['sample'].unique()
+        }
+
+    # Here we go
     tresholds = {
         'mito_perc' : mito_perc_t,
         'nUMIs' : nUMIs_t,
@@ -186,11 +205,12 @@ def qc():
     adata.write(os.path.join(path_data, 'QC.h5ad'))
     adata.obs.to_csv(os.path.join(path_data, 'cells_meta.csv'))
 
-    # Save removed cells 
-    logger.info(f'Removed cells stored at: data/removed_cells/QC_{qc_mode}_{nUMIs_t}_{detected_genes_t}_{mito_perc_t}.csv path')
-    pd.DataFrame({'cell':removed_cells}).to_csv(
-        path_main +f'/data/removed_cells/QC_{qc_mode}_{nUMIs_t}_{detected_genes_t}_{mito_perc_t}.csv'
-    )
+    # Save removed cells, if any
+    if not args.from_subset:
+        logger.info(f'Removed cells stored at: data/removed_cells/QC_{qc_mode}_{nUMIs_t}_{detected_genes_t}_{mito_perc_t}.csv path')
+        pd.DataFrame({'cell':removed_cells}).to_csv(
+            path_main +f'/data/removed_cells/QC_{qc_mode}_{nUMIs_t}_{detected_genes_t}_{mito_perc_t}.csv'
+        )
 
     # Write final exec time
     logger.info(f'Execution was completed successfully in total {T.stop()}')

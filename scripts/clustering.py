@@ -96,6 +96,13 @@ range_ = [ float(x) for x in args.range.split(':') ]
 n = args.n
 organism = args.organism
 
+
+# path_main = '/Users/IEO5505/Desktop/example_cellula'
+# version = 'default'
+# range_ = [0.5, 1.2]
+# n = 10
+# organism = 'human'
+
 ########################################################################
 
 # Preparing run: import code, prepare directories, set logger
@@ -126,7 +133,7 @@ to_make = [ (path_results, version), (path_viz, version) ]
 if not args.skip_clustering:
     for x, y in to_make:
         make_folder(x, y, overwrite=True)
-elif args.skip_clustering and not all([ os.path.exists(x+y) for x, y in to_make ]):
+elif args.skip_clustering and not all([ os.path.exists(os.path.join(x,y)) for x, y in to_make ]):
     print('Run without --skip_clustering option first!')
     sys.exit()
 

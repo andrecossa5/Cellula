@@ -234,6 +234,79 @@ def sct_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None, remove_me
 ##
 
 
+
+def sct_pp_original(adata, n_HVGs=2000, organism='human', path_viz=None, remove_messy=True):  
+    """
+    Original vst data transformation pre-processing recipe: robust genes filtering, 
+    sct transformation and HVGs selection
+    Produce a log-normalized adata (size normalization) and a reduced AnnData with 3 layers: raw, lognorm, and sct.
+    This is an alternative recipe, useful to spot fine patterns in expression data
+    (e.g., subclustering...).
+    """
+
+    # First phase, library size normalization and signature scoring
+    pg.identify_robust_genes(adata, percent_cells=0.05) 
+    adata = adata[:, adata.var['robust']].copy()
+    sc.pp.normalize_total(adata, target_sum=1e4)
+    sc.pp.log1p(adata)
+    adata.obs = adata.obs.join(sig_scores(adata, score_method='scanpy', organism=organism))
+
+    # HVGs
+    if remove_messy:
+        adata = remove_unwanted(adata)
+
+    # Prep for SCT
+    os.mkdir('tmp')
+    path_tmp = os.path.join(os.getcwd(), 'tmp')
+    pd.DataFrame(
+        adata.raw.to_adata()[:,adata.var_names].X.A, 
+        index=adata.obs_names, 
+        columns=adata.var_names
+    ).to_csv(os.path.join(path_tmp, 'counts.csv'))
+    adata.obs.to_csv(os.path.join(path_tmp, 'meta.csv'))
+
+    # Run external SCT script
+    import Cellula
+    path_script = os.path.join(Cellula.__path__[0], '..', 'scripts', 'sct_seurat.r')
+    rcall = f'Rscript {path_script} {path_tmp} {n_HVGs}'
+    os.system(rcall)
+
+    # Read rscript output and visualize it
+
+
+
+
+    # Visualization mean variance trend (and HVGs selection) upon normalization
+    # if path_viz is not None:
+    #     
+    #     fig = mean_variance_plot(adata)
+    #     fig.savefig(os.path.join(path_viz, 'mean_variance_plot.png'))
+    # 
+    #     fig, axs = plt.subplots(1,2,figsize=(9,4.5))
+    #     HVGs = adata.var['highly_variable_features'].loc[lambda x:x].index
+    #     df_ = adata.var.loc[HVGs, ['mean', 'hvf_loess']]
+    #     rank_plot(df_, cov='mean', ylabel='mean', ax=axs[0], fig=fig)
+    #     rank_plot(df_, cov='hvf_loess', ylabel='HVF loess', ax=axs[1], fig=fig)
+    #     fig.suptitle(f'Log-normalized counts, top {n_HVGs} HVGs')
+    #     fig.tight_layout()
+    #     fig.savefig(os.path.join(path_viz, 'mean_variance_compare_ranks.png'))
+    #     
+    # else:
+    #     pass
+
+    # Refine layers
+    # adata_red = red(adata)
+    # adata_red = scale(adata_red)
+    # adata_red = regress(adata_red, covariates=['mito_perc', 'nUMIs', 'ribo_genes'])
+
+    return adata, adata_red
+
+    return adata, adata_red
+
+
+##
+
+
 # Dict
 recipes_pp = {
     
@@ -241,5 +314,5 @@ recipes_pp = {
     'remove_cc' : remove_cc_pp_recipe,
     'regress_cc' : regress_cc_pp_recipe,
     'sct' : sct_pp_recipe
-
+    
 }

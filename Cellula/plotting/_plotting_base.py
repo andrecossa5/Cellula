@@ -104,15 +104,12 @@ def add_cbar(x, palette='viridis', ax=None, label_size=7, ticks_size=5,
 
 
 def add_legend(label=None, colors=None, ax=None, loc='center', artists_size=7, label_size=7, 
-    ticks_size=5, bbox_to_anchor=(0.5, 1.1), ncols=None, only_top='all'):
+    ticks_size=5, bbox_to_anchor=(0.5, 1.1), ncols=1, only_top='all'):
     """
     Draw a legend on axes object.
     """
     if only_top != 'all':
         colors = { k : colors[k] for i, k in enumerate(colors) if i < int(only_top) }
-        
-    if ncols is None:
-        ncols = len(colors) // 2 + 1
     title = label if label is not None else None
 
     handles = create_handles(colors.keys(), colors=colors.values(), size=artists_size)

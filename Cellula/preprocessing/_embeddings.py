@@ -15,7 +15,8 @@ from .._utils import get_representation
 
 
 def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', red_key=None, 
-            nn_key=None, n_diff=15, random_state=1234, umap_only=True, with_tsne=False, with_adata=False):
+            nn_key=None, n_diff=15, random_state=1234, umap_only=True, 
+            with_tsne=False, with_adata=False, with_paga=True):
     """
     From a preprocessed adata object, compute cells embedding in some reduced dimension space. 
 
@@ -41,7 +42,8 @@ def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', red_
         Wheater only the UMAP method is used (default is True).
     with_adata : False
         Wheater to return the the modified adata, or just a df of embeddings coordinates (default is False).
-
+    with_paga : True
+         Wheater to use paga to initalize embeddings computation, or not (default is True).
     Returns
     -------
     df : pd.DataFrame of cell embeddings.
@@ -99,17 +101,17 @@ def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', red_
     )
 
     # Calculate paga over the chosen kNN graph
-    sc.tl.paga(a, groups=paga_groups, neighbors_key='nn')
-    sc.pl.paga(a, show=False, plot=False, random_state=random_state)
-    
-    # Random state
-    # random_state = np.random.seed(random_state)
+    if with_paga:
+        sc.tl.paga(a, groups=paga_groups, neighbors_key='nn')
+        sc.pl.paga(a, show=False, plot=False, random_state=random_state)
 
     # Embeddings calculations
+    init = 'paga' if with_paga else 'spectral'
+    
     if not umap_only:
-        sc.tl.draw_graph(a, init_pos='paga', layout='fa', random_state=random_state, 
+        sc.tl.draw_graph(a, init_pos=init, layout='fa', random_state=random_state, 
                         n_jobs=cpu_count(), neighbors_key='nn', key_added_ext='fa_reduced')
-        sc.tl.umap(a, init_pos='paga', random_state=random_state, neighbors_key='nn')
+        sc.tl.umap(a, init_pos=init, random_state=random_state, neighbors_key='nn')
         if with_tsne:
             sc.tl.tsne(a, use_rep='X_latent_space', random_state=random_state, n_jobs=cpu_count())
 
@@ -118,7 +120,7 @@ def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', red_
         sc.pp.neighbors(a, use_rep='X_diffmap', key_added='nn_diff', random_state=random_state)
         sc.tl.paga(a, groups=paga_groups, neighbors_key='nn_diff')
         sc.pl.paga(a, show=False, plot=False, random_state=random_state)
-        sc.tl.draw_graph(a, init_pos='paga', layout='fa', random_state=random_state, 
+        sc.tl.draw_graph(a, init_pos=init, layout='fa', random_state=random_state, 
                         n_jobs=cpu_count(), neighbors_key='nn_diff', key_added_ext='fa_diff')
 
         # Get embeddings coordinates: 5 embeddings types
@@ -136,7 +138,7 @@ def embeddings(adata, paga_groups='sample', layer='scaled', rep='original', red_
     
     # Fast, only umap
     else:
-        sc.tl.umap(a, init_pos='paga', random_state=random_state, neighbors_key='nn')
+        sc.tl.umap(a, init_pos=init, random_state=random_state, neighbors_key='nn')
         umap = pd.DataFrame(data=a.obsm['X_umap'], columns=['UMAP1', 'UMAP2'], index=a.obs_names)
         df_ = adata.obs.join([umap])
 

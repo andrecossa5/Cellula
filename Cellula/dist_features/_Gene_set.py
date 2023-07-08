@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 from gseapy import enrichr, prerank
 
+import gseapy
+
 
 ##
  

@@ -169,7 +169,7 @@ def kBET():
     (
         df
         .sort_values(by='acceptance_rate', ascending=False)
-        .to_excel(os.path.join(path_results, 'kBET_df.xlsx'))
+        .to_csv(os.path.join(path_results, 'kBET_df.csv'))
     )
     
     logger.info(f'kBET_df.xlsx finished in: {t.stop()} s.')

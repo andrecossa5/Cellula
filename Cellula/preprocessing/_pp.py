@@ -281,7 +281,6 @@ def pca(adata, n_pcs=50, layer='scaled', auto=True, GSEA=True, random_seed=1234,
         make_folder(path_viz, layer, overwrite=False)
         for cov in ['seq_run', 'sample', 'nUMIs', 'cycle_diff']:
             fig = plot_biplot_PCs(adata, X_pca, covariate=cov, colors=colors)
-            plt.show()
             fig.savefig(os.path.join(path_viz, layer, f'PCs_{cov}.png'))
             
     if GSEA and path_viz is not None:

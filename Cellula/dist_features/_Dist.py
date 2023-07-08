@@ -243,6 +243,7 @@ class Dist_features:
         DF = []
 
         for cat in y.categories:
+            
             cat = str(cat)
             if bool(re.search('vs each other', contrast_type)) or len(y.categories) == 2:
                 rest = list(cat_names[cat_names != cat])
@@ -251,7 +252,30 @@ class Dist_features:
                 comparison = f'{cat}_vs_rest'
 
             # Collect info and reformat
-            test = lambda x: bool(re.search(f'^{cat}:', x)) and bool(re.search('log2FC|qval|percentage_fold', x))
+            cat = 0
+            test = lambda x: bool(re.search(f'^{cat}:', x)) #and bool(re.search('log2FC|qval|percentage_fold', x))
+
+            #de_raw.columns
+            #de_raw = pd.read_csv(os.path.join(path_main, 'prova_DE.csv'))
+            
+            df_ = de_raw.loc[:, map(test, de_raw.columns)]
+
+
+            df_.sort_values('0:auroc', ascending=False)
+
+            np.corrcoef(
+                df_['0:log2Mean_other'],
+                np.log2(D.genes['perc_1_no_miribo'][y!=0, :].X.A.mean(axis=0)+1)
+            )
+
+
+            np.median(np.log2(D.genes['perc_1_no_miribo'][y==0, :].X.A.mean(axis=0)+1) / \
+            np.log2(D.genes['perc_1_no_miribo'][y!=8, :].X.A.mean(axis=0)))
+
+            df_['8:log2Mean']
+            np.log2(D.genes['perc_1_no_miribo'][y==8, :].X.A.mean(axis=0))
+
+
             one_df = (
                 de_raw
                 .loc[:, map(test, de_raw.columns)]
@@ -302,9 +326,8 @@ class Dist_features:
             X=X,
             cluster_labels=y,
             gene_names=feature_names,
-            n_jobs=self.n_cores
-        )
-
+            n_jobs=8,
+        )        
         df, gene_set_dict = self.format_de(de_raw, y, contrast_type)  
 
         gc.collect()
@@ -435,7 +458,7 @@ class Dist_features:
         logger = logging.getLogger("my_logger")
         self.select_genes()                   # Default is perc_1_no_miribo for DE, and perc_1_no_miribo_only_HVGs for ML with genes 
         self.select_genes(only_HVGs=True)
-
+        
         # Here, no multithreading. Needs to be implemented if we want to take advantage of the 'full' ML mode...
         i = 1
         n_jobs = len([ 0 for k in self.jobs for x in self.jobs[k] ])

@@ -265,11 +265,14 @@ def sct_pp_original(adata, n_HVGs=2000, organism='human', path_viz=None, remove_
     ).to_csv(os.path.join(path_tmp, 'counts.csv'))
     adata.obs.to_csv(os.path.join(path_tmp, 'meta.csv'))
 
+    # Exit
+    sys.exit(f'tmp dir at {path_tmp}')
+
     # Run external SCT script
-    import Cellula
-    path_script = os.path.join(Cellula.__path__[0], '..', 'scripts', 'sct_seurat.r')
-    rcall = f'Rscript {path_script} {path_tmp} {n_HVGs}'
-    os.system(rcall)
+    # import Cellula
+    # path_script = os.path.join(Cellula.__path__[0], '..', 'scripts', 'sct_seurat.r')
+    # rcall = f'Rscript {path_script} {path_tmp} {n_HVGs}'
+    # os.system(rcall)
 
     # Read rscript output and visualize it
 
@@ -299,9 +302,9 @@ def sct_pp_original(adata, n_HVGs=2000, organism='human', path_viz=None, remove_
     # adata_red = scale(adata_red)
     # adata_red = regress(adata_red, covariates=['mito_perc', 'nUMIs', 'ribo_genes'])
 
-    return adata, adata_red
+    # return adata, adata_red
 
-    return adata, adata_red
+    # return adata, adata_red
 
 
 ##

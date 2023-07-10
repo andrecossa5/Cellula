@@ -275,7 +275,7 @@ def pca(adata, n_pcs=50, layer='scaled', auto=True, GSEA=True, random_seed=1234,
         data.compute_distances(maxk=15)
         np.random.seed(random_seed)
         n_pcs, a, b = data.compute_id_2NN()
-        X_pca = X_pca[:,:round(n_pcs)]
+        X_pca = X_pca[:,:round(float(n_pcs))]
     
     if biplot and path_viz is not None:
         make_folder(path_viz, layer, overwrite=False)
@@ -302,7 +302,7 @@ def pca(adata, n_pcs=50, layer='scaled', auto=True, GSEA=True, random_seed=1234,
         adata.uns[key + '|PCA'] = {
             'var_ratios' : var_ratios,
             'cum_sum_eigenvalues' : cum_sum_eigenvalues,
-            'n_pcs' : round(n_pcs)
+            'n_pcs' : round(float(n_pcs))
         }
         
         return adata
@@ -316,7 +316,7 @@ def pca(adata, n_pcs=50, layer='scaled', auto=True, GSEA=True, random_seed=1234,
         d['PCA'] = {
             'var_ratios' : var_ratios,
             'cum_sum_eigenvalues' : cum_sum_eigenvalues,
-            'n_pcs' : round(n_pcs)
+            'n_pcs' : round(float(n_pcs))
         }
     
         return d
@@ -371,3 +371,72 @@ def remove_unwanted(a):
 
 
 ##
+
+
+def format_seurat(adata, path_tmp=None, path_viz=None, remove_messy=True, organism='human'):
+    """
+    Util to format an existing anndata with its SCTransform slots, derived from 
+    external script calling.
+    """ 
+
+    # Repeat first adata processes
+    pg.identify_robust_genes(adata, percent_cells=0.05) 
+    adata = adata[:, adata.var['robust']]
+    sc.pp.normalize_total(adata, target_sum=1e4)
+    sc.pp.log1p(adata)
+    adata.obs = adata.obs.join(sig_scores(adata, score_method='scanpy', organism=organism))
+    
+    # HVGs
+    if remove_messy:
+        adata = remove_unwanted(adata)
+    
+    # Add raw and lognorm layers
+    adata.layers['raw'] = adata.raw.to_adata()[:,adata.var_names].X
+    adata.layers['lognorm'] = adata.X.A.copy()
+
+    # Read from tmp and format
+    # path_tmp = os.path.join(path_main, 'data', 'tmp')
+    residuals = pd.read_csv(os.path.join(path_tmp, 'residuals.csv'), index_col=0)
+    df_var = pd.read_csv(os.path.join(path_tmp, 'df_var.csv'), index_col=0)
+    cols = df_var.columns.isin(['detection_rate', 'gmean', 'variance', 'residual_mean', 'residual_variance'])
+    df_var = df_var.loc[:, cols]
+    adata.var['highly_variable_features'] = adata.var.index.isin(residuals.columns)
+    adata.var = (
+        adata.var
+        .join(df_var)
+        .rename(columns={
+            'gmean':'mean', 
+            'variance':'var',
+            'residual_variance': 'residual_variances'
+        })
+    )
+
+    
+
+    # Viz
+    if path_viz is not None:
+        
+        fig = mean_variance_plot(adata)
+        fig.savefig(os.path.join(path_viz, 'mean_variance_plot.png'))
+
+        fig, axs = plt.subplots(1,2,figsize=(9,4.5))
+        HVGs = adata.var['highly_variable_features'].loc[lambda x:x].index
+        df_ = adata.var.loc[HVGs, ['residual_mean', 'residual_variances']]
+        rank_plot(df_, cov='residual_mean', ylabel='Residual mean', ax=axs[0], fig=fig)
+        rank_plot(df_, cov='residual_variances', ylabel='Residual variance', ax=axs[1], fig=fig)
+        fig.suptitle(f'SCTransform workflow, top {residuals.shape[0]} HVGs')
+        fig.tight_layout()
+        fig.savefig(os.path.join(path_viz, 'mean_variance_compare_ranks.png'))
+
+    # Red and add sct layer
+    adata_red = red(adata)
+    adata_red.layers['sct'] = residuals.loc[:, adata_red.var_names].values
+
+    # Sanitize full adata: lognorm in .X, remove other layers
+    del adata.layers['raw']
+    del adata.layers['lognorm']
+
+    # Remove path_tmp
+    os.system(f'rm -r {path_tmp}')
+
+    return adata, adata_red

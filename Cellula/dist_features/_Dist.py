@@ -50,6 +50,8 @@ class Dist_features:
         The number of CPU cores to use for parallelization.
     organism: str, optional (default: 'human')
         The organism for which the data is being analyzed.
+    min_perc: int, optional (default: 1)
+        % cells expressing one gene for it being considered during DE.
 
     Attributes
     ----------
@@ -95,7 +97,7 @@ class Dist_features:
 
     """
 
-    def __init__(self, adata, contrasts, jobs=None, signatures=None, app=False, n_cores=8, organism='human'):
+    def __init__(self, adata, contrasts, jobs=None, signatures=None, app=False, n_cores=8, organism='human', min_perc=1):
         """
         Extract features and features metadata from input adata. Prep other attributes.
         """
@@ -106,6 +108,7 @@ class Dist_features:
 	    # Genes
         self.genes = {}
         self.genes['original'] = adata.copy()
+        self.min_perc = min_perc
 
         # PCs
         from ..preprocessing._pp import pca, red, scale
@@ -159,7 +162,7 @@ class Dist_features:
 
     ##
 
-    def select_genes(self, cell_perc=1, no_miribo=True, only_HVGs=False):
+    def select_genes(self, no_miribo=True, only_HVGs=False):
         """
         Filter genes expressed in more than {cell_perc} % cells &| only HVGs &| no MIT or ribosomal genes.
         Add these filtered matrix self.genes.
@@ -168,6 +171,7 @@ class Dist_features:
         genes_meta = self.features_meta['genes'] # Need to map lambda afterwards
 
         # Prep individual tests
+        cell_perc = self.min_perc
         test_perc = genes_meta['percent_cells'] >= cell_perc # Default >= 1% 
         if no_miribo:
             idx = genes_meta.index
@@ -252,37 +256,21 @@ class Dist_features:
                 comparison = f'{cat}_vs_rest'
 
             # Collect info and reformat
-            cat = 0
-            test = lambda x: bool(re.search(f'^{cat}:', x)) #and bool(re.search('log2FC|qval|percentage_fold', x))
-
-            #de_raw.columns
-            #de_raw = pd.read_csv(os.path.join(path_main, 'prova_DE.csv'))
-            
-            df_ = de_raw.loc[:, map(test, de_raw.columns)]
-
-
-            df_.sort_values('0:auroc', ascending=False)
-
-            np.corrcoef(
-                df_['0:log2Mean_other'],
-                np.log2(D.genes['perc_1_no_miribo'][y!=0, :].X.A.mean(axis=0)+1)
-            )
-
-
-            np.median(np.log2(D.genes['perc_1_no_miribo'][y==0, :].X.A.mean(axis=0)+1) / \
-            np.log2(D.genes['perc_1_no_miribo'][y!=8, :].X.A.mean(axis=0)))
-
-            df_['8:log2Mean']
-            np.log2(D.genes['perc_1_no_miribo'][y==8, :].X.A.mean(axis=0))
-
+            test = lambda x: bool(re.search(f'^{cat}:', x))
+            columns = de_raw.columns[list(map(test, de_raw.columns))]
+            exclude = [f'{cat}:mwu_U', f'{cat}:mwu_pval', f'{cat}:log2Mean', f'{cat}:log2Mean_other']
+            columns = [ x for x in columns if x not in exclude]
 
             one_df = (
                 de_raw
-                .loc[:, map(test, de_raw.columns)]
+                .loc[:, columns]
                 .rename(columns={
                     f'{cat}:log2FC' : 'effect_size',
                     f'{cat}:mwu_qval' : 'evidence',
                     f'{cat}:percentage_fold_change' : 'perc_FC',
+                    f'{cat}:auroc' : 'AUROC',
+                    f'{cat}:percentage' : 'group_perc',
+                    f'{cat}:percentage_other' : 'group_rest'
                 })
                 .assign(
                     effect_type='log2FC', 
@@ -298,10 +286,13 @@ class Dist_features:
             one_df_harmonized = one_df.loc[:, [
                 'feature_type', 'rank', 'evidence', 
                 'evidence_type', 'effect_size', 'es_rescaled',
-                'effect_type', 'comparison'
+                'effect_type', 'comparison', 'AUROC', 'perc_FC', 
+                'group_perc', 'group_rest'
             ]]
             DF.append(one_df_harmonized) # Without perc_FC
             d[comparison] = Gene_set(one_df, self.features_meta['genes'], organism=self.organism)
+
+            d[comparison].stats.columns
 
         # Concat and return 
         df = pd.concat(DF, axis=0)

@@ -148,11 +148,39 @@ def kNN_purity(index, solution, **kwargs):
 ##
 
 
+def mean_log2FC(df):
+    score = (   
+        df.groupby('comparison')
+        .apply(lambda x: x.sort_values('AUROC', ascending=False).head(10))
+        .loc[:, 'effect_size']
+        .median()
+    )
+    return score
+
+
+##
+
+
+def mean_AUROC(df):
+    score = (   
+        df.groupby('comparison')
+        .apply(lambda x: x.sort_values('AUROC', ascending=False).head(10))
+        .loc[:, 'AUROC']
+        .median()
+    )
+    return score
+
+
+##
+
+
 all_functions = {
     'inertia' : compute_inertia,
     'DB' : davies_bouldin_score,
     'silhouette' : silhouette_score,
-    'kNN_purity' : kNN_purity
+    'kNN_purity' : kNN_purity,
+    'mean_log2FC' : mean_log2FC,
+    'mean_AUROC' : mean_AUROC
 }
 
 

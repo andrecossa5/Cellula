@@ -127,6 +127,10 @@ my_parser.add_argument(
     '''
 )
 
+
+##
+
+
 # Parse arguments
 args = my_parser.parse_args()
 
@@ -255,18 +259,37 @@ def main():
     t.start()
     adata.raw = adata.copy() # Raw counts
     logger.info('Raw expression data stored in adata.raw.')
-    # Apply recipe
-    logger.info(f'Pre-processing: {recipe}')
-    adata, adata_red = run_command(
-        recipes_pp[recipe], 
-        adata,
-        **{ 'n_HVGs':n_HVGs, 'organism':organism, 'path_viz':path_viz }
-    )
-    logger.info(f'Pre-processing with recipe {recipe} finished: {t.stop()}')
+    
+    # Apply recipe # NB: TO DO, integrate more seamless the SCTtransform seurat recipe
+    if recipe != 'SCT_seurat':
+
+        logger.info(f'Pre-processing: {recipe}')
+        adata, adata_red = run_command(
+            recipes_pp[recipe], 
+            adata,
+            **{ 'n_HVGs':n_HVGs, 'organism':organism, 'path_viz':path_viz }
+        )
+        logger.info(f'Pre-processing with recipe {recipe} finished: {t.stop()}')
+
+    else:
+        logger.info(f'Pre-processing: {recipe}')
+        if not os.path.exists(os.path.join(path_main, 'data', 'tmp')):
+            sct_pp_original(adata, organism=organism) # Just prepping a temporary folder with inputs to external r script
+        else:
+            adata, adata_red = format_seurat(         # Reading and formatting SCTransform scripts outputs
+                adata, 
+                path_tmp=os.path.join(path_main, 'data', 'tmp'), 
+                path_viz=path_viz, 
+                organism=organism
+            )
+        logger.info(f'Pre-processing with recipe {recipe} finished: {t.stop()}')
 
     # Save adata and adata_red
     adata.write(os.path.join(path_data, 'lognorm.h5ad'))
     adata_red.write(os.path.join(path_data, 'reduced.h5ad'))
+
+    adata = sc.read(os.path.join(path_data, 'lognorm.h5ad'))
+    adata_red = sc.read(os.path.join(path_data, 'reduced.h5ad'))
 
     #-----------------------------------------------------------------#
 
@@ -311,6 +334,7 @@ def main():
     logger.info(f'Original cell embeddings visualization...')
     for layer in adata_red.layers:
         if layer in ['scaled', 'regressed', 'sct']:
+           pass
            t.start()
            adata_red = compute_kNN(adata_red, layer=layer, int_method='original') # Already parallel
            logger.info(f'kNN graph computation for the {layer} layer: {t.stop()}')

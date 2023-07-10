@@ -345,16 +345,16 @@ def plot_embeddings(adata, layer=None, rep='original', with_paga=True):
         layer=layer, # layer = 'raw'
         umap_only=True
     )
-    covariates = ['nUMIs', 'cycle_diff', 'seq_run', 'sample']
+    covariates = ['nUMIs', 'cycling', 'seq_run', 'sample']
     fig, axs = plt.subplots(1, len(covariates), figsize=(4.5*len(covariates), 5))
     for i, c in enumerate(covariates):
-        if c == 'nUMIs' or c == 'cycle_diff':
+        if c == 'nUMIs' or c == 'cycling':
             draw_embeddings(df, cont=c, ax=axs[i])
         else:
             kwargs = {'bbox_to_anchor':(1,1), 'loc':'upper left'} if c == 'sample' else {}
             draw_embeddings(df, cat=c, ax=axs[i], legend_kwargs=kwargs)
     # Fig
-    plt.subplots_adjust(right=.8, bottom=.2, top=.8, left=.05)
+    plt.subplots_adjust(right=.85, bottom=.2, top=.8, left=.05, wspace=.4)
 
     return fig
 
@@ -775,61 +775,47 @@ def genes_log2FC_and_perc(adata, genes, sol, g):
 ##
 
 
-def dot_plot(adata, markers, s, n=5, ax=None, size=10, legend=True):
+def dot_plot(adata, markers, s, n=3, figsize=(11,9), legend=True):
     """
     Markers dotplot for a cluster solution.
     """
     # Prep data
-    genes = []
-    clusters = adata.obs[s].cat.categories
 
+    # Get genes
+    genes = {}
+    clusters = adata.obs[s].cat.categories
     for clus in clusters:
         if len(clusters) == 2:
             other = [ x for x in clusters if x != clus][0]
             comparison = f'{clus}_vs_{other}'
         else:
             comparison = f'{clus}_vs_rest'
-        genes += markers[s].query('comparison == @comparison').index[:n].to_list()
+        genes[clus] = (
+            markers[s].query('comparison == @comparison and perc_FC>1 and AUROC>0.8')
+            .index[:n]
+            .to_list()
+        )
+    from itertools import chain
+    genes_ = list(chain.from_iterable([ genes[x] for x in genes ]))
 
-    df_ls = []
-    for cluster in adata.obs[s].cat.categories:
-        log2FC, perc = genes_log2FC_and_perc(adata, genes, s, cluster)
-        df_ls.append(pd.DataFrame({'gene' : genes, 'log2FC' : log2FC, 'perc' : perc}))
-    
-    df = pd.concat([ 
-                        d.assign(cluster=str(i)) \
-                        for i, d in enumerate(df_ls) 
-                    ], axis=0
+    # Get percs and log2FC
+    df = (
+        markers[s]
+        .loc[genes_, ['effect_size', 'group_perc', 'comparison']]
+        .reset_index()
+        .rename(columns={'index':'gene', 'effect_size':'log2FC'})
     )
 
     #Clip 
     df['log2FC'][df['log2FC'] <= np.percentile(df['log2FC'], 5)] = np.percentile(df['log2FC'], 5)
     df['log2FC'][df['log2FC'] >= np.percentile(df['log2FC'], 95)] = np.percentile(df['log2FC'], 95)
 
-
-    sns.scatterplot(data=df, x='cluster', y='gene', size='perc', hue='log2FC', 
+    # Figure
+    fig, ax = plt.subplots(figsize=figsize)
+    sns.scatterplot(data=df, x='comparison', y='gene', size='group_perc', hue='log2FC', 
         palette='viridis', ax=ax, sizes=(1, 100))
-
-    ax.set(title=s, ylabel='', xlabel='Cluster')
-    ax.tick_params(axis='both', which='both', labelsize=size)
-    ax.legend(loc='center left', bbox_to_anchor=(1.05, 0.5), frameon=False)
-    
-    return ax
-
-
-##
-
-
-def top_3_dot_plots(adata, markers, top_3, figsize=(11, 8)):
-    """
-    Dotplot top_3 clustering solutions.
-    """
-    fig, axs = plt.subplots(1,3, figsize=figsize) 
-
-    dot_plot(adata, markers, top_3[0], n=3, ax=axs[0], size=8, legend=True)
-    dot_plot(adata, markers, top_3[1], n=3, ax=axs[1], size=8, legend=True)
-    dot_plot(adata, markers, top_3[2], n=3, ax=axs[2], size=8, legend=True)
-
+    format_ax(ax, title=s, xlabel='Clusters', ylabel='genes', rotx=90)
+    ax.legend(loc='upper left', bbox_to_anchor=(1.05, 1), frameon=False)
     fig.tight_layout()
 
     return fig

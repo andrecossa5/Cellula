@@ -32,6 +32,8 @@ class Clust_evaluator:
         value is a numpy array with the cluster assignments for each cell.
     kNN_graphs: dict
         A dictionary of kNN graphs, the one used for Leiden clustering.
+    markers: dict
+        A dictionary of Dist_features DE outputs.
     metrics: str or list of str, optional (default: 'all')
         A list of metrics to be used for the clustering evaluation. 
         Each metric is a string indicating the name of the method to be used. 
@@ -79,7 +81,7 @@ class Clust_evaluator:
         * 'kNN_purity': calculate the kNN purity.
     """
     
-    def __init__(self, adata, clustering_solutions, kNN_graphs, metrics='all'):
+    def __init__(self, adata, clustering_solutions, kNN_graphs, markers, metrics='all'):
         """
         Instantiate the main class attributes, loading preprocessed adata.
         """
@@ -90,6 +92,7 @@ class Clust_evaluator:
         self.adata = adata
         self.solutions = clustering_solutions
         self.kNN_graphs = kNN_graphs
+        self.markers = markers
         self.space = adata.obsm['X_reduced']
         self.scores = {}
         self.d_options = {}
@@ -121,7 +124,7 @@ class Clust_evaluator:
         jobs = list(product(self.metrics, self.solutions))
 
         for j in jobs:
-
+            
             metric = j[0]
             solution = j[1]
 
@@ -137,6 +140,9 @@ class Clust_evaluator:
                     k = solution.split('_')[0]
                     args = [ self.solutions[solution] ]
                     kwargs = { 'k' : int(k) }
+                elif metric in ['mean_log2FC', 'mean_AUROC']:
+                    args = [ self.markers[solution] ]
+                    kwargs = {}
                 l.append(args)
                 l.append(kwargs)
                 d_options[f'{metric}|{solution}'] = l
@@ -164,8 +170,10 @@ class Clust_evaluator:
         Run one of the methods,
         """
         func = self.metrics[metric]
-        rep = self.get_rep(metric, **kwargs)
-        args = [rep] + args
+
+        if metric not in ['mean_log2FC', 'mean_AUROC']:
+            rep = self.get_rep(metric, **kwargs)
+            args = [rep] + args
         score = run_command(func, *args, **kwargs)
 
         return score
@@ -190,6 +198,7 @@ class Clust_evaluator:
             metric = self.d_options[opt][0]
             args = self.d_options[opt][1]
             kwargs = self.d_options[opt][2]
+
             score = self.run(metric, args=args, kwargs=kwargs)
             self.scores[opt] = score
 
@@ -197,7 +206,7 @@ class Clust_evaluator:
 
     ##
 
-    def evaluate_runs(self, path, by='cumulative_score'):
+    def evaluate_runs(self, path, by='cumulative_ranking'):
         """
         Rank methods, as in scib paper (Luecknen et al. 2022).
         """
@@ -220,20 +229,19 @@ class Clust_evaluator:
         df.loc[df['metric'].isin(['DB', 'inertia']), 'type'] = 'down'
 
         # Save
-        df.to_excel(path + 'clustering_evaluation_results.xlsx', index=False)
+        df.to_csv(os.path.join(path, 'clustering_evaluation_results.csv'), index=False)
 
         # Create summary and rankings dfs
 
         # Rankings df
         df_rankings = rank_runs(df)
-        df_rankings.to_excel(path + 'rankings_by_metric.xlsx', index=False)
+        df_rankings.to_csv(os.path.join(path, 'rankings_by_metric.csv'), index=False)
 
         # Summary df
         direction_up = True if by == 'cumulative_ranking' else False
-        df_summary = summary_metrics(df, df_rankings, evaluation='clustering').sort_values(
-            by=by, ascending=direction_up
-        )
-        df_summary.to_excel(path + 'summary_results.xlsx', index=False)
+        df_summary = summary_metrics(df, df_rankings, evaluation='clustering')
+        df_summary = df_summary.sort_values(by=by, ascending=direction_up)
+        df_summary.to_csv(os.path.join(path, 'summary_results.csv'), index=False)
 
         # Top 3 runs
         top_3 = df_summary['run'][:3].to_list()

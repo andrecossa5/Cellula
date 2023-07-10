@@ -9,6 +9,9 @@ tmp <- args[1]
 n <- args[2] 
 
 # Read files
+# tmp <- '/Users/IEO5505/Desktop/example_cellula/data/tmp'
+# n <- 5000
+
 counts <- fread(paste0(tmp, '/counts.csv')) %>% as.data.frame()
 row.names(counts) <- counts[,1]
 counts <- counts[,2:ncol(counts)] %>% t() # Transpose for compatibility
@@ -24,11 +27,13 @@ seurat <- SCTransform(
 
 # Extract residuals of HVGs and their attributes
 residuals <- seurat@assays$SCT@scale.data %>% t() %>% as.data.frame()
-df_var <- L@feature.attributes %>% 
-    arrange(desc(residual_variance)) %>% 
-    select(residual_variance)
+residuals <- residuals %>% mutate(
+                cells=row.names(residuals), 
+                .before=colnames(residuals)[1]
+            )
+df_var <- seurat@assays$SCT@SCTModel.list$model1@feature.attributes
 
 # Write
-write.csv(residuals, paste0(tmp, '/residuals.csv'))
+fwrite(residuals, paste0(tmp, '/residuals.csv'))
 write.csv(df_var, paste0(tmp, '/df_var.csv'))
 

@@ -87,6 +87,14 @@ my_parser.add_argument(
     help='Skip analysis. Default: False.'
 )
 
+# Min perc
+my_parser.add_argument( 
+    '--min_perc', 
+    type=int,
+    default=1,
+    help='\% of cells that need to express a gene to enter in the DE analysis. Default: 10.'
+)
+
 # Parse arguments
 args = my_parser.parse_args()
 
@@ -95,7 +103,7 @@ version = args.version
 range_ = [ float(x) for x in args.range.split(':') ]
 n = args.n
 organism = args.organism
-
+min_perc = args.min_perc
 
 # path_main = '/Users/IEO5505/Desktop/example_cellula'
 # version = 'default'
@@ -261,7 +269,7 @@ def markers_all():
 
     # Here we go
     t.start()
-    D = Dist_features(adata, contrasts, jobs=jobs, organism=organism, app=True)
+    D = Dist_features(adata, contrasts, jobs=jobs, organism=organism, app=True, min_perc=min_perc)
     logger.info(f'Running markers computations...')
     D.run_all_jobs()
 

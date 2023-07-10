@@ -167,14 +167,14 @@ def clustering_diagnostics():
 
         # Summary QC covariate per cluster, for each clustering solution
         summary_QC = cluster_QC(df_QC, QC_covariates)
-        summary_QC.to_excel(os.path.join(path_results, 'summary_QC.xlsx'))
+        summary_QC.to_csv(os.path.join(path_results, 'summary_QC.csv'))
 
         # Assess if there are some very bad partitions
         q = f'nUMIs < {250} and detected_genes < {500} and mito_perc > {0.2}'
         very_bad_boys = summary_QC.query(q).loc[:, ['solution', 'partition']]
 
         if len(very_bad_boys.index) > 0:
-            very_bad_boys.to_excel(os.path.join(path_results, 'bad_boys.xlsx'))
+            very_bad_boys.to_csv(os.path.join(path_results, 'bad_boys.csv'))
             logger.info(f'Found {len(very_bad_boys.index)} bad quality clusters...')
         else:
             logger.info(f'No bad quality clusters found...')
@@ -209,7 +209,7 @@ def clustering_diagnostics():
 
     #-----------------------------------------------------------------#
 
-    # Dignostics 2: cluster concordance, separation and purity. Top solutions
+    # Dignostics 2: cluster concordance, separation and purity. Find top solutions
 
     if chosen is None: # De novo 
 
@@ -229,18 +229,35 @@ def clustering_diagnostics():
         fig.savefig(os.path.join(path_viz, 'ARI_among_solutions.png'))
         logger.info(f'ARI among solutions: total {t.stop()} s.')
 
+        # Load markers
+        if os.path.exists(
+            os.path.join(
+                path_main, 
+                f'results_and_plots/dist_features/{version}/clusters_markers.pickle')
+            ):
+            with open(os.path.join(
+                path_main, 
+                f'results_and_plots/dist_features/{version}/clusters_markers.pickle'), 
+                mode='rb') as f:
+                markers = pickle.load(f).results
+        else:
+            sys.exit('Compute markers first!')
+
+        # Subset solutions and extract their markers
+        markers = { k.split('|')[0] : markers[k]['df'] for k in markers }
+
         # Calculate metrics (NB. all intrinsic metrics. No ground truth needed.)
         t.start()
-        logger.info('Bgin calculation of clusters separation and purity metrics...')
+        logger.info('Begin calculation of clusters separation and purity metrics...')
 
-        C = Clust_evaluator(adata, clustering_solutions, kNN_graphs, metrics='all')
+        C = Clust_evaluator(adata, clustering_solutions, kNN_graphs, markers, metrics='all')
         C.parse_options()
         C.compute_metrics()
         logger.info(f'Metrics calculation: total {t.stop()} s.')
 
         # Clustering runs evaluation
         t.start()
-        df, df_summary, df_rankings, top_3 = C.evaluate_runs(path_results, by='cumulative_score')
+        df, df_summary, df_rankings, top_3 = C.evaluate_runs(path_results, by='cumulative_ranking')
         logger.info(f'Methods ranking: {t.stop()} s.')
         logger.info(f'Top 3 clustering solutions found: {top_3[0]}, {top_3[1]} and {top_3[2]}')
     
@@ -290,9 +307,8 @@ def clustering_diagnostics():
             sys.exit('Compute markers first!')
 
         # Subset solutions and extract their markers
-        sol = clustering_solutions.loc[:,top_3]
-        markers = { k.split('|')[0] : markers[k]['df'] for k in markers if k.split('|')[0] in top_3 }
-        adata.obs = adata.obs.join(sol)
+        adata.obs = adata.obs.join(clustering_solutions)
+        markers_top3 = { k.split('|')[0] : markers[k]['df'] for k in markers if k.split('|')[0] in top_3 }
 
         # Here we go
         logger.info('Begin visualizations: PAGA and UMAP, JI and dotplots...')
@@ -302,13 +318,23 @@ def clustering_diagnostics():
                 adata, clustering_solutions, top_3, s=13, color_fun=create_colors)
             pdf.savefig()  
             # JI
-            fig = top_3_ji_cells(markers, sol)
+            fig = top_3_ji_cells(markers_top3, clustering_solutions.loc[:, top_3])
+            plt.show()
             pdf.savefig()  
             # Dot plots
-            fig = top_3_dot_plots(adata, markers, top_3)
-            pdf.savefig()  
+            for s in top_3:
+                fig = dot_plot(adata, markers_top3, s, n=3, legend=True)
+                pdf.savefig()  
             plt.close()
         logger.info(f'Visualizations: {t.stop()}')
+
+        # Write all dotplots
+        make_folder(path_viz, 'dot_plots', overwrite=True)
+        markers = { k.split('|')[0] : markers[k]['df'] for k in markers }
+        for s in markers:
+            if adata.obs[s].value_counts().size>1:
+                fig = dot_plot(adata, markers, s, n=3, legend=True)
+                fig.savefig(os.path.join(path_viz, 'dot_plots', f'{s}.png'), dpi=300)
 
         # Write final exec time (no chosen steps)
         logger.info(f'Execution was completed successfully in total {T.stop()} s.')

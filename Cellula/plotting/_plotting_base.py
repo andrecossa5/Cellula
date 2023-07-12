@@ -332,7 +332,7 @@ def bar(df, y, x=None, by=None, c='grey', s=0.35, a=1, l=None, ax=None, annot_si
                 idx = [ i for i, x in enumerate(df[by]) if x == cat ]
                 height = df[y].values[idx]
                 ax.bar(x[idx], height, align='center', width=s, alpha=a, color=c[cat])
-                ax.bar_label(ax.containers[i], padding=0, size=annot_size)
+                ax.bar_label(round(ax.containers[i], 2), padding=0, size=annot_size)
 
     elif by is not None and x is not None and isinstance(c, dict):
         ax = sns.barplot(data=df, x=x, y=y, hue=by, ax=ax, width=s, 

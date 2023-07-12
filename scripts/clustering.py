@@ -92,7 +92,7 @@ my_parser.add_argument(
     '--min_perc', 
     type=int,
     default=1,
-    help='\% of cells that need to express a gene to enter in the DE analysis. Default: 10.'
+    help='Perc of cells that need to express a gene to enter in the DE analysis. Default: 1.'
 )
 
 # Parse arguments

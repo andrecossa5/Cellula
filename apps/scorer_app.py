@@ -28,10 +28,15 @@ def load_data(path_data, version):
         adata.uns['all_clustering_sol']
         .loc[:, ~adata.uns['all_clustering_sol'].columns.isin(adata.obs)]
     )
-    with open(os.path.join(path_data, version, 'signatures.pickle'), 'rb') as f:
-        signatures = pickle.load(f)
 
-    return adata, signatures
+    path_signatures = os.path.join(path_data, version, 'signatures.pickle')
+    
+    if os.path.exists(path_signatures):
+        with open(path_signatures, 'rb') as f:
+            signatures = pickle.load(f)
+        return adata, signatures
+    else:
+        return adata, None
 
 
 ##
@@ -234,10 +239,13 @@ def gene_sets(path_main):
 
     # Mode
     form = st.sidebar.form(key='Gene set type')
-    gs_type = form.radio(
-        'Mode',
-        ['pre-computed', 'user-defined']
-    )
+
+    if signatures is not None:
+        list_modes = ['pre-computed', 'user-defined']
+    else:
+        list_modes = ['user-defined']
+
+    gs_type = form.radio('Mode', list_modes)
     submit = form.form_submit_button('Choose')
 
     # Precomp

@@ -3,6 +3,7 @@ _Clust_evaluator.py: The Clust_evaluator class
 """
 
 import gc
+from itertools import product
 import numpy as np
 import pandas as pd
 import scanpy as sc
@@ -29,6 +30,10 @@ class Clust_evaluator:
         A dictionary of clustering solutions to be evaluated. 
         Each key is a string representing the clustering solution name, and the 
         value is a numpy array with the cluster assignments for each cell.
+    kNN_graphs: dict
+        A dictionary of kNN graphs, the one used for Leiden clustering.
+    markers: dict
+        A dictionary of Dist_features DE outputs.
     metrics: str or list of str, optional (default: 'all')
         A list of metrics to be used for the clustering evaluation. 
         Each metric is a string indicating the name of the method to be used. 
@@ -38,15 +43,13 @@ class Clust_evaluator:
     ----------
     adata: AnnData
         The input AnnData object.
-    layer: str
-        The layer of the data used in the analysis.
-    int_method: str
-        The integration method used.
     space: numpy array
         The space used in the analysis. This is either integrated latent space or 
         the original PCA space (that is the same in case of BBKNN).
     solutions: dict
         A dictionary of the input clustering solutions.
+    kNN_graphs: dict
+        A dictionary of the kNN graphs used for Leiden clustering.
     scores: dict
         A dictionary of the scores obtained for each metric and solution combination.
     d_options: dict
@@ -78,26 +81,25 @@ class Clust_evaluator:
         * 'kNN_purity': calculate the kNN purity.
     """
     
-    def __init__(self, adata, clustering_solutions, metrics='all'):
+    def __init__(self, adata, clustering_solutions, kNN_graphs, markers, metrics='all'):
         """
         Instantiate the main class attributes, loading preprocessed adata.
         """
+
+        # Logging
+        logger = logging.getLogger('Cellula_logs')
+
         self.adata = adata
-        self.layer, self.int_method = next(iter(adata.obsp)).split('|')[0], next(iter(adata.obsp)).split('|')[1]
-
-        if self.int_method != 'original' and self.int_method != 'BBKNN':
-            self.space =  adata.obsm[f'{self.layer}|{self.int_method}|X_corrected']
-            print(f'Integrated dataset. Found {self.layer}|{self.int_method}|X_corrected representation...')
-        elif self.int_method == 'original':
-            self.space = adata.obsm[f'{self.layer}|{self.int_method}|X_pca']
-            print(f'This dataset was not integrated in the end. Found only {self.layer}|{self.int_method}|X_pca representation...')
-        else:
-            self.space =  adata.obsm[f'{self.layer}|original|X_pca']
-            print(f'Integrated dataset with BBKNN. Found {self.layer}|original|X_pca representation...')
-
         self.solutions = clustering_solutions
+        self.kNN_graphs = kNN_graphs
+        self.markers = markers
+        self.space = adata.obsm['X_reduced']
         self.scores = {}
         self.d_options = {}
+
+        logger.info(f'Clust_evaluator initialized.')
+        logger.info(f'X_reduced space options: {self.adata.uns["dimred"]}')
+        logger.info(f'kNN_graphs ks: {list(self.kNN_graphs.keys())}')
 
         # Handle metrics
         if metrics == 'all':
@@ -105,7 +107,7 @@ class Clust_evaluator:
         elif all([x in all_functions for x in metrics]):
             self.metrics = { x: all_functions[x] for x in metrics }
         else:
-            raise ValueError(f'Only {all_functions.keys()} metrics are available...')
+            raise ValueError(f'Only {list(all_functions.keys())} metrics are available...')
 
     ## 
 
@@ -113,36 +115,43 @@ class Clust_evaluator:
         """
         Parse a dictionary of configuration options for the self.compute_metrics method.
         """
+
+        # Logging
+        logger = logging.getLogger('Cellula_logs')
+
+        # Here we go
         d_options = {}
+        jobs = list(product(self.metrics, self.solutions))
 
-        for metric in self.metrics:
-            for solution in self.solutions:
+        for j in jobs:
+            
+            metric = j[0]
+            solution = j[1]
 
-                if self.solutions[solution].unique().size == 1:
-                    print(f'Skipping evaluation for clustering solution {solution} with only 1 partiton...')
-                else:
-                    l = []
-                    l.append(metric)
-
-                    if metric in ['inertia', 'DB', 'silhouette']:
-                        args = [ self.solutions[solution] ]
-                        kwargs = {}
-
-                    elif metric == 'kNN_purity':
-                        k = solution.split('_')[0]
-                        n_components = solution.split('_')[2] 
-                        args = [ self.solutions[solution] ]
-                        kwargs = { 'k' : k, 'n_components' : n_components }
-
-                    l.append(args)
-                    l.append(kwargs)
-                    d_options[f'{metric}|{solution}'] = l
+            if self.solutions[solution].unique().size == 1:
+                logger.info(f'Skipping evaluation for clustering solution {solution} with only 1 partiton...')
+            else:
+                l = []
+                l.append(metric)
+                if metric in ['inertia', 'DB', 'silhouette']:
+                    args = [ self.solutions[solution] ]
+                    kwargs = {}
+                elif metric == 'kNN_purity':
+                    k = solution.split('_')[0]
+                    args = [ self.solutions[solution] ]
+                    kwargs = { 'k' : int(k) }
+                elif metric in ['mean_log2FC', 'mean_AUROC']:
+                    args = [ self.markers[solution] ]
+                    kwargs = {}
+                l.append(args)
+                l.append(kwargs)
+                d_options[f'{metric}|{solution}'] = l
 
         self.d_options = d_options
 
     ##
 
-    def get_rep(self, metric, k=15, n_components=30):
+    def get_rep(self, metric, k=15):
         """
         Get a representation based on the metric to score.
         """
@@ -150,14 +159,7 @@ class Clust_evaluator:
             rep = self.space
 
         elif metric == 'kNN_purity':
-            rep = get_representation(
-                self.adata,
-                layer=self.layer,
-                method=self.int_method,
-                k=k,
-                n_components=n_components,
-                only_index=True
-            )
+            rep = self.kNN_graphs[k][0]
         
         return rep
 
@@ -168,8 +170,10 @@ class Clust_evaluator:
         Run one of the methods,
         """
         func = self.metrics[metric]
-        rep = self.get_rep(metric, **kwargs)
-        args = [rep] + args
+
+        if metric not in ['mean_log2FC', 'mean_AUROC']:
+            rep = self.get_rep(metric, **kwargs)
+            args = [rep] + args
         score = run_command(func, *args, **kwargs)
 
         return score
@@ -180,26 +184,29 @@ class Clust_evaluator:
         """
         Compute one of the available metrics.
         """
-        logger = logging.getLogger("my_logger") 
-        g = Timer()
+
+        # Logging
+        logger = logging.getLogger("Cellula_logs") 
+        t = Timer()
 
         if self.d_options is None:
             raise ValueError('Parse options first!')
 
         for opt in self.d_options: 
-            print(opt)
-            g.start()
+
+            t.start()
             metric = self.d_options[opt][0]
             args = self.d_options[opt][1]
             kwargs = self.d_options[opt][2]
-            logger.info(f'Begin the computation for the following combination of metric|solution:{opt}') 
+
             score = self.run(metric, args=args, kwargs=kwargs)
             self.scores[opt] = score
-            logger.info(f'End of {opt} computation: {g.stop()} s.') 
+
+            logger.info(f'Scoring {opt}: {t.stop()}') 
 
     ##
 
-    def evaluate_runs(self, path, by='cumulative_score'):
+    def evaluate_runs(self, path, by='cumulative_ranking'):
         """
         Rank methods, as in scib paper (Luecknen et al. 2022).
         """
@@ -222,20 +229,19 @@ class Clust_evaluator:
         df.loc[df['metric'].isin(['DB', 'inertia']), 'type'] = 'down'
 
         # Save
-        df.to_excel(path + 'clustering_evaluation_results.xlsx', index=False)
+        df.to_csv(os.path.join(path, 'clustering_evaluation_results.csv'), index=False)
 
         # Create summary and rankings dfs
 
         # Rankings df
         df_rankings = rank_runs(df)
-        df_rankings.to_excel(path + 'rankings_by_metric.xlsx', index=False)
+        df_rankings.to_csv(os.path.join(path, 'rankings_by_metric.csv'), index=False)
 
         # Summary df
         direction_up = True if by == 'cumulative_ranking' else False
-        df_summary = summary_metrics(df, df_rankings, evaluation='clustering').sort_values(
-            by=by, ascending=direction_up
-        )
-        df_summary.to_excel(path + 'summary_results.xlsx', index=False)
+        df_summary = summary_metrics(df, df_rankings, evaluation='clustering')
+        df_summary = df_summary.sort_values(by=by, ascending=direction_up)
+        df_summary.to_csv(os.path.join(path, 'summary_results.csv'), index=False)
 
         # Top 3 runs
         top_3 = df_summary['run'][:3].to_list()

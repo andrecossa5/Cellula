@@ -125,7 +125,6 @@ class Scores():
         """
         Compute Hotspot modules.
         """
-        self.matrix.layers['raw'] = csc_matrix(self.matrix.raw[:, self.matrix.var_names].X)
         
         if only_HVGs:
             self.matrix = self.matrix[:, self.matrix.var_names[self.matrix.var['highly_variable_features']]]
@@ -187,7 +186,7 @@ class Scores():
         """
         Compute GMs of some kind. Three kinds implemented.
         """
-        logger = logging.getLogger("my_logger") 
+        logger = logging.getLogger("Cellula_logs") 
         g = Timer()
         for method in self.methods:
             g.start()
@@ -197,8 +196,14 @@ class Scores():
             logger.info(f'End of {method} computation: {g.stop()} s.') 
 
         d = {**self.wu, **self.barkley, **self.Hotspot, **self.curated}
-        d = { k : Gene_set(v, self.matrix.var, name=k, organism=self.organism) for k, v in d.items() }
-        self.gene_sets = d
+
+        gene_sets = {}
+        for k in d:
+            try:
+                gene_sets[k] = Gene_set(d[k], self.matrix.var, name=k, organism=self.organism)
+            except:
+                logger.info(f'{k} genes have not been found in the original matrix...') 
+        self.gene_sets = gene_sets
 
         print(f'Finished GMs calculation')
 

@@ -44,9 +44,19 @@ class Timer:
         if self._start_time is None:
             raise TimerError(f"Timer is not running. Use .start() to start it")
         elapsed_time = time.perf_counter() - self._start_time
+
+        if elapsed_time > 100:
+            unit = 'min'
+            elapsed_time = elapsed_time / 60
+        elif elapsed_time > 1000:
+            unit = 'h'
+            elapsed_time = elapsed_time / 3600
+        else:
+            unit = 's'
+
         self._start_time = None
 
-        return round(elapsed_time, 2)
+        return f'{round(elapsed_time, 2)} {unit}'
 
 
 ##
@@ -58,8 +68,8 @@ def make_folder(path, name, overwrite=True):
     """
     os.chdir(path)
     if not os.path.exists(name) or overwrite:
-        rmtree(path + name, ignore_errors=True)
-        os.makedirs(name)
+        rmtree(os.path.join(path, name), ignore_errors=True)
+        os.mkdir(name)
     else:
         pass
 
@@ -71,8 +81,8 @@ def set_logger(path_runs, name, mode='w'):
     """
     A function to open a logs.txt file for a certain script, writing its trace at path_main/runs/step/.
     """
-    logger = logging.getLogger("my_logger")
-    handler = logging.FileHandler(path_runs + name, mode=mode)
+    logger = logging.getLogger("Cellula_logs")
+    handler = logging.FileHandler(os.path.join(path_runs, name), mode=mode)
     handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
     logger.setLevel(logging.INFO)
     logger.addHandler(handler)
@@ -111,7 +121,8 @@ def run_command(func, *args, verbose=False, **kwargs):
     t = Timer()
     t.start()
     out = func(*args, **kwargs)
-    print(f'Elapsed time: {t.stop()}')
+    if verbose:
+        print(f'Elapsed time: {t.stop()}')
     
     return out
 
@@ -162,26 +173,50 @@ def rescale(x):
 ##
 
 
-def get_representation(adata, layer=None, method='original', k=None, n_components=None, 
-    only_index=False, only_conn=False):
+def get_representation(adata, layer='lognorm', method='original', 
+    embeddings=True, kNN=False, only_index=False, only_conn=False ):
     """
-    Take out desired representation from a adata.obsm/obsp.
+    Get desired representation from a adata.obsm/obsp.
     """
+    # Logging
+    logger = logging.getLogger('Cellula_logs')
+
+    # Take reps
     embedding_type = 'X_pca' if method == 'original' else 'X_corrected'
-    if method != 'BBKNN' and k is None and n_components is None:
-        representation = adata.obsm[f'{layer}|{method}|{embedding_type}']
-    elif method == 'BBKNN' and k is None and n_components is None:
-        raise ValueError('The BBKNN method has no associated X_corrected embedding.')
-    else:
+    if embeddings and kNN:
+        raise ValueError('kNN and embedding options are exclusive. Choose one of them!')
+    
+    # Here we go
+    if embeddings:
+        if method == 'BBKNN':
+            representation = adata.obsm[f'{layer}|original|X_pca']
+            # logger.info(f'Using {embedding_type} embeddings (ndim={ndim}) associated to the {layer} layer and the {method} integration method...')
+        elif method == 'original':
+            representation = adata.obsm[f'{layer}|{method}|{embedding_type}']
+            # logger.info(f'Using {embedding_type} embeddings (ndim={ndim}) associated to the {layer} layer and the {method} integration method...')
+        elif method not in ['BBKNN', 'original']:
+            representation = adata.obsm[f'{layer}|{method}|{embedding_type}']
+            # logger.info(f'Original embeddings associated to the {layer} layer have ndim={ndim_original}')
+            # logger.info(f'Integrated (method={method}) embeddings associated to the {layer} layer have ndim={ndim_integrated}')
+            # logger.info(f'Using subsetted {embedding_type} embeddings (ndim={ndim_original})')
+        
+    elif kNN:
         representation = (
-            adata.obsm[f'{layer}|{method}|{embedding_type}|{k}_NN_{n_components}_comp_idx'],
-            adata.obsp[f'{layer}|{method}|{embedding_type}|{k}_NN_{n_components}_comp_conn'],
-            adata.obsp[f'{layer}|{method}|{embedding_type}|{k}_NN_{n_components}_comp_dist']
+            adata.obsm[f'{layer}|{method}|{embedding_type}|NN_idx'],
+            adata.obsp[f'{layer}|{method}|{embedding_type}|NN_dist'],
+            adata.obsp[f'{layer}|{method}|{embedding_type}|NN_conn']
         )
-        if only_index:
+        k = representation[0].shape[1]
+
+        if not only_index and not only_conn:
+            pass 
+            # logger.info(f'Using kNN (k={k}) graph associated to the {layer} layer and the {method} integration method...')
+        elif only_index:
             representation = representation[0]
-        if only_conn:
-            representation = representation[1]
+            # logger.info(f'Using kNN (k={k}) indeces associated to the {layer} layer and the {method} integration method...')
+        elif only_conn:
+            representation = representation[2]
+            # logger.info(f'Using kNN (k={k}) connectivities associated to the {layer} layer and the {method} integration method...')
             
     return representation
 
@@ -215,3 +250,43 @@ def custom_ARI(g1, g2):
     return (index - expected_index) / (max_index - expected_index)
 
 
+##
+
+
+def cp_QC(path_main, from_branch, name_new):
+    path_QC = os.path.join(path_main, 'results_and_plots', 'vizualization', 'QC')
+    make_folder(path_QC, name_new, overwrite=True)
+    os.chdir(os.path.join(path_QC, name_new))
+    os.system(f'cp ../{from_branch}/* .')
+
+
+##
+
+
+def cp_other(path_main, step, from_branch, name_new):
+    path_step = os.path.join(path_main, 'results_and_plots', step)
+    path_ = os.path.join(path_main, 'results_and_plots', step, from_branch)
+
+    if not os.path.exists(path_):
+        raise ValueError(f'{path_} not available!')
+                         
+    make_folder(path_step, name_new, overwrite=True)
+    os.chdir(os.path.join(path_step, name_new))
+    os.system(f'ln -s ../{from_branch}/* .')
+
+    path_viz = os.path.join(path_main, 'results_and_plots', 'vizualization', step)
+    make_folder(path_viz, name_new, overwrite=True)
+    os.chdir(os.path.join(path_viz, name_new))
+    os.system(f'cp -r ../{from_branch}/* .')
+
+
+##
+
+
+def cp_logs(path_runs, from_branch):
+    os.chdir(path_runs)
+    make_folder(os.getcwd(), f'old_{from_branch}_logs', overwrite=True)
+    os.system(f'cp ../{from_branch}/* ./old_{from_branch}_logs/')
+
+
+##

@@ -15,6 +15,7 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 import seaborn as sns 
 from statannotations.Annotator import Annotator 
+import textalloc as ta
 
 from .._utils import *
 from ._colors import *
@@ -37,11 +38,12 @@ axins_pos = {
     'h1' : ( (0.05,.95,.22,.01), 'bottom' ),
     'h4' : ( (0.05,.05,.22,.01), 'top' ),
 
-    'outside' : ( (1.05,.25,.01,.5), 'right' )
+    'outside' : ( (1.05,.25,.025,.5), 'right' )
 }
 
 
 ##
+
 
 def create_handles(categories, marker='o', colors=None, size=10, width=0.5):
     """
@@ -68,19 +70,23 @@ def create_handles(categories, marker='o', colors=None, size=10, width=0.5):
 ##
 
 
-def add_cbar(x, color='viridis', ax=None, label_size=7, ticks_size=5, 
-    label=None, orientation='v', pos=2):
+def add_cbar(x, palette='viridis', ax=None, label_size=7, ticks_size=5, 
+    vmin=None, vmax=None, label=None, layout='outside'):
     """
     Draw cbar on an axes object inset.
     """
-    if pos == 'outside':
-        pos, xticks_position = axins_pos[pos]
-        orientation = 'vertical'
+    orientation = 'vertical'
+    if layout in axins_pos:
+        pos, xticks_position = axins_pos[layout]
     else:
-        pos, xticks_position = axins_pos[orientation+str(pos)]
-        orientation = 'vertical' if orientation == 'v' else 'horizontal'
-    cmap = matplotlib.colormaps[color]
-    norm = matplotlib.colors.Normalize(vmin=np.percentile(x, q=5), vmax=np.percentile(x, q=95))
+        pos, xticks_position = layout
+        
+    cmap = matplotlib.colormaps[palette]
+    if vmin is None and vmax is None:
+        norm = matplotlib.colors.Normalize(
+            vmin=np.percentile(x, q=25), vmax=np.percentile(x, q=75))
+    else:
+        norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
     axins = ax.inset_axes(pos) 
     cb = plt.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap), 
         cax=axins, orientation=orientation, ticklocation=xticks_position
@@ -98,16 +104,13 @@ def add_cbar(x, color='viridis', ax=None, label_size=7, ticks_size=5,
 
 
 def add_legend(label=None, colors=None, ax=None, loc='center', artists_size=7, label_size=7, 
-    ticks_size=5, bbox_to_anchor=(0.5, 1.1), ncols=None, only_top='all'):
+    ticks_size=5, bbox_to_anchor=(0.5, 1.1), ncols=1, only_top='all'):
     """
     Draw a legend on axes object.
     """
     if only_top != 'all':
         colors = { k : colors[k] for i, k in enumerate(colors) if i < int(only_top) }
-        
-    if ncols is None:
-        ncols = len(colors) // 2 + 1
-    title = label.capitalize() if label is not None else None
+    title = label if label is not None else None
 
     handles = create_handles(colors.keys(), colors=colors.values(), size=artists_size)
     ax.legend(handles, colors.keys(), frameon=False, loc=loc, fontsize=ticks_size, title_fontsize=label_size,
@@ -249,7 +252,8 @@ def line(df, x, y, c='r', s=1, l=None, ax=None):
 ##
 
 
-def scatter(df, x, y, by=None, c='r', s=1.0, a=1, l=None, ax=None, scale_x=None, ordered=False):
+def scatter(df, x, y, by=None, c='r', s=1.0, a=1, l=None, ax=None, scale_x=None, 
+            vmin=None, vmax=None, ordered=False):
     """
     Base scatter plot.
     """
@@ -269,8 +273,10 @@ def scatter(df, x, y, by=None, c='r', s=1.0, a=1, l=None, ax=None, scale_x=None,
         ax.scatter(df[x], df[y], color=c, label=l, marker='.', s=size, alpha=a)
 
     elif isinstance(c, str) and by is not None:
-        ax.scatter(df[x], df[y], c=df[by], label=l, marker='.', s=size, 
-            cmap=c, alpha=a)
+        
+        vmin = vmin if vmin is not None else np.percentile(df[by],25)
+        vmax = vmax if vmax is not None else np.percentile(df[by],75)
+        ax.scatter(df[x], df[y], c=df[by], cmap=c, vmin=vmin, vmax=vmax, label=l, marker='.', s=size, alpha=a)
 
     elif isinstance(c, dict) and by is not None:
         assert all([ x in c for x in df[by].unique() ])
@@ -326,7 +332,7 @@ def bar(df, y, x=None, by=None, c='grey', s=0.35, a=1, l=None, ax=None, annot_si
                 idx = [ i for i, x in enumerate(df[by]) if x == cat ]
                 height = df[y].values[idx]
                 ax.bar(x[idx], height, align='center', width=s, alpha=a, color=c[cat])
-                ax.bar_label(ax.containers[i], padding=0, size=annot_size)
+                ax.bar_label(round(ax.containers[i], 2), padding=0, size=annot_size)
 
     elif by is not None and x is not None and isinstance(c, dict):
         ax = sns.barplot(data=df, x=x, y=y, hue=by, ax=ax, width=s, 
@@ -375,8 +381,7 @@ def box(df, x, y, by=None, c=None, a=1, l=None, ax=None, with_stats=False,
             
     elif isinstance(c, dict) and by is not None:
         if all([ True if k in df[by].unique() else False for k in c.keys() ]):
-            ax = sns.boxplot(data=df, x=x, y=y, palette=c.values(), hue=by, width=s,
-                ax=ax, saturation=a, **params)
+            ax = sns.boxplot(data=df, x=x, y=y, palette=c.values(), hue=by, ax=ax, saturation=a, **params)
             ax.legend([], [], frameon=False)
             ax.set(xlabel='')
         else:
@@ -537,11 +542,28 @@ def bb_plot(df, cov1=None, cov2=None, show_y=True, legend=True, colors=None,
     )
 
     if legend:
-        add_legend(label=cov2, colors=colors, ax=ax, only_top=10, ncols=1,
-            loc='upper left', bbox_to_anchor=(1.01,1), ticks_size=7  
-        )
+        add_legend(label=cov2, colors=colors, ax=ax, **kwargs)
     
     if with_data:
         return ax, data
     else:
         return ax
+    
+
+##
+
+
+def rank_plot(df, cov=None, ascending=False, n_annotated=25, title=None, ylabel=None, ax=None, fig=None):
+    """
+    Annotated scatterplot.
+    """
+    s = df[cov].sort_values(ascending=ascending)
+    x = np.arange(df.shape[0])
+    y = s.values
+    labels = s[:n_annotated].index
+    ax.plot(x, y, '.')
+    ta.allocate_text(fig, ax, x[:n_annotated], y[:n_annotated], labels, x_scatter=x, y_scatter=y,
+        linecolor='black', textsize=8, max_distance=0.5, linewidth=0.5, nbr_candidates=100)
+    format_ax(ax, title=title, xlabel='rank', ylabel=ylabel)
+
+    return ax

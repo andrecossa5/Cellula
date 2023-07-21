@@ -1,18 +1,26 @@
+
 # Code
-import pickle
-import scanpy as sc
-import pegasus as pg
+from itertools import product
 from Cellula._utils import *
-from Cellula.plotting._plotting import *
-from Cellula.plotting._colors import *
-from Cellula.preprocessing._embeddings import embeddings
-from Cellula.preprocessing._pp import _sig_scores
 from Cellula.preprocessing._pp import *
-
-##
-
-import Cellula as cl
+from Cellula.preprocessing._integration import *
+from Cellula.preprocessing._Int_evaluator import *
 
 
-Cellula.plotting._plotting_base.scatter
+path_main = '/Users/IEO5505/Desktop/cellula_example/'
+version = 'default'
+
+import scFates as scf
+
+
+n_cores = 8
+n_comps = 2
+coord = 'UMAP'
+cov = 'CD34'
+rep = 'reduced'
+transition = ['3', '0']
+skip_DPT = False
+HVGs =  True
+organism = 'human'
+
 

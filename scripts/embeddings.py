@@ -11,8 +11,13 @@ import argparse
 
 # Create the parser
 my_parser = argparse.ArgumentParser(
-    prog='Embeddings',
-    description='''Given a final clustered solution, compute its embeddings for visualization and graph based TI.'''
+    prog='embeddings',
+    description=
+    """
+    Final embeddings operations.
+    Given a final clustered adata, compute its full embeddings 
+    (i.e., UMAP, tSNE, Force-Atlas2, Diffusion Maps and  Force-Atlas2 based on diffusion maps kNN).
+    These coordinates will be used for visualization and graph based Trajectory Inference (i.e., DPT.py script)."""
 )
 
 # Add arguments
@@ -35,18 +40,28 @@ my_parser.add_argument(
     help='The pipeline step to run. Default: default.'
 )
 
-my_parser.add_argument( 
-    '--n_random_states', 
+# Path_main
+my_parser.add_argument(
+    '--n_diff', 
     type=int,
-    default=3,
-    help='Number of random states to compute embeddings.'
+    default=10,
+    help='n diffusion components to compute. Default: 10.'
+)
+
+# Random state
+my_parser.add_argument( 
+    '--random_state', 
+    type=int,
+    default=1234,
+    help='Random state for different initializations. Default: 1234'
 )
 
 # Parse arguments
 args = my_parser.parse_args()
 path_main = args.path_main
 version = args.version
-n = args.n_random_states
+n_diff = args.n_diff
+random_state = args.random_state
 
 ########################################################################
 
@@ -60,12 +75,14 @@ from Cellula._utils import *
 from Cellula.plotting._plotting import *
 from Cellula.plotting._colors import *
 from Cellula.preprocessing._embeddings import embeddings
+import warnings
+warnings.filterwarnings("ignore")
 
 #-----------------------------------------------------------------#
 
 # Set other paths
-path_data = path_main + f'/data/{version}/'
-path_runs = path_main + f'/runs/{version}/'
+path_data = os.path.join(path_main, 'data', version)
+path_runs = os.path.join(path_main, 'runs', version)
 
 #-----------------------------------------------------------------#
 
@@ -87,29 +104,28 @@ def Embs():
     logger.info('Execute embeddings...')
 
     # Load anndata
-    adata = sc.read(path_data + 'clustered.h5ad')
-
+    adata = sc.read(os.path.join(path_data, 'clustered.h5ad'))
     logger.info(f'Data loading and preparation: {t.stop()} s.')
     
     #-----------------------------------------------------------------#
 
     # Embs
-    random_states = range(n)
-    DFs = {}
-    for random_state in random_states:
-        df = embeddings(
-            adata, 
-            affinity='kNN', 
-            random_state=random_state, 
-            umap_only=False
-        )
-        DFs[f'sol_{random_state}'] = df
+    t.start()
+    logger.info('Calculate all embeddings...')
+    df = embeddings(
+        adata, 
+        nn_key='NN',
+        red_key='X_reduced',
+        n_diff=n_diff,
+        random_state=1234, 
+        umap_only=False
+    )
+    logger.info(f'Calculate all embeddings: {t.stop()} s.')
 
     # Save results
     t.start()
-    logger.info('Write the full_embs .pickle')
-    with open(path_data + 'full_embs.pickle', 'wb') as f:
-        pickle.dump(DFs, f)
+    logger.info('Write the full_embs .csv')
+    df.to_csv(os.path.join(path_data, 'full_embs.csv'))
     logger.info(f'End of writing {t.stop()} s.') 
 
     #-----------------------------------------------------------------#

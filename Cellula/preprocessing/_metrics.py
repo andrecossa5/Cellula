@@ -155,12 +155,14 @@ def graph_conn(A, labels=None, resolution=0.2):
     """
     # Compute the graph connectivity metric, for each separate cluster
     per_group_results = []
+
     # Labels 
     if labels is None:    
         labels = leiden_clustering(A, res=resolution) #A e' la matrice di connectivities
         labels = pd.Categorical(labels)
     else:
         pass
+    
     # Here we go
     for g in labels.categories:
         test = labels == g
@@ -328,30 +330,31 @@ def compute_ARI(original_conn, integrated_conn, labels=None, resolution=0.2):
 ##
 
 
-def kBET_score(adata, covariate='seq_run', method='original', layer='lognorm', k=15, n_components=30):
+def kBET_score(adata, covariate='seq_run', method='original', layer='lognorm', k=15):
     """
     Function to calculate the kBET score for a given layer, method, k and n_components 
     and store it in a dictionary for use in the kBET script prior to integration.
     """
     score = {}
-
-    KNN_index = get_representation(
+    index = get_representation(
         adata, 
         layer=layer, 
-        method=method, 
-        k=k, 
-        n_components=n_components, 
+        method=method,  
+        kNN=True, 
+        embeddings=False,
         only_index=True
     )
 
     batch = adata.obs[covariate]
-    score_kbet = kbet(KNN_index, batch)
-    key = f'{layer}|{method}|{k}_NN_{n_components}_comp'
+    score_kbet = kbet(index, batch)
+    key = f'{layer}|{method}|{k}_NN'
     score = {key:score_kbet}
 
     return score
 
+
 ##
+
 
 all_functions = {
     'kBET' : kbet,

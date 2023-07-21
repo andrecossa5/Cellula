@@ -44,8 +44,32 @@ def create_colors(meta, chosen=None):
     
     # Add cluster colors, if needed
     if chosen is not None:
-        c = sc.pl.palettes.default_20[:len(meta[chosen].cat.categories)]
+        n = len(meta[chosen].cat.categories)
+        if n <= 20:
+            c = sc.pl.palettes.default_20[:n]
+        else:
+            c = sc.pl.palettes.default_102[:n]
         colors[chosen] = { cluster : color for cluster, color in zip(meta[chosen].cat.categories, c)}
 
     return colors
+
+
+##
+
+
+# Palettes
+ten_godisnot = [
+    
+    '#001E09', 
+    '#885578',
+    '#FF913F', 
+    '#1CE6FF', 
+    '#549E79', 
+    '#C9E850', #'#00FECF', 
+    '#EEC3FF', 
+    '#FFEF00',#'#0000A6', 
+    '#D157A0', 
+    '#922329'
+    
+]
 

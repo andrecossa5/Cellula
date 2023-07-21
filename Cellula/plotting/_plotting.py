@@ -16,6 +16,7 @@ plt.style.use('default')
 from ._colors import *
 from ._plotting_base import *
 from ..preprocessing._embeddings import embeddings
+from ..dist_features._Gene_set import *
 from .._utils import *
 
 
@@ -58,8 +59,9 @@ def plot_clustermap(df, row_colors=None, palette='mako', title=None, label=None,
 ## 
 
 
-def plot_heatmap(df, palette='mako', ax=None, title=None, x_names=True, y_names=True, x_names_size=7,
-    y_names_size=7, xlabel=None, ylabel=None, annot=False, annot_size=5, label=None, shrink=1.0, cb=True):
+def plot_heatmap(df, palette='mako', ax=None, title=None, x_names=True, 
+    y_names=True, x_names_size=7, y_names_size=7, xlabel=None, ylabel=None, 
+    annot=False, annot_size=5, label=None, shrink=1.0, cb=True):
     """
     Heatmap.
     """
@@ -77,8 +79,9 @@ def plot_heatmap(df, palette='mako', ax=None, title=None, x_names=True, y_names=
 ##
 
 
-def plot_rankings(df, df_rankings, df_summary, feature='rescaled_score', by='score', loc='upper right', 
-    bbox_to_anchor=(1,1), figsize=(13,5), title='', legend=True):
+def plot_rankings(df, df_rankings, df_summary, feature='rescaled_score', 
+    by='score', loc='upper left', bbox_to_anchor=(1,1), 
+    figsize=(13,5), title='', legend=True):
     """
     Plot rankings. 
     """
@@ -122,7 +125,9 @@ def plot_rankings(df, df_rankings, df_summary, feature='rescaled_score', by='sco
     # Remove dafault legend, and add custom if requested 
     if legend:
         ax.legend([], [], frameon=False)
-        add_legend(label='Metric', colors=colors, ax=ax, loc=loc, bbox_to_anchor=bbox_to_anchor, ncols=2)
+        add_legend(label='Metric', colors=colors, ax=ax, loc=loc, 
+            bbox_to_anchor=bbox_to_anchor, ncols=1, label_size=9, ticks_size=7
+        )
     
     # Ticks and axis``
     format_ax(ax, xlabel='', title=title, ylabel='Rescaled score', rotx=90)
@@ -134,8 +139,8 @@ def plot_rankings(df, df_rankings, df_summary, feature='rescaled_score', by='sco
 ##
 
 
-def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), labels=False, rotate=False, 
-    legend=True, bbox_to_anchor=(0.93, 0.05)):
+def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), 
+            labels=False, rotate=False, legend=True):
     """
     Plot boxplot of QC covariates, by some cell goruping.
     """
@@ -150,9 +155,17 @@ def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), labels=Fals
         if rotate:
             ax.set_xticklabels(ax.get_xticks(), rotation=90)
     if legend:
-        handles = create_handles(meta[grouping].cat.categories, colors=colors[grouping].values())
-        fig.legend(handles=handles, loc='lower right', bbox_to_anchor = bbox_to_anchor, 
-            frameon=False, shadow=False, title=grouping.capitalize()
+        add_legend(
+            label=grouping,
+            colors=colors[grouping],
+            ax=ax,
+            bbox_to_anchor=(1.05,1),
+            loc='upper left',
+            ncols=1 if len(meta[grouping].cat.categories) <=8 else 2,
+            only_top=20,
+            label_size=8,
+            artists_size=8,
+            ticks_size=6
         )
     
     fig.tight_layout()
@@ -163,9 +176,38 @@ def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), labels=Fals
 ##
 
 
+def mean_variance_plot(adata_red):
+    """
+    Plot pca explained variance.
+    """
+    layers = [ x for x in adata_red.layers if x in ['raw', 'lognorm', 'sct'] ]
+    n = len(layers) 
+    figsize = (4.5*n, 4.5)
+
+    fig = plt.figure(figsize=figsize, constrained_layout=True)    
+    for i, layer in enumerate(layers):
+        ax = plt.subplot(1,n,i+1)
+        try:
+            X = adata_red.layers[layer].A
+        except:
+            X = adata_red.layers[layer]
+        df_ = pd.DataFrame({
+            'mean': X.mean(axis=1), 
+            'var': X.var(axis=1)
+        })
+        scatter(df_, x='mean', y='var', c='black', ax=ax)
+        format_ax(ax, title=layer, xlabel='mean', ylabel='var')
+    fig.suptitle('HVGs mean-variance trend, across layers')
+
+    return fig
+    
+
+##
+
+
 def pca_var_plot(exp_var, cum_sum, title, ax):
     """
-    Plot
+    Plot pca explained variance.
     """
     ax.bar(range(0, len(exp_var)), exp_var, 
         alpha=0.5, align='center', label='Individual explained variance'
@@ -204,12 +246,11 @@ def explained_variance_plot(adata, figsize=(10,7)):
 ##
 
 
-def plot_biplot_PCs(adata, layer=None, covariate='sample', colors=None):
+def plot_biplot_PCs(adata, embs, covariate='sample', colors=None):
     """
     Plot a biplot of the first 5 PCs, colored by a cell attribute.
     """
     # Data
-    embs = get_representation(adata, layer=layer, method='original')
     df_ = pd.DataFrame(
         data=embs[:,:5], 
         columns=[f'PC{i}' for i in range(1,6)],
@@ -257,30 +298,63 @@ def plot_biplot_PCs(adata, layer=None, covariate='sample', colors=None):
 ##
 
 
-def plot_embeddings(adata, layer=None, rep='original', k=15, n_components=30):
+def PCA_gsea_loadings_plot(df, genes_meta, organism='human', 
+                        collection='GO_Biological_Process_2021', i=1):
+    """
+    Plot stem-plots of top 5 PCs GSEA-enriched pathways, and genes.
+    """
+    g = Gene_set(
+        df[f'PC{i}'].to_frame('effect_size').sort_values(by='effect_size', ascending=False), 
+        genes_meta,
+        organism=organism
+    )
+    g.compute_GSEA(collection=collection)
+    fig, axs = plt.subplots(1,2,figsize=(11,5))
+    stem_plot(
+        g.GSEA['original'].iloc[:, [0,1,3]].sort_values('NES', ascending=False).head(25),
+        'NES', 
+        ax=axs[0]
+    )
+    format_ax(axs[0], title='GSEA', xlabel='NES')
+    stem_plot(
+        df[f'PC{i}'].to_frame('es').sort_values('es', ascending=False).head(25),
+        'es', 
+        ax=axs[1]
+    )
+    format_ax(axs[1], title='PC loadings', xlabel='loadings')
+
+    fig.suptitle(f'PC{i}, scaled layer, original representation')
+    fig.tight_layout()
+
+    return fig
+
+
+##
+
+
+def plot_embeddings(adata, layer=None, rep='original', with_paga=True):
     """
     Plot QC covariates in the UMAP embeddings obtained from original or original and integrated data.
     """
     # Prep embedding
     df = embeddings(
         adata, 
+        with_paga=with_paga,
         paga_groups='sample', 
-        rep=rep, 
-        layer=layer, 
-        k=k, 
-        n_components=n_components, 
+        rep=rep, # rep = 'scVI'
+        layer=layer, # layer = 'raw'
         umap_only=True
     )
-
-    covariates = ['seq_run', 'sample', 'nUMIs', 'cycle_diff']
+    covariates = ['nUMIs', 'cycling', 'seq_run', 'sample']
     fig, axs = plt.subplots(1, len(covariates), figsize=(4.5*len(covariates), 5))
     for i, c in enumerate(covariates):
-        if c == 'nUMIs' or c == 'cycle_diff':
+        if c == 'nUMIs' or c == 'cycling':
             draw_embeddings(df, cont=c, ax=axs[i])
         else:
-            draw_embeddings(df, cat=c, ax=axs[i])
+            kwargs = {'bbox_to_anchor':(1,1), 'loc':'upper left'} if c == 'sample' else {}
+            draw_embeddings(df, cat=c, ax=axs[i], legend_kwargs=kwargs)
     # Fig
-    fig.tight_layout()
+    plt.subplots_adjust(right=.85, bottom=.2, top=.8, left=.05, wspace=.4)
 
     return fig
 
@@ -300,8 +374,7 @@ def format_draw_embeddings(
     format_kwargs = { k : axes_params[k] for k in axes_params if k not in not_format_keys }
 
     if title is None:
-        cov = cat if cat is not None else cont 
-        title = cov.capitalize()
+        title = cat if cat is not None else cont 
     else:
         assert isinstance(title, str)
 
@@ -314,7 +387,7 @@ def format_draw_embeddings(
     
     if axes_params['legend'] and cat is not None:
         if 'label' not in legend_params or legend_params['label'] is None:
-            legend_params['label'] = cat.capitalize()
+            legend_params['label'] = cat
         add_legend(ax=ax, **legend_params)
     
     elif axes_params['cbar'] and cont is not None:
@@ -322,6 +395,8 @@ def format_draw_embeddings(
 
     return ax
 
+
+add_labels_on_loc
 
 ##
 
@@ -335,7 +410,11 @@ def handle_colors(df, cat, legend_params, query=None):
     else:
         df_ = df
 
-    categories = df_[cat].unique()
+    try:
+        categories = df_[cat].cat.categories
+    except:
+        categories = df_[cat].unique()
+        
     if categories.size <=20 and legend_params['colors'] is None:
         palette_cat = sc.pl.palettes.vega_20_scanpy
         legend_params['colors'] = create_palette(df_, cat, palette_cat)
@@ -343,10 +422,8 @@ def handle_colors(df, cat, legend_params, query=None):
         palette_cat = sc.pl.palettes.godsnot_102
         legend_params['colors'] = create_palette(df_, cat, palette_cat)
     elif isinstance(legend_params['colors'], dict):
-        legend_params['colors'] = { 
-            k: legend_params['colors'][k] for k in legend_params['colors'] \
-            if k in categories
-        }
+        assert all([ k in categories for k in legend_params['colors']])
+        print('Provided colors are OK...')
     else:
         raise ValueError('Provide a correctly formatted palette for your categorical labels!')
 
@@ -364,11 +441,12 @@ def draw_embeddings(
     """
 
     cbar_params={
-        'color' : 'viridis',
+        'palette' : 'viridis',
+        'vmin': None,
+        'vmax':None,
         'label_size' : 8, 
         'ticks_size' : 6,  
-        'pos' : 2,
-        'orientation' : 'v'
+        'layout' : 'outside'
     }
 
     legend_params={
@@ -424,7 +502,8 @@ def draw_embeddings(
     elif cat is None and cont is not None:
         
         if query is None:
-            scatter(df, x=x, y=y, by=cont, c=cbar_params['color'], ax=ax, s=s)
+            scatter(df, x=x, y=y, by=cont, c=cbar_params['palette'], 
+                    vmin=cbar_params['vmin'], vmax=cbar_params['vmax'], ax=ax, s=s)
             format_draw_embeddings(ax, df, x, y, title=title, cont=cont, axes_params=axes_params)
         else:
             if isinstance(query, str):
@@ -433,7 +512,8 @@ def draw_embeddings(
                 subset = query
             if subset.size > 0:
                 scatter(df.loc[~df.index.isin(subset), :], x=x, y=y, c='darkgrey', ax=ax, s=s/3)
-                scatter(df.loc[subset, :], x=x, y=y, by=cont, c=cbar_params['color'], ax=ax, s=s)
+                scatter(df.loc[subset, :], x=x, y=y, by=cont, c=cbar_params['palette'], 
+                        vmin=cbar_params['vmin'], vmax=cbar_params['vmax'], ax=ax, s=s)
                 format_draw_embeddings(
                     ax, df.loc[subset, :], x, y, title=title, cont=cont, axes_params=axes_params
                 )
@@ -545,19 +625,12 @@ def _prep_paga_umap(adata, clustering_solutions, sol=None, rep='original', color
     """
     a = adata.copy()
     a.obs[sol] = clustering_solutions[sol]
-
-    layer = list(a.obsm.keys())[0].split('|')[0] 
-    rep = list(a.obsm.keys())[0].split('|')[1] 
-    k = int(sol.split('_')[0])
-    n_components = int(sol.split('_')[2])
     
     a_new, df = embeddings(
         a, 
         paga_groups=sol,
-        layer=layer, 
-        rep=rep, 
-        k=k, 
-        n_components=n_components, 
+        red_key='X_reduced',
+        nn_key='NN',
         with_adata=True
     )
 
@@ -577,15 +650,18 @@ def top_3_paga_umap(adata, clustering_solutions, top_sol, s=13, color_fun=None, 
     """
 
     # Fig
-    fig, axs = plt.subplots(2,3,figsize=figsize)
+    fig, axs = plt.subplots(2,3,figsize=figsize) 
     
     # Axes
     for i, sol in enumerate(top_sol):
         a_new, df, colors = _prep_paga_umap(adata, clustering_solutions, sol=sol, color_fun=color_fun)
         sc.pl.paga(a_new, frameon=False, show=False, ax=axs[0,i], title=sol)
+        print(sol)
         scatter(df, 'UMAP1', 'UMAP2', by=sol, c=colors[sol], ax=axs[1,i])
         add_labels_on_loc(df, 'UMAP1', 'UMAP2', sol, ax=axs[1,i], s=s)
         axs[1,i].axis('off')
+    
+    fig.tight_layout()
     
     return fig
 
@@ -673,6 +749,8 @@ def top_3_ji_cells(markers, sol, title_size=10, figsize=(16, 10)):
     ji_markers_one_couple(markers, sol.columns[0], sol.columns[1], ax=axs[1, 0])
     ji_markers_one_couple(markers, sol.columns[0], sol.columns[2], ax=axs[1, 1])
     ji_markers_one_couple(markers, sol.columns[1], sol.columns[2], ax=axs[1, 2])
+
+    fig.tight_layout()
         
     return fig
 
@@ -697,57 +775,254 @@ def genes_log2FC_and_perc(adata, genes, sol, g):
 ##
 
 
-def dot_plot(adata, markers, s, n=5, ax=None, size=10, legend=True):
+def dot_plot(adata, markers, s, n=3, figsize=(11,9), legend=True):
     """
     Markers dotplot for a cluster solution.
     """
     # Prep data
-    genes = []
-    clusters = adata.obs[s].cat.categories
 
+    # Get genes
+    genes = {}
+    clusters = adata.obs[s].cat.categories
     for clus in clusters:
         if len(clusters) == 2:
             other = [ x for x in clusters if x != clus][0]
             comparison = f'{clus}_vs_{other}'
         else:
             comparison = f'{clus}_vs_rest'
-        genes += markers[s].query('comparison == @comparison').index[:n].to_list()
+        genes[clus] = (
+            markers[s].query('comparison == @comparison and perc_FC>1 and AUROC>0.8')
+            .index[:n]
+            .to_list()
+        )
+    from itertools import chain
+    genes_ = list(chain.from_iterable([ genes[x] for x in genes ]))
 
-    df_ls = []
-    for cluster in adata.obs[s].cat.categories:
-        log2FC, perc = genes_log2FC_and_perc(adata, genes, s, cluster)
-        df_ls.append(pd.DataFrame({'gene' : genes, 'log2FC' : log2FC, 'perc' : perc}))
-    
-    df = pd.concat([ 
-                        d.assign(cluster=str(i)) \
-                        for i, d in enumerate(df_ls) 
-                    ], axis=0
+    # Get percs and log2FC
+    df = (
+        markers[s]
+        .loc[genes_, ['effect_size', 'group_perc', 'comparison']]
+        .reset_index()
+        .rename(columns={'index':'gene', 'effect_size':'log2FC'})
     )
 
     #Clip 
     df['log2FC'][df['log2FC'] <= np.percentile(df['log2FC'], 5)] = np.percentile(df['log2FC'], 5)
     df['log2FC'][df['log2FC'] >= np.percentile(df['log2FC'], 95)] = np.percentile(df['log2FC'], 95)
 
-
-    sns.scatterplot(data=df, x='cluster', y='gene', size='perc', hue='log2FC', 
+    # Figure
+    fig, ax = plt.subplots(figsize=figsize)
+    sns.scatterplot(data=df, x='comparison', y='gene', size='group_perc', hue='log2FC', 
         palette='viridis', ax=ax, sizes=(1, 100))
+    format_ax(ax, title=s, xlabel='Clusters', ylabel='genes', rotx=90)
+    ax.legend(loc='upper left', bbox_to_anchor=(1.05, 1), frameon=False)
+    fig.tight_layout()
 
-    ax.set(title=s, ylabel='', xlabel='Cluster')
-    ax.tick_params(axis='both', which='both', labelsize=size)
-    ax.legend(loc='center left', bbox_to_anchor=(1.05, 0.5), frameon=False)
+    return fig
 
 
 ##
 
 
-def top_3_dot_plots(adata, markers, top_3, figsize=(11, 8)):
+def ORA_transition_plot(adata, s, organism='human', n=25, title=None, figsize=(11,5)):
     """
-    Dotplot top_3 clustering solutions.
+    Plot ORA results and goodness of fit results on the genes statistically associated with 
+    an scFates transition, among two milestones.
     """
-    fig, axs = plt.subplots(1,3, figsize=figsize) 
+    # Prep data
+    gs_transition = Gene_set(s.to_frame('gof'), adata.var.loc[s.index], organism=organism)
+    gs_transition.compute_ORA()
 
-    dot_plot(adata, markers, top_3[0], n=3, ax=axs[0], size=8, legend=True)
-    dot_plot(adata, markers, top_3[1], n=3, ax=axs[1], size=8, legend=True)
-    dot_plot(adata, markers, top_3[2], n=3, ax=axs[2], size=8, legend=True)
+    # Visualization
+    fig, axs = plt.subplots(1,2,figsize=figsize)
+    stem_plot(
+        gs_transition.ORA['Default_ORA'].head(n),
+        'Adjusted P-value', 
+        ax=axs[0]
+    )
+    format_ax(axs[0], title='ORA', xlabel='Adjusted P-value')
+    stem_plot(s.to_frame('gof').head(n), 'gof', ax=axs[1])
+    format_ax(axs[1], title='Goodnes of fit', xlabel='A')
+    fig.suptitle(title)
+    fig.tight_layout()
 
     return fig
+        
+
+##
+
+
+def dpt_feature_plot(adata, x, ax=None):
+    """
+    Plot ORA results and goodness of fit results on the genes statistically associated with 
+    an scFates transition, among two milestones.
+    """
+    # Ax for each segment
+    colors = create_palette(adata.obs, 'seg', sc.pl.palettes.vega_10)
+    for c, s in zip(colors.values(), adata.obs['seg'].cat.categories):
+        idx = adata.obs['seg'] == s
+        ax.plot(
+            adata.obs['t'][idx], 
+            adata[idx,x].layers['fitted'].flatten(), 
+            '.',
+            c=c
+        )
+    ax.text(0.05, 0.91, f'A: {adata.var.loc[x,"A"]:.2f}', transform=ax.transAxes, fontsize=6)
+    ax.text(0.05, 0.86, f'FDR: {adata.var.loc[x,"fdr"]:.2e}', transform=ax.transAxes, fontsize=6)
+    add_legend(ax=ax, label='Segment', colors=colors, ncols=1,
+        bbox_to_anchor=(1,1), loc='upper right', label_size=8, artists_size=6, ticks_size=6
+    )
+    format_ax(ax, title=x, xlabel='DPT', ylabel='Expression')
+
+    return ax
+
+
+##
+
+
+def milestones_groups_relationship(adata, figsize=(10,6)):
+    """
+    Plot expression levels of genes, categorized by gene groups associated with DPT,
+    by DPT trajectory milestones.
+    """
+    # Prep data
+    df = pd.DataFrame(
+        adata.X.A, 
+        columns=adata.var_names,
+        index=adata.obs_names).assign(
+        milestones=adata.obs['milestones']
+        ).melt(
+            var_name='gene', value_name='expression', id_vars='milestones'
+        ).set_index('gene').join(
+            adata.var.loc[:, ['group']]
+        ).reset_index(
+    )
+
+    # Figure
+    fig = plt.figure(figsize=figsize)
+    for i, x in enumerate(df['group'].unique()):
+        ax = plt.subplot(2,3,i+1)
+        box(df.query('group == @x'), x='milestones', y='expression', ax=ax, c='grey')
+        format_ax(ax, title=f'Group {x}', xlabel='Milestones', ylabel='Expression')
+    fig.tight_layout()
+
+    return fig
+
+
+##
+
+
+def expression_path(adata):
+    """
+    Plot expression paths, of the genes significatly associated with DPT.
+    """
+    # Prep data
+    cell_order = np.argsort(adata.obs['t'])
+    cell_order = adata.obs_names[cell_order]
+
+    fitted = pd.DataFrame(
+        adata.layers['fitted'], 
+        index=adata.obs_names, 
+        columns=adata.var_names
+    ).T
+
+    fitted = fitted.apply(lambda x: (x - x.min()) / (x.max() - x.min()), axis=1)
+    feature_order = (
+        fitted.apply(
+            lambda x: adata.obs['t'][
+                x > np.quantile(x, q=0.8)
+            ].mean(),
+            axis=1,
+        )
+        .sort_values()
+        .index
+    )
+    
+    # Fig
+    fig, ax = plt.subplots()
+    plot_heatmap(
+        fitted.loc[feature_order, cell_order], 
+        x_names=False, 
+        y_names=False, 
+        ax=ax
+    )
+    format_ax(ax, title='Expression path', 
+        xlabel=r'Cells, ordered by DPT $\longrightarrow$', ylabel='Genes')
+    
+    fig.tight_layout()
+
+    return fig
+
+
+##
+
+
+def mean_variance_plot(adata, recipe='standard', figsize=(5,4.5)):
+    """
+    Plot gene-wise mean variance trned, after log-normalization.
+    """
+    # Prep df
+    df = pd.DataFrame({
+        'mean': adata.var['mean'],
+        'var': adata.var['var'] if recipe != 'sct' else adata.var['residual_variances'], 
+        'HVG': np.where(adata.var['highly_variable_features'], 'HVG', 'Non-HVG')
+    })
+
+    # Fig
+    fig, ax = plt.subplots(figsize=figsize)
+    ylabel = 'var' if recipe != 'sct' else 'residual variance'
+    scatter(df.query('HVG == "Non-HVG"'), x='mean', y='var', c='black', ax=ax, s=1)
+    scatter(df.query('HVG == "HVG"'), x='mean', y='var', c='red', ax=ax, s=2)
+    format_ax(ax, title='Mean-variance trend', xlabel='mean', ylabel=ylabel)
+    add_legend(label='HVG status', colors={'HVG':'red', 'Non-HVG':'black'}, ax=ax, 
+        loc='upper right', bbox_to_anchor=(.95,.95), ncols=1, artists_size=8, label_size=10, ticks_size=7)
+    fig.tight_layout()
+
+    return fig
+
+
+##
+
+
+# Utils
+def volcano(df_, t=1, n=10, title=None, xlim=(-8,8), max_distance=0.5, pseudocount=0):
+    
+    choices = [
+        (df_['effect_size'] >= t) & (df_['evidence'] <= 0.1),
+        (df_['effect_size'] <= -t) & (df_['evidence'] <= 0.1),
+    ]
+    df_['type'] = np.select(choices, ['up', 'down'], default='other')
+    df_['to_annotate'] = False
+    df_['to_annotate'][:n] = True
+    df_['to_annotate'][-n:] = True
+    df_['evidence'] = -np.log10(df_['evidence']+pseudocount)
+
+    fig, ax = plt.subplots(figsize=(5,5))
+    scatter(df_.query('type == "other"'), 'effect_size', 'evidence',  c='darkgrey', s=5, ax=ax)
+    scatter(df_.query('type == "up"'), 'effect_size', 'evidence',  c='red', s=10, ax=ax)
+    scatter(df_.query('type == "down"'), 'effect_size', 'evidence',  c='b', s=10, ax=ax)
+
+    ax.set(xlim=xlim)
+
+    ax.vlines(1, df_['evidence'].min(), df_['evidence'].max(), linestyles='dashed', colors='r')
+    ax.vlines(-1, df_['evidence'].min(), df_['evidence'].max(), linestyles='dashed', colors='b')
+    ax.hlines(-np.log10(0.1), -6, 6, linestyles='dashed', colors='k')
+
+    format_ax(ax, title=title, xlabel=f'log2FC', ylabel=f'-log10(FDR)')
+
+    ax.spines[['top', 'right']].set_visible(False)
+
+    ta.allocate_text(
+        fig, ax, 
+        df_.loc[lambda x: x['to_annotate']]['effect_size'],
+        df_.loc[lambda x: x['to_annotate']]['evidence'],
+        df_.loc[lambda x: x['to_annotate']].index,
+        x_scatter=df_['effect_size'], y_scatter=df_['evidence'], 
+        linecolor='black', textsize=8, 
+        max_distance=max_distance, linewidth=0.5, nbr_candidates=100
+    )
+    
+    return fig
+
+
+##

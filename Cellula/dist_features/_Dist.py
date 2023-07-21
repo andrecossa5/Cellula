@@ -2,6 +2,7 @@
 _Scores.py: The Dist_features class. The most important class of Cellula.
 """
 
+import os
 import pickle
 import logging
 import re
@@ -49,6 +50,8 @@ class Dist_features:
         The number of CPU cores to use for parallelization.
     organism: str, optional (default: 'human')
         The organism for which the data is being analyzed.
+    min_perc: int, optional (default: 1)
+        % cells expressing one gene for it being considered during DE.
 
     Attributes
     ----------
@@ -94,7 +97,7 @@ class Dist_features:
 
     """
 
-    def __init__(self, adata, contrasts, jobs=None, signatures=None, app=False, n_cores=8, organism='human'):
+    def __init__(self, adata, contrasts, jobs=None, signatures=None, app=False, n_cores=8, organism='human', min_perc=1):
         """
         Extract features and features metadata from input adata. Prep other attributes.
         """
@@ -105,21 +108,23 @@ class Dist_features:
 	    # Genes
         self.genes = {}
         self.genes['original'] = adata.copy()
+        self.min_perc = min_perc
 
         # PCs
         from ..preprocessing._pp import pca, red, scale
-        reduced = pca(scale(red(adata)))
-        embs = reduced.obsm['scaled|original|X_pca']
-        loadings = reduced.varm['scaled|original|pca_loadings']
+        reduced = scale(red(adata))
+        d_ = pca(reduced)
+        embs = d_['X_pca']
+        loadings = d_['pca_loadings']
         PCs = pd.DataFrame(
             data=embs,
             columns=[ f'PC{x}' for x in range(1, embs.shape[1]+1)], 
             index=adata.obs_names
         )
         loadings = pd.DataFrame(
-            data=loadings, 
+            data=loadings[:,:PCs.shape[1]], 
             index=reduced.var_names,
-            columns=[ f'PC{x}' for x in range(1, embs.shape[1]+1) ]
+            columns=[ f'PC{x}' for x in range(1, PCs.shape[1]+1) ]
         )
         self.PCs = PCs 
 
@@ -157,16 +162,17 @@ class Dist_features:
 
     ##
 
-    def select_genes(self, cell_perc=0.15, no_miribo=True, only_HVGs=False):
+    def select_genes(self, no_miribo=True, only_HVGs=False):
         """
-        Filter genes expressed in less than cell_perc cells &| only HVGs &| no MIT or ribosomal genes.
+        Filter genes expressed in more than {cell_perc} % cells &| only HVGs &| no MIT or ribosomal genes.
         Add these filtered matrix self.genes.
         """
         original_genes = self.genes['original']
         genes_meta = self.features_meta['genes'] # Need to map lambda afterwards
 
         # Prep individual tests
-        test_perc = genes_meta['percent_cells'] > cell_perc
+        cell_perc = self.min_perc
+        test_perc = genes_meta['percent_cells'] >= cell_perc # Default >= 1% 
         if no_miribo:
             idx = genes_meta.index
             test_miribo = ~(idx.str.startswith('MT-') | idx.str.startswith('RPL') | idx.str.startswith('RPS'))
@@ -241,6 +247,7 @@ class Dist_features:
         DF = []
 
         for cat in y.categories:
+            
             cat = str(cat)
             if bool(re.search('vs each other', contrast_type)) or len(y.categories) == 2:
                 rest = list(cat_names[cat_names != cat])
@@ -249,30 +256,43 @@ class Dist_features:
                 comparison = f'{cat}_vs_rest'
 
             # Collect info and reformat
-            test = lambda x: bool(re.search(f'^{cat}:', x)) and bool(re.search('log2FC|qval|percentage_fold', x))
-            one_df = de_raw.loc[:, map(test, de_raw.columns)].rename(
-                columns={
+            test = lambda x: bool(re.search(f'^{cat}:', x))
+            columns = de_raw.columns[list(map(test, de_raw.columns))]
+            exclude = [f'{cat}:mwu_U', f'{cat}:mwu_pval', f'{cat}:log2Mean', f'{cat}:log2Mean_other']
+            columns = [ x for x in columns if x not in exclude]
+
+            one_df = (
+                de_raw
+                .loc[:, columns]
+                .rename(columns={
                     f'{cat}:log2FC' : 'effect_size',
                     f'{cat}:mwu_qval' : 'evidence',
                     f'{cat}:percentage_fold_change' : 'perc_FC',
-                }
-            ).assign(
-                effect_type='log2FC', 
-                evidence_type='FDR',
-                feature_type='genes', 
-                comparison=comparison
+                    f'{cat}:auroc' : 'AUROC',
+                    f'{cat}:percentage' : 'group_perc',
+                    f'{cat}:percentage_other' : 'group_rest'
+                })
+                .assign(
+                    effect_type='log2FC', 
+                    evidence_type='FDR',
+                    feature_type='genes', 
+                    comparison=comparison
+                )
             )
 
             one_df['es_rescaled'] = rescale(one_df['effect_size']) # Rescaled for within methods comparisons
             idx = rank_top(one_df['effect_size']) 
             one_df = one_df.iloc[idx, :].assign(rank=[ i for i in range(1, one_df.shape[0]+1) ])
-            one_df_harmonized = one_df.loc[:,
-                ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'es_rescaled',
-                'effect_type', 'comparison']
-            ]
-
+            one_df_harmonized = one_df.loc[:, [
+                'feature_type', 'rank', 'evidence', 
+                'evidence_type', 'effect_size', 'es_rescaled',
+                'effect_type', 'comparison', 'AUROC', 'perc_FC', 
+                'group_perc', 'group_rest'
+            ]]
             DF.append(one_df_harmonized) # Without perc_FC
             d[comparison] = Gene_set(one_df, self.features_meta['genes'], organism=self.organism)
+
+            d[comparison].stats.columns
 
         # Concat and return 
         df = pd.concat(DF, axis=0)
@@ -281,7 +301,7 @@ class Dist_features:
 
     ##
 
-    def compute_DE(self, contrast_key=None, which='perc_0.15_no_miribo'):
+    def compute_DE(self, contrast_key=None, which='perc_1_no_miribo'):
         """
         Compute Wilcoxon test-based DE over some filtered gene matrix for all the specified contrasts.
         Use super-duper fast MWU test implementation from pegasus.
@@ -297,9 +317,8 @@ class Dist_features:
             X=X,
             cluster_labels=y,
             gene_names=feature_names,
-            n_jobs=self.n_cores
-        )
-
+            n_jobs=8,
+        )        
         df, gene_set_dict = self.format_de(de_raw, y, contrast_type)  
 
         gc.collect()
@@ -428,9 +447,9 @@ class Dist_features:
         if self.Results is None:
             raise ValueError('Dist_features needs to be instantiated with some jobs...')
         logger = logging.getLogger("my_logger")
-        self.select_genes()                          # Default is 0.15, no_miribo for DE and 0.15, no_miribo HVGs only for ML with genes 
+        self.select_genes()                   # Default is perc_1_no_miribo for DE, and perc_1_no_miribo_only_HVGs for ML with genes 
         self.select_genes(only_HVGs=True)
-
+        
         # Here, no multithreading. Needs to be implemented if we want to take advantage of the 'full' ML mode...
         i = 1
         n_jobs = len([ 0 for k in self.jobs for x in self.jobs[k] ])
@@ -449,13 +468,11 @@ class Dist_features:
                 t.start() 
 
                 if x['model'] == 'wilcoxon':
-                    de_results, gene_set_dict = self.compute_DE(contrast_key=k,
-                                                which='perc_0.15_no_miribo'
-                                                )
+                    de_results, gene_set_dict = self.compute_DE(contrast_key=k, which='perc_1_no_miribo')
                     self.Results.add_job_results(de_results, gene_set_dict, job_key=job_key)
                 else:
                     ML_results, gene_set_dict = self.compute_ML(contrast_key=k, 
-                                    feat_type=x['features'], which='perc_0.15_no_miribo_only_HVGs', 
+                                    feat_type=x['features'], which='perc_1_no_miribo_only_HVGs', 
                                     model=x['model'], mode=x['mode']
                                 )
                     self.Results.add_job_results(ML_results, gene_set_dict, job_key=job_key)
@@ -469,5 +486,5 @@ class Dist_features:
         """
         Dump self.Results to path_results.
         """
-        with open(path_results + f'{name}.pickle', 'wb') as f:
+        with open(os.path.join(path_results, f'{name}.pickle'), 'wb') as f:
             pickle.dump(self.Results, f)

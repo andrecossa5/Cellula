@@ -2,7 +2,6 @@
 _neighbors.py: nearest neighbors functions.
 """
 
-
 from Cellula._utils import *
 
 from joblib import cpu_count
@@ -13,7 +12,6 @@ from hnswlib import Index
 from umap.umap_ import fuzzy_simplicial_set 
 from scipy.sparse import coo_matrix, issparse
 from scanpy.neighbors import _get_sparse_matrix_from_indices_distances_umap 
-
 
 
 ##
@@ -119,54 +117,62 @@ def kNN_graph(X, k=15, from_distances=False, nn_kwargs={}):
 
     return (knn_indices, distances, connectivities)
 
+
 ##
+
 
 def compute_kNN(
     adata, 
-    layer='scaled', int_method='original', k=15, n_components=30,
+    layer='lognorm', 
+    int_method='original', 
+    k=15,
     nn_kwargs={}, 
     ):
     """
-    Given an AnnData object, extract the reduced representation with the get_representation() 
-    function and compute the k-nearest neighbors graph and save it in the same AnnData object.
+    Given an AnnData object, extract some reduced representation, compute its 
+    k-Nearest Neighbors (kNN) graph and update the adata object in input.
 
     Parameters
     ----------
     adata : AnnData
         Annotated data matrix with n_obs x n_vars shape.
     layer : str, optional
-        Layer of adata where the data for the computation should be taken from (default is 'scaled').
+        Layer of adata where the data for the computation should be taken from (default is 'lognorm').
     int_method : str, optional
        int_method of adata where the data for the computation should be taken from (default is 'original').
     k : int, optional
         Number of nearest neighbors to compute (default is 15).
-    n_components : int, optional
-        Number of dimensions used in the reduction method (default is 30).
     nn_kwargs : dict, optional
         Additional keyword arguments.
 
     Returns
     -------
     adata : AnnData
-        Annotated data matrix with n_obs x n_vars shape. Adds two new `obsp` entries and one new 'obsm' to the object
-        representing the computed k-nearest neighbors graph: the indices of the neighbors (`k_idx`), the
-        distances between them (`k_dist`), and the connectivity of the graph (`k_conn`).
-
+        Annotated data matrix with n_obs x n_vars shape. Adds two new `obsp`, one 'obsm' and one new 'uns'
+        entry to the object representing the computed k-NN indices, their kNN distances and connectivities, 
+        and the kNN search parameters.
     """
+
+    # Logging
+    logger = logging.getLogger('Cellula_logs')
+
     if layer is not None and int_method is not None:
         X = get_representation(adata, layer=layer, method=int_method)
     else:
-        print('Provided key or layer is not valid.')
+        logger.info('Provided key or layer is not valid.')
         sys.exit()
 
     embedding_type = 'X_pca' if int_method == 'original' else 'X_corrected'
-    k_idx =  f'{layer}|{int_method}|{embedding_type}|{k}_NN_{n_components}_comp_idx'
-    k_dist = f'{layer}|{int_method}|{embedding_type}|{k}_NN_{n_components}_comp_dist'
-    k_conn = f'{layer}|{int_method}|{embedding_type}|{k}_NN_{n_components}_comp_conn'
+    k_idx =  f'{layer}|{int_method}|{embedding_type}|NN_idx'
+    k_dist = f'{layer}|{int_method}|{embedding_type}|NN_dist'
+    k_conn = f'{layer}|{int_method}|{embedding_type}|NN_conn'
+    k_uns = f'{layer}|{int_method}|{embedding_type}|NN'
+
     idx, dist, conn = kNN_graph(X, k=k, nn_kwargs=nn_kwargs)
     adata.obsm[k_idx] = idx
     adata.obsp[k_dist] = dist
     adata.obsp[k_conn] = conn
+    adata.uns[k_uns] = { 'k':k, 'n_dims':X.shape[1], 'nn_kwargs': nn_kwargs }
     
     return adata    
 

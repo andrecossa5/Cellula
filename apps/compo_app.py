@@ -19,8 +19,12 @@ def load(path_main, version):
     """
     Load adata and create plotting df.
     """
-    adata = sc.read(path_main + f'/data/{version}/clustered.h5ad')
-    return adata.obs
+    adata = sc.read(os.path.join(path_main , 'data', version, 'clustered.h5ad'))
+    df = adata.obs.join(
+        adata.uns['all_clustering_sol']
+        .loc[:, ~adata.uns['all_clustering_sol'].columns.isin(adata.obs)]
+    )
+    return df
 
 
 ##
@@ -30,14 +34,17 @@ def compo(path_main):
 
 
     # Load args
-    path_data = path_main + 'data/'
+    path_data = os.path.join(path_main, 'data')
     
     # Version
     st.sidebar.header('Composition options')
     form_data = st.sidebar.form(key='Data', clear_on_submit=False)
     version = form_data.selectbox(
         'Choose data from a Cellula version',
-        [ x for x in os.listdir(path_data) if x != '.DS_Store' and len(os.listdir(f'{path_data}/{x}/')) > 0 ],
+        [ 
+            x for x in os.listdir(path_data) \
+            if x != '.DS_Store' and len(os.listdir(f'{path_data}/{x}/')) > 0 
+        ],
         key='version'
     )
     submit_data = form_data.form_submit_button('Load')
@@ -94,17 +101,12 @@ def compo(path_main):
 
             ax, composition = bb_plot(
                 df_, cov1=cov_1, cov2=cov_2, ax=ax, 
-                show_y=show_y, with_data=True, legend=legend
+                show_y=show_y, with_data=True, legend=legend,
+                bbox_to_anchor=(1.05,1), loc='upper left', 
+                ncols=1
             )
 
             st.write('The relative composition among selected covariates is:') 
-            # st.write(
-            #     pd.DataFrame(
-            #         data=composition.values, 
-            #         index=composition.index, 
-            #         columns=composition.columns
-            #     )
-            # )
             #st.write(composition)
             st.pyplot(fig)
 

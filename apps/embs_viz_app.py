@@ -22,12 +22,16 @@ def load(path_main, version):
     """
     Load adata and create plotting df.
     """
-    adata = sc.read(path_main + f'/data/{version}/clustered.h5ad')
+    adata = sc.read(os.path.join(path_main, 'data', version, 'clustered.h5ad'))
     umap = pd.DataFrame(
         adata.obsm['X_umap'], 
         columns=['UMAP1', 'UMAP2'], 
         index=adata.obs_names
     ).join(adata.obs)
+    umap = umap.join(
+        adata.uns['all_clustering_sol']
+        .loc[:, ~adata.uns['all_clustering_sol'].columns.isin(umap)]
+    )
 
     return adata, umap
 
@@ -39,14 +43,17 @@ def embeddings_visualization(path_main):
 
 
     # Load args
-    path_data = path_main + '/data/'
+    path_data = os.path.join(path_main, 'data')
     
     # Version
     st.sidebar.header('Embeddings Visualization options')
     form_data = st.sidebar.form(key='Data', clear_on_submit=False)
     version = form_data.selectbox(
         'Choose data from a Cellula version',
-        [ x for x in os.listdir(path_data) if x != '.DS_Store' and len(os.listdir(f'{path_data}/{x}/')) > 0 ],
+        [ 
+            x for x in os.listdir(path_data) if x != '.DS_Store' \
+            and len(os.listdir(os.path.join(path_data, x))) > 0 
+        ],
         key='version'
     )
     submit_data = form_data.form_submit_button('Load')
@@ -77,6 +84,7 @@ def embeddings_visualization(path_main):
 
         if len(gene_l) == 1:
             gene = gene_l[0]
+            # gene = 'IFI6'
             x = adata.X[:, adata.var_names == gene].toarray().flatten()
             covariate = gene
         else:
@@ -89,7 +97,7 @@ def embeddings_visualization(path_main):
     else:
         covariate = st.sidebar.selectbox(
             "Enter a single covariate:", 
-            adata.obs.columns, 
+            umap.columns[2:], 
             key='covariate'
         )
  
@@ -98,7 +106,7 @@ def embeddings_visualization(path_main):
 
     facet = form_draw.selectbox(
         'Enter an optional faceting covariate:', 
-        [None] + list(adata.obs.columns), 
+        [None] + list(umap.columns[2:]), 
     )
     n_cols = form_draw.number_input('Enter the number of columns to display the plot on:', value=1)
     query = form_draw.text_input('Enter a query to filter the data to plot:', value=None)
@@ -141,7 +149,7 @@ def embeddings_visualization(path_main):
     
         else:
 
-            fig, ax = plt.subplots(figsize=figsize)
+            fig, ax = plt.subplots(figsize=figsize) 
             if pd.api.types.is_categorical_dtype(df[covariate]):
                 draw_embeddings(
                     df, 
@@ -163,14 +171,9 @@ def embeddings_visualization(path_main):
                     df, 
                     cont=covariate, 
                     ax=ax, 
-                    query=query,
-                    s=float(size),
-                    cbar_kwargs={
-                        'pos' : 'outside'
-                    }
+                    query=query, # query = None
+                    s=float(size) # size = 2
                 )
-                
-            #fig.subplots_adjust(right=0.8, bottom=0.15, left=0.15)
             st.pyplot(fig) 
 
 
@@ -178,4 +181,4 @@ def embeddings_visualization(path_main):
 
             
 if __name__ == "__main__":
-    embeddings_visualization() 
+    embeddings_visualization()

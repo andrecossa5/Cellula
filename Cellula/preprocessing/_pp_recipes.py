@@ -32,7 +32,9 @@ def standard_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None, remo
     adata = adata[:, adata.var['robust']].copy()
     sc.pp.normalize_total(adata, target_sum=1e4)
     sc.pp.log1p(adata)
-    adata.obs = adata.obs.join(sig_scores(adata, score_method='scanpy', organism=organism))
+    df_signatures = sig_scores(adata, score_method='scanpy', organism=organism)
+    if df_signatures is not None:
+        adata.obs = adata.obs.join(df_signatures)
     
     # HVGs
     if remove_messy:
@@ -88,7 +90,9 @@ def remove_cc_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None, rem
     adata = adata[:, adata.var['robust']]
     sc.pp.normalize_total(adata, target_sum=1e4)
     sc.pp.log1p(adata)
-    adata.obs = adata.obs.join(sig_scores(adata, score_method='scanpy', organism=organism))
+    df_signatures = sig_scores(adata, score_method='scanpy', organism=organism)
+    if df_signatures is not None:
+        adata.obs = adata.obs.join(df_signatures)
     
     # HVGs 
     if remove_messy:
@@ -138,7 +142,9 @@ def regress_cc_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None, re
     adata = adata[:, adata.var['robust']]
     sc.pp.normalize_total(adata, target_sum=1e4)
     sc.pp.log1p(adata)
-    adata.obs = adata.obs.join(sig_scores(adata, score_method='scanpy', organism=organism))
+    df_signatures = sig_scores(adata, score_method='scanpy', organism=organism)
+    if df_signatures is not None:
+        adata.obs = adata.obs.join(df_signatures)
     
     # HVGs
     if remove_messy:
@@ -195,9 +201,11 @@ def sct_pp_recipe(adata, n_HVGs=2000, organism='human', path_viz=None, remove_me
     adata_mock = AnnData(X=adata.X.copy(), obs=adata.obs, var=adata.var)
     sc.pp.normalize_total(adata_mock, target_sum=1e4)
     sc.pp.log1p(adata_mock)
-    adata.layers['lognorm'] = adata_mock.X.A.copy() 
-    adata.obs = adata.obs.join(sig_scores(adata, layer='lognorm', score_method='scanpy', organism=organism))
-    
+    adata.layers['lognorm'] = adata_mock.X.A.copy()
+    df_signatures = sig_scores(adata, layer='lognorm', score_method='scanpy', organism=organism)
+    if df_signatures is not None:
+        adata.obs = adata.obs.join(df_signatures)
+
     # HVGs
     if remove_messy:
         adata = remove_unwanted(adata)
@@ -250,6 +258,9 @@ def sct_pp_original(adata, n_HVGs=2000, organism='human', path_viz=None, remove_
     sc.pp.normalize_total(adata, target_sum=1e4)
     sc.pp.log1p(adata)
     adata.obs = adata.obs.join(sig_scores(adata, score_method='scanpy', organism=organism))
+    df_signatures = sig_scores(adata, score_method='scanpy', organism=organism)
+    if df_signatures is not None:
+        adata.obs = adata.obs.join(df_signatures)
 
     # HVGs
     if remove_messy:

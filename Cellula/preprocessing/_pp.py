@@ -27,6 +27,12 @@ def sig_scores(adata, layer=None, score_method='scanpy', organism='human', with_
     """
     Calculate pegasus scores for cell cycle, ribosomal and apoptotic genes.
     """
+    # Check if already present
+    signatures = ['G1/S', 'G2/M', 'ribo_genes', 'apoptosis', 'cycle_diff', 'cycling']
+    if adata.obs.columns.isin(signatures).any():
+        print('Already found!')
+        return
+
     # Load signatures
     cc_transitions = load_signatures_from_file(predefined_signatures[f'cell_cycle_{organism}'])
     ribo = load_signatures_from_file(predefined_signatures[f'ribosomal_genes_{organism}'])

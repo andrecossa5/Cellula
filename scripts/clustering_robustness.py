@@ -76,24 +76,27 @@ my_parser.add_argument(
 # Parse arguments
 args = my_parser.parse_args()
 
-
-
-path_main = '/Users/IEO5505/Desktop/cellula_example/'
-version = 'default'
-chosen = '15_NN_0.66'
-n_replicates = 50
-n_dims = 15
-chosen = chosen.split('_')
-k = int(chosen[0])
-n_dims = int(args.n_dims)
-resolution = float(chosen[2])
-from_raw = False
+# path_main = '/Users/IEO5505/Desktop/cellula_example/'
+# version = 'default'
+# chosen = '15_NN_0.66'
+# n_replicates = 50
+# n_dims = 15
+# chosen = chosen.split('_')
+# k = int(chosen[0])
+# n_dims = int(args.n_dims)
+# resolution = float(chosen[2])
+# from_raw = False
 
 path_main = args.path_main
 version = args.version
 chosen = args.chosen
 n_replicates = args.n_replicates
-from_hvgs = args.from_hvgs
+from_raw = args.from_raw
+n_dims = int(args.n_dims)
+chosen_l = chosen.split('_')
+k = int(chosen_l[0])
+resolution = float(chosen_l[2])
+
 
 ########################################################################
 
@@ -150,10 +153,12 @@ def main():
 
     t = Timer()
 
-    logger.info('Loading data: preprocessed adata., clustering solutions and kNN graphs...')
+    logger.info('Loading preprocessed adata...')
 
     # Load data
     adata = sc.read(os.path.join(path_data, 'preprocessed.h5ad'))
+
+    # Here we go
     assignments = pd.DataFrame(0, index=adata.obs_names, columns=adata.obs_names)
 
     for i in range(n_replicates):
@@ -186,7 +191,7 @@ def main():
     order = assignments.index[hierarchy.leaves_list(linkage_matrix)]
     df_ = assignments.loc[order, order]
 
-    fig, axs = plt.subplots(1,2,figsize=(10,5))
+    fig, axs = plt.subplots(1,2,figsize=(10,5), constrained_layout=True)
 
     # Distribution of bootstrap values
     hist(df_.melt(), 'value', n=round(1+np.log2(df_.shape[0])), ax=axs[0], c='k')
@@ -200,7 +205,6 @@ def main():
             ax=axs[1], label='Bootstrap support', vmin=.2, vmax=.9)
     format_ax(title='Consensus matrix',
             xticks='', yticks='', ax=axs[1], xlabel='Cells', ylabel='Cells')
-    fig.tight_layout()
     fig.suptitle(f'{chosen} solution robustness')
 
     fig.savefig(
@@ -213,7 +217,7 @@ def main():
     ##
 
     # Exit
-    logger.info(f'Program execution termined successfully: {T.stop()}')
+    logger.info(f'Execution termined successfully: {T.stop()}')
 
 ########################################################################
 

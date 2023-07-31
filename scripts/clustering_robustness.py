@@ -157,6 +157,12 @@ def main():
 
     # Load data
     adata = sc.read(os.path.join(path_data, 'preprocessed.h5ad'))
+    solutions = pd.read_csv(
+        os.path.join(path_results, 'clustering_solutions.csv'), index_col=0
+    )
+    n_partions = solutions[chosen].unique().size
+
+    logger.info(f'Chosen clustering solution identified {n_partions}')
 
     # Here we go
     assignments = pd.DataFrame(0, index=adata.obs_names, columns=adata.obs_names)
@@ -185,19 +191,40 @@ def main():
 
     # Normalize and save consensus matrix
     assignments /= n_replicates
+    assignments.to_csv(os.path.join(path_results, f'{chosen}_consensus_matrix.csv'))
 
-    # Cluster and plot
+    # Within vs outside support
+    n_cells_l = []
+    within_l = []
+    outside_l = []
+    clusters = np.sort(solutions[chosen].unique())
+    for cluster in clusters:
+        within = solutions.index[solutions[chosen] == cluster]
+        outside = solutions.index[solutions[chosen] != cluster]
+        n_cells_l.append(within.size)
+        within_l.append(np.median(assignments.loc[within, within].values.flatten()))
+        outside_l.append(np.median(assignments.loc[outside, outside].values.flatten()))
+
+    df_partitions = (
+        pd.DataFrame({'n':n_cells_l, 'w':within_l, 'o':outside_l, 'cluster':clusters})
+        .assign(log2_ratio=lambda x: np.log2(x['w']+1) - np.log2(x['o']+1))
+        .sort_values('log2_ratio', ascending=False)
+    )
+    df_partitions['cluster'] = df_partitions['cluster'].astype('str')
+
+    # Hclust
     linkage_matrix = hierarchy.linkage(assignments, method='weighted')
     order = assignments.index[hierarchy.leaves_list(linkage_matrix)]
     df_ = assignments.loc[order, order]
 
-    fig, axs = plt.subplots(1,2,figsize=(10,5), constrained_layout=True)
+    # Viz
+    fig, axs = plt.subplots(1,2, figsize=(10,5), constrained_layout=True)
 
-    # Distribution of bootstrap values
-    hist(df_.melt(), 'value', n=round(1+np.log2(df_.shape[0])), ax=axs[0], c='k')
-    format_ax(title='Bootstrap support distribution', ax=axs[0], 
-        xlabel='Bootstrap support', ylabel='n pairwise "connections"'
-    )
+    # Chosen partitions ranking
+    sns.scatterplot(df_partitions, x='cluster', y='w', size_norm=(20, 200),
+                    ax=axs[0], size='n', hue='log2_ratio', palette='mako')
+    format_ax(title=f'{chosen} partitions ranking',
+            ax=axs[0], xlabel='Clusters', ylabel='log2 within vs outside support ratio')
 
     # Consensus matrix, clustered
     axs[1].imshow(df_, cmap='mako', interpolation='nearest', vmax=.9, vmin=.2)

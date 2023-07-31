@@ -108,7 +108,7 @@ import scanpy as sc
 from scipy.cluster import hierarchy
 from Cellula._utils import *
 from Cellula.clustering._clustering import *
-from Cellula.clustering._Clust_evaluator import *
+from Cellula.clustering._clustering_metrics import *
 from Cellula.plotting._plotting import *
 from Cellula.plotting._colors import *
 from Cellula.preprocessing._pp_recipes import *
@@ -162,7 +162,7 @@ def main():
     )
     n_partions = solutions[chosen].unique().size
 
-    logger.info(f'Chosen clustering solution identified {n_partions}')
+    logger.info(f'Chosen clustering solution identified {n_partions} partitions')
 
     # Here we go
     assignments = pd.DataFrame(0, index=adata.obs_names, columns=adata.obs_names)
@@ -193,47 +193,56 @@ def main():
     assignments /= n_replicates
     assignments.to_csv(os.path.join(path_results, f'{chosen}_consensus_matrix.csv'))
 
-    # Within vs outside support
-    n_cells_l = []
-    within_l = []
-    outside_l = []
-    clusters = np.sort(solutions[chosen].unique())
-    for cluster in clusters:
-        within = solutions.index[solutions[chosen] == cluster]
-        outside = solutions.index[solutions[chosen] != cluster]
-        n_cells_l.append(within.size)
-        within_l.append(np.median(assignments.loc[within, within].values.flatten()))
-        outside_l.append(np.median(assignments.loc[outside, outside].values.flatten()))
 
-    df_partitions = (
-        pd.DataFrame({'n':n_cells_l, 'w':within_l, 'o':outside_l, 'cluster':clusters})
-        .assign(log2_ratio=lambda x: np.log2(x['w']+1) - np.log2(x['o']+1))
-        .sort_values('log2_ratio', ascending=False)
-    )
-    df_partitions['cluster'] = df_partitions['cluster'].astype('str')
+    ##
 
-    # Hclust
+
+    # Hclust and splitting into consensus clusters
     linkage_matrix = hierarchy.linkage(assignments, method='weighted')
     order = assignments.index[hierarchy.leaves_list(linkage_matrix)]
-    df_ = assignments.loc[order, order]
+    clustered_cons_df = assignments.loc[order, order]
+    cons_clusters = hierarchy.fcluster(
+        linkage_matrix, 
+        solutions[chosen].unique().size, 
+        criterion='maxclust'
+    )
+    cons_clusters = pd.Series(cons_clusters-1, index=assignments.index)
+
+    # Calculate support df and contingency table
+    df_support = pd.concat([
+        calculate_partitions_support(assignments, solutions[chosen]).assign(mode='chosen'),
+        calculate_partitions_support(assignments, cons_clusters).assign(mode='consensus')
+    ])
+    cont_table = pd.crosstab(solutions[chosen], cons_clusters, normalize=0)
 
     # Viz
-    fig, axs = plt.subplots(1,2, figsize=(10,5), constrained_layout=True)
+    fig, axs = plt.subplots(1,3, figsize=(15,5), constrained_layout=True)
 
-    # Chosen partitions ranking
-    sns.scatterplot(df_partitions, x='cluster', y='w', size_norm=(20, 200),
-                    ax=axs[0], size='n', hue='log2_ratio', palette='mako')
-    format_ax(title=f'{chosen} partitions ranking',
+    # Plot partitions supports
+    scatter(
+        df_support.query('mode == "chosen"').sort_values('log2_ratio', ascending=False), 
+        x='cluster', y='log2_ratio', s='n', ax=axs[0], scale_x=2, c='k'
+    )
+    format_ax(title=f'{chosen} partitions support',
             ax=axs[0], xlabel='Clusters', ylabel='log2 within vs outside support ratio')
 
     # Consensus matrix, clustered
-    axs[1].imshow(df_, cmap='mako', interpolation='nearest', vmax=.9, vmin=.2)
-    add_cbar(df_.values.flatten(), palette='mako', 
-            ax=axs[1], label='Bootstrap support', vmin=.2, vmax=.9)
+    im = axs[1].imshow(clustered_cons_df, cmap='mako', interpolation='nearest', 
+                       vmax=.9, vmin=.2)
+    add_cbar(clustered_cons_df.values.flatten(), palette='mako', 
+            ax=axs[1], label='Support', vmin=.2, vmax=.9)
     format_ax(title='Consensus matrix',
             xticks='', yticks='', ax=axs[1], xlabel='Cells', ylabel='Cells')
+    
+    # Consensus matrix, clustered
+    im = axs[2].imshow(cont_table.values, cmap='mako', interpolation='nearest', 
+                       vmax=.9, vmin=.1)
+    add_cbar(cont_table.values.flatten(), palette='mako', 
+            ax=axs[2], label='Fraction chosen cluster', vmin=.1, vmax=.9)
+    format_ax(title='Chosen solution vs consensus clusters',
+            xlabel='Consensus', ylabel='Chosen', ax=axs[2])
+    
     fig.suptitle(f'{chosen} solution robustness')
-
     fig.savefig(
         os.path.join(
             path_viz, f'{chosen}_robustness.png',
@@ -251,3 +260,5 @@ def main():
 # Run program
 if __name__ == "__main__":
     main()
+
+

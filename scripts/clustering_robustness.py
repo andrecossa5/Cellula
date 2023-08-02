@@ -48,6 +48,14 @@ my_parser.add_argument(
     help='The clustering solution to choose. Default: None.'
 )
 
+# Fraction
+my_parser.add_argument( 
+    '--fraction', 
+    type=float,
+    default=0.8,
+    help='Fraction of cells in the subsamples. Default: .8.'
+)
+
 # Remove cell subsets
 my_parser.add_argument( 
     '--n_replicates', 
@@ -81,15 +89,17 @@ args = my_parser.parse_args()
 # chosen = '15_NN_0.66'
 # n_replicates = 50
 # n_dims = 15
-# chosen = chosen.split('_')
-# k = int(chosen[0])
-# n_dims = int(args.n_dims)
-# resolution = float(chosen[2])
+# chosen_l = chosen.split('_')
+# k = int(chosen_l[0])
+# n_dims = int(30)
+# resolution = float(chosen_l[2])
 # from_raw = False
+# fraction = 0.5
 
 path_main = args.path_main
 version = args.version
 chosen = args.chosen
+fraction = args.fraction
 n_replicates = args.n_replicates
 from_raw = args.from_raw
 n_dims = int(args.n_dims)
@@ -170,7 +180,12 @@ def main():
     for i in range(n_replicates):
         
         t.start()
-        cells = adata.obs.sample(frac=.8).index
+        cells = (
+            solutions.groupby(chosen)
+            .apply(lambda x: x.sample(frac=fraction))
+            .index.map(lambda x: x[1])
+        )
+
         a_sample = adata[cells, :]
         del a_sample.obsm
         del a_sample.varm

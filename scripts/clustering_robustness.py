@@ -181,7 +181,8 @@ def main():
         
         t.start()
         cells = (
-            solutions.groupby(chosen)
+            solutions
+            .groupby(chosen)
             .apply(lambda x: x.sample(frac=fraction))
             .index.map(lambda x: x[1])
         )
@@ -206,7 +207,7 @@ def main():
 
     # Normalize and save consensus matrix
     assignments /= n_replicates
-    assignments.to_csv(os.path.join(path_results, f'{chosen}_consensus_matrix.csv'))
+    # assignments.to_csv(os.path.join(path_results, f'{chosen}_consensus_matrix.csv'))
 
 
     ##

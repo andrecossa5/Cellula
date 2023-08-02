@@ -23,18 +23,50 @@ from ..plotting._plotting import *
 ##
 
 
+seurat_s = [
+    "MCM5", "PCNA", "TYMS", "FEN1", "MCM2", "MCM4",
+    "RRM1", "UNG", "GINS2", "MCM6", "CDCA7", "DTL",     
+    "PRIM1", "UHRF1", "MLF1IP", "HELLS", "RFC2", "RPA2",   
+    "NASP", "RAD51AP1", "GMNN", "WDR76", "SLBP", "CCNE2", 
+    "UBR7", "POLD3", "MSH2", "ATAD2", "RAD51", "RRM2", 
+    "CDC45", "CDC6", "EXO1", "TIPIN", "DSCC1", "BLM", 
+    "CASP8AP2", "USP1", "CLSPN", "POLA1", "CHAF1B", "BRIP1", 
+    "E2F8"
+] 
+
+seurat_g2m = [
+    "HMGB2", "CDK1", "NUSAP1", "UBE2C", "BIRC5", "TPX2", "TOP2A",
+    "NDC80", "CKS2", "NUF2", "CKS1B", "MKI67", "TMPO", "CENPF",
+    "TACC3", "FAM64A", "SMC4", "CCNB2", "CKAP2L", "CKAP2", "AURKB",
+    "BUB1", "KIF11", "ANP32E", "TUBB4B", "GTSE1", "KIF20B", "HJURP",  
+    "CDCA3", "HN1", "CDC20", "TTK", "CDC25C", "KIF2C", "RANGAP1",
+    "NCAPD2", "DLGAP5", "CDCA2", "CDCA8", "ECT2", "KIF23", "HMMR", 
+    "AURKA", "PSRC1", "ANLN", "LBR", "CKAP5", "CENPE", "CTCF",
+    "NEK2", "G2E3", "GAS2L3", "CBX5", "CENPA" 
+]
+
+
+##
+
+
 def sig_scores(adata, layer=None, score_method='scanpy', organism='human', with_categories=False):
     """
     Calculate pegasus scores for cell cycle, ribosomal and apoptotic genes.
     """
     # Check if already present
-    signatures = ['G1/S', 'G2/M', 'ribo_genes', 'apoptosis', 'cycle_diff', 'cycling']
+    signatures = [
+        'G1/S', 'G2/M', 's_seurat', 'g2m_seurat',
+        'ribo_genes', 'apoptosis', 'cycle_diff', 'cycling'
+    ]
     if adata.obs.columns.isin(signatures).any():
         print('Already found!')
         return
 
     # Load signatures
     cc_transitions = load_signatures_from_file(predefined_signatures[f'cell_cycle_{organism}'])
+    cc_transitions['s_seurat'] = seurat_s
+    cc_transitions['g2m_seurat'] = seurat_g2m
+
     ribo = load_signatures_from_file(predefined_signatures[f'ribosomal_genes_{organism}'])
     del ribo['ribo_like']
     apoptosis = load_signatures_from_file(predefined_signatures[f'apoptosis_{organism}'])
@@ -62,7 +94,7 @@ def sig_scores(adata, layer=None, score_method='scanpy', organism='human', with_
 
     # Calculate cc_phase
     if with_categories:
-        z_scored_cycling = (scores['cycling'] - scores['cycling'].mean()) / scores['cycling'].std()
+        z_scored_cycling = (scores['cycling']-scores['cycling'].mean()) / scores['cycling'].std()
         kmeans = KMeans(n_clusters=2, random_state=1234)
         kmeans.fit(z_scored_cycling.values.reshape(-1, 1))
         cycle_idx = kmeans.labels_ == np.argmax(kmeans.cluster_centers_[:,0])
@@ -446,3 +478,6 @@ def format_seurat(adata, path_tmp=None, path_viz=None, remove_messy=True, organi
     os.system(f'rm -r {path_tmp}')
 
     return adata, adata_red
+
+
+##

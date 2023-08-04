@@ -205,6 +205,9 @@ def main():
 
         logger.info(f'Sample {i+1}/{n_replicates}: {t.stop()}')
 
+
+    logger.info('fino a qui tutto bene...')
+
     # Normalize and save consensus matrix
     assignments /= n_replicates
     # assignments.to_csv(os.path.join(path_results, f'{chosen}_consensus_matrix.csv'))

@@ -116,7 +116,7 @@ resolution = float(chosen_l[2])
 import pickle
 import scanpy as sc
 from fastcluster import linkage
-from scipy import hierarchy
+from scipy.cluster import hierarchy
 from Cellula._utils import *
 from Cellula.clustering._clustering import *
 from Cellula.clustering._clustering_metrics import *

@@ -244,10 +244,10 @@ def main():
     logger.info('fino a qui tutto bene 3')
 
     n_cells_l.append(within.size)
-    within_l.append(np.median(consensus.loc[within, within].values.flatten()))
+    within_l.append(np.mean(consensus.loc[within, within].values.flatten()))
     logger.info('fino a qui tutto bene 4')
 
-    outside_l.append(np.median(consensus.loc[outside, outside].values.flatten()))
+    outside_l.append(np.mean(consensus.loc[outside, outside].values.flatten()))
     logger.info('fino a qui tutto bene 5')
 
     # df_partitions = (

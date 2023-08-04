@@ -206,8 +206,6 @@ def main():
         logger.info(f'Sample {i+1}/{n_replicates}: {t.stop()}')
 
 
-    logger.info('fino a qui tutto bene...')
-
     # Normalize and save consensus matrix
     assignments /= n_replicates
     # assignments.to_csv(os.path.join(path_results, f'{chosen}_consensus_matrix.csv'))
@@ -227,11 +225,37 @@ def main():
     # )
     # cons_clusters = pd.Series(cons_clusters-1, index=assignments.index)
 
+    partitions = solutions[chosen]
+    consensus = assignments 
+
+    n_cells_l = []
+    within_l = []
+    outside_l = []
+
+    unique_partitions = np.sort(partitions.unique())
+    logger.info('fino a qui tutto bene...')
+    
+    # for cluster in unique_partitions:
+    cluster = unique_partitions[0]
+    within = partitions.loc[lambda x: x == cluster].index
+    outside = partitions.loc[lambda x: x != cluster].index
+    n_cells_l.append(within.size)
+    within_l.append(np.median(consensus.loc[within, within].values.flatten()))
+    outside_l.append(np.median(consensus.loc[outside, outside].values.flatten()))
+
+    # df_partitions = (
+    #     pd.DataFrame({'n':n_cells_l, 'w':within_l, 'o':outside_l, 'cluster':unique_partitions})
+    #     .assign(log2_ratio=lambda x: np.log2(x['w']+1) - np.log2(x['o']+1))
+    #     .sort_values('n', ascending=False)
+    # )
+    # df_partitions['cluster'] = df_partitions['cluster'].astype('str')
+
+
     # Calculate support df and contingency table
-    df_support = pd.concat([
-        calculate_partitions_support(assignments, solutions[chosen]).assign(mode='chosen'),
-        # calculate_partitions_support(assignments, cons_clusters).assign(mode='consensus')
-    ])
+    # df_support = pd.concat([
+    #     calculate_partitions_support(assignments, solutions[chosen]).assign(mode='chosen'),
+    #     # calculate_partitions_support(assignments, cons_clusters).assign(mode='consensus')
+    # ])
     # cont_table = pd.crosstab(solutions[chosen], cons_clusters, normalize=0)
 
     # Viz

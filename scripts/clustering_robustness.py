@@ -17,17 +17,14 @@ my_parser = argparse.ArgumentParser(
     '''
     Clustering robustness. 
     This scripts evaluates stability/robustness of a certain clustering solution of choice.
-    N.B.: This is NOT consensus a clustering clustering script, per se:
-    we just want to know wheater at least the more basic pp choices that got 
-    us to a the clustering solution we would like to consider (i.e., HVGs selection, 
-    number of PCs, k in kNN and resolution hyper-parameters) are 1) reasonably stable 
-    to cell subsampling, and 2) yield a clustering solution that is not entirely dependent 
-    on some fancy pre-processing combination ( 
-    i.e., the standard log-normalized HVGs expression layer is only re-scaled and fed to PCA,
-    kNN and leiden clustering for each bootstap sample. All additional data pp and data
-    integration procedures that might have been use to generate even more cleaned data 
-    representation are not considered here.
-    )
+    N.B.: This is NOT a clustering clustering script, per se:
+    we just want to know wheater at least the more basic pp choices that got us to a clustering
+    solution (i.e., HVGs selection, number of PCs, k in kNN and resolution hyper-parameters): 
+    1) are reasonably stable to cell subsampling;
+    2) yield a clustering solution that is not entirely dependent on some pre-processing 
+    combination. i.e. for each bootstap sample, the standard log-normalized HVGs expression layer
+    is only re-scaled and fed to PCA, kNN and leiden clustering. Any other data pp 
+    and data integration procedure is not considered here.
     '''
 )
 
@@ -78,14 +75,14 @@ my_parser.add_argument(
 # Parse arguments
 args = my_parser.parse_args()
 
-path_main = '/Users/IEO5505/Desktop/cellula_example/'
-version = 'default'
-chosen = '15_NN_0.66'
-n_replicates = 2
-chosen_l = chosen.split('_')
-k = int(chosen_l[0])
-resolution = float(chosen_l[2])
-fraction = 0.3
+# path_main = '/Users/IEO5505/Desktop/cellula_example/'
+# version = 'default'
+# chosen = '15_NN_0.66'
+# n_replicates = 2
+# chosen_l = chosen.split('_')
+# k = int(chosen_l[0])
+# resolution = float(chosen_l[2])
+# fraction = 0.3
 
 path_main = args.path_main
 version = args.version
@@ -174,6 +171,9 @@ def main():
     logger.info(f'Chosen clustering solution identified {n_partitions} partitions')
     
 
+    ##
+
+
     # Here we go: bootstrap
     assignments = np.zeros((n,n), dtype=np.int8)
     sampled_together = np.zeros((n,n), dtype=np.int8)
@@ -204,33 +204,37 @@ def main():
         del conn
         del a_
 
-        logging.info(f'Sample {i+1}/{n_replicates}: {t.stop()}')
+        logger.info(f'Sample {i+1}/{n_replicates}: {t.stop()}')
 
 
     ## 
 
 
     # Build consensus matrix
+    t.start()
+
     consensus = np.true_divide(assignments, sampled_together, dtype=np.float16)
     del sampled_together
     del assignments
-    consensus[np.isnan(consensus)] = 0
+    consensus[np.isnan(consensus)] = 0                              # For incomplete sampling 
     diag_idx = np.diag_indices(consensus.shape[0])[0] 
     consensus[np.ix_(diag_idx, diag_idx)] = 1                       # For incomplete sampling   
 
-    logger.info('Consensus matrix done!')
+    logger.info(f'Consensus matrix done: {t.stop()}')
 
-    # Hclust
+    # Hclust and maxclust split
+    t.start()
+
     linkage_matrix = linkage(squareform(1-consensus), method='weighted') # Hclust as distance
     order = hierarchy.leaves_list(linkage_matrix)
-
-    # Maxclust split
     cons_clusters = hierarchy.fcluster(
         linkage_matrix, 
         n_partitions,                   # We split the consensus matrix to get flat clusters
         criterion='maxclust'
     )
     cons_clusters = pd.Series(cons_clusters-1, index=cells)     # 0-based notation
+
+    logger.info(f'Hclust done: {t.stop()}')
 
     # Calculate partitions support and contingency tables
     df_support = pd.concat([
@@ -263,7 +267,7 @@ def main():
     format_ax(title='Consensus matrix', xticks='', yticks='', 
             ax=axs[1], xlabel='Cells', ylabel='Cells')
     
-    # Consensus matrix, clustered
+    # Contingency table
     im = axs[2].imshow(cont_table.values, cmap='mako', interpolation='nearest', 
                        vmax=.9, vmin=.1)
     add_cbar(cont_table.values.flatten(), palette='mako', 

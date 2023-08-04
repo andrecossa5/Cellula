@@ -212,12 +212,9 @@ def main():
         logger.info(f'Sample {i+1}/{n_replicates}: {t.stop()}')
 
 
-    # Normalize and save consensus matrix
-    assignments = da.from_array(assignments, chunks='auto')
-    assignments /= n_replicates
-    assignments = assignments.compute()
-
     ##
+
+
     logger.info('fino a qui tutto bene 1')
 
     # Hclust and splitting into consensus clusters
@@ -247,9 +244,9 @@ def main():
     logger.info('fino a qui tutto bene 3')
 
     n_cells_l.append(within.size)
-    within_l.append(assignments[np.ix_(within, within)].mean())
+    within_l.append(assignments[np.ix_(within, within)].mean() / n_replicates)
     logger.info('fino a qui tutto bene 4')
-    outside_l.append(assignments[np.ix_(outside, outside)].mean())
+    outside_l.append(assignments[np.ix_(outside, outside)].mean() / n_replicates)
     logger.info('fino a qui tutto bene 5')
 
     # df_partitions = (

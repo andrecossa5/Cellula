@@ -241,9 +241,14 @@ def main():
     cluster = unique_partitions[0]
     within = partitions.loc[lambda x: x == cluster].index
     outside = partitions.loc[lambda x: x != cluster].index
+    logger.info('fino a qui tutto bene 3')
+
     n_cells_l.append(within.size)
     within_l.append(np.median(consensus.loc[within, within].values.flatten()))
+    logger.info('fino a qui tutto bene 4')
+
     outside_l.append(np.median(consensus.loc[outside, outside].values.flatten()))
+    logger.info('fino a qui tutto bene 5')
 
     # df_partitions = (
     #     pd.DataFrame({'n':n_cells_l, 'w':within_l, 'o':outside_l, 'cluster':unique_partitions})

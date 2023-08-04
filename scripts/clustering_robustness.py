@@ -84,17 +84,17 @@ my_parser.add_argument(
 # Parse arguments
 args = my_parser.parse_args()
 
-# path_main = '/Users/IEO5505/Desktop/cellula_example/'
-# version = 'default'
-# chosen = '15_NN_0.66'
-# n_replicates = 50
-# n_dims = 15
-# chosen_l = chosen.split('_')
-# k = int(chosen_l[0])
-# n_dims = int(30)
-# resolution = float(chosen_l[2])
-# from_raw = False
-# fraction = 0.5
+path_main = '/Users/IEO5505/Desktop/cellula_example/'
+version = 'default'
+chosen = '15_NN_0.66'
+n_replicates = 50
+n_dims = 15
+chosen_l = chosen.split('_')
+k = int(chosen_l[0])
+n_dims = int(30)
+resolution = float(chosen_l[2])
+from_raw = False
+fraction = 0.5
 
 path_main = args.path_main
 version = args.version
@@ -115,6 +115,7 @@ resolution = float(chosen_l[2])
 # Code
 import pickle
 import scanpy as sc
+import dask.array as da
 from scipy.cluster import hierarchy
 from Cellula._utils import *
 from Cellula.clustering._clustering import *
@@ -175,19 +176,25 @@ def main():
     logger.info(f'Chosen clustering solution identified {n_partions} partitions')
 
     # Here we go
-    assignments = pd.DataFrame(0, index=adata.obs_names, columns=adata.obs_names)
+    n = adata.shape[0]
+    cells = adata.obs_names
+    assignments = np.zeros((n,n))
+    # assignments = pd.DataFrame(0, index=adata.obs_names, columns=adata.obs_names)
 
     for i in range(n_replicates):
         
         t.start()
-        cells = (
+
+        # Sample uniformly within 'chosen' categories
+        sampled_cells = (
             solutions
             .groupby(chosen)
             .apply(lambda x: x.sample(frac=fraction))
             .index.map(lambda x: x[1])
         )
+        idx = cells.get_indexer(sampled_cells).astype(int)
 
-        a_sample = adata[cells, :]
+        a_sample = adata[sampled_cells, :]
         del a_sample.obsm
         del a_sample.varm
         del a_sample.obsp
@@ -200,18 +207,15 @@ def main():
         labels = leiden_clustering(conn, res=resolution)
 
         a_ = (labels[:, np.newaxis] == labels).astype(int)
-        assignments.loc[a_sample.obs_names, a_sample.obs_names] += a_
+        assignments[np.ix_(idx, idx)] += a_
 
         logger.info(f'Sample {i+1}/{n_replicates}: {t.stop()}')
 
 
     # Normalize and save consensus matrix
-    # assignments /= n_replicates
-
-
-    
-    # assignments.to_csv(os.path.join(path_results, f'{chosen}_consensus_matrix.csv'))
-
+    assignments = da.from_array(assignments, chunks='auto')
+    assignments /= n_replicates
+    assignments = assignments.compute()
 
     ##
     logger.info('fino a qui tutto bene 1')
@@ -228,7 +232,6 @@ def main():
     # cons_clusters = pd.Series(cons_clusters-1, index=assignments.index)
 
     partitions = solutions[chosen]
-    consensus = assignments 
 
     n_cells_l = []
     within_l = []
@@ -239,15 +242,14 @@ def main():
     
     # for cluster in unique_partitions:
     cluster = unique_partitions[0]
-    within = partitions.loc[lambda x: x == cluster].index
-    outside = partitions.loc[lambda x: x != cluster].index
+    within = np.where(partitions == cluster)[0]
+    outside = np.where(partitions != cluster)[0]
     logger.info('fino a qui tutto bene 3')
 
     n_cells_l.append(within.size)
-    within_l.append(np.mean(consensus.loc[within, within].values.flatten()))
+    within_l.append(assignments[np.ix_(within, within)].mean())
     logger.info('fino a qui tutto bene 4')
-
-    outside_l.append(np.mean(consensus.loc[outside, outside].values.flatten()))
+    outside_l.append(assignments[np.ix_(outside, outside)].mean())
     logger.info('fino a qui tutto bene 5')
 
     # df_partitions = (

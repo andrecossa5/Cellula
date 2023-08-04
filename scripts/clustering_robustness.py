@@ -214,57 +214,57 @@ def main():
 
 
     # Hclust and splitting into consensus clusters
-    linkage_matrix = hierarchy.linkage(assignments, method='weighted')
-    order = assignments.index[hierarchy.leaves_list(linkage_matrix)]
-    clustered_cons_df = assignments.loc[order, order]
-    cons_clusters = hierarchy.fcluster(
-        linkage_matrix, 
-        solutions[chosen].unique().size, 
-        criterion='maxclust'
-    )
-    cons_clusters = pd.Series(cons_clusters-1, index=assignments.index)
+    # linkage_matrix = hierarchy.linkage(assignments, method='weighted')
+    # order = assignments.index[hierarchy.leaves_list(linkage_matrix)]
+    # clustered_cons_df = assignments.loc[order, order]
+    # cons_clusters = hierarchy.fcluster(
+    #     linkage_matrix, 
+    #     solutions[chosen].unique().size, 
+    #     criterion='maxclust'
+    # )
+    # cons_clusters = pd.Series(cons_clusters-1, index=assignments.index)
 
     # Calculate support df and contingency table
     df_support = pd.concat([
         calculate_partitions_support(assignments, solutions[chosen]).assign(mode='chosen'),
-        calculate_partitions_support(assignments, cons_clusters).assign(mode='consensus')
+        # calculate_partitions_support(assignments, cons_clusters).assign(mode='consensus')
     ])
-    cont_table = pd.crosstab(solutions[chosen], cons_clusters, normalize=0)
+    # cont_table = pd.crosstab(solutions[chosen], cons_clusters, normalize=0)
 
     # Viz
-    fig, axs = plt.subplots(1,3, figsize=(15,5), constrained_layout=True)
-
-    # Plot partitions supports
-    scatter(
-        df_support.query('mode == "chosen"').sort_values('log2_ratio', ascending=False), 
-        x='cluster', y='log2_ratio', s='n', ax=axs[0], scale_x=2, c='k'
-    )
-    format_ax(title=f'{chosen} partitions support',
-            ax=axs[0], xlabel='Clusters', ylabel='log2 within vs outside support ratio')
+    # fig, axs = plt.subplots(1,3, figsize=(15,5), constrained_layout=True)
+# 
+    # # Plot partitions supports
+    # scatter(
+    #     df_support.query('mode == "chosen"').sort_values('log2_ratio', ascending=False), 
+    #     x='cluster', y='log2_ratio', s='n', ax=axs[0], scale_x=2, c='k'
+    # )
+    # format_ax(title=f'{chosen} partitions support',
+    #         ax=axs[0], xlabel='Clusters', ylabel='log2 within vs outside support ratio')
 
     # Consensus matrix, clustered
-    im = axs[1].imshow(clustered_cons_df, cmap='mako', interpolation='nearest', 
-                       vmax=.9, vmin=.2)
-    add_cbar(clustered_cons_df.values.flatten(), palette='mako', 
-            ax=axs[1], label='Support', vmin=.2, vmax=.9)
-    format_ax(title='Consensus matrix',
-            xticks='', yticks='', ax=axs[1], xlabel='Cells', ylabel='Cells')
+    # im = axs[1].imshow(clustered_cons_df, cmap='mako', interpolation='nearest', 
+    #                    vmax=.9, vmin=.2)
+    # add_cbar(clustered_cons_df.values.flatten(), palette='mako', 
+    #         ax=axs[1], label='Support', vmin=.2, vmax=.9)
+    # format_ax(title='Consensus matrix',
+    #         xticks='', yticks='', ax=axs[1], xlabel='Cells', ylabel='Cells')
     
     # Consensus matrix, clustered
-    im = axs[2].imshow(cont_table.values, cmap='mako', interpolation='nearest', 
-                       vmax=.9, vmin=.1)
-    add_cbar(cont_table.values.flatten(), palette='mako', 
-            ax=axs[2], label='Fraction chosen cluster', vmin=.1, vmax=.9)
-    format_ax(title='Chosen solution vs consensus clusters',
-            xlabel='Consensus', ylabel='Chosen', ax=axs[2])
-    
-    fig.suptitle(f'{chosen} solution robustness')
-    fig.savefig(
-        os.path.join(
-            path_viz, f'{chosen}_robustness.png',
-        ),
-        # dpi=200
-    )
+    # im = axs[2].imshow(cont_table.values, cmap='mako', interpolation='nearest', 
+    #                    vmax=.9, vmin=.1)
+    # add_cbar(cont_table.values.flatten(), palette='mako', 
+    #         ax=axs[2], label='Fraction chosen cluster', vmin=.1, vmax=.9)
+    # format_ax(title='Chosen solution vs consensus clusters',
+    #         xlabel='Consensus', ylabel='Chosen', ax=axs[2])
+    # 
+    # fig.suptitle(f'{chosen} solution robustness')
+    # fig.savefig(
+    #     os.path.join(
+    #         path_viz, f'{chosen}_robustness.png',
+    #     ),
+    #     # dpi=200
+    # )
     
     ##
 

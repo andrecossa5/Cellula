@@ -212,7 +212,7 @@ def main():
 
 
     ##
-
+    logger.info('fino a qui tutto bene 1')
 
     # Hclust and splitting into consensus clusters
     # linkage_matrix = hierarchy.linkage(assignments, method='weighted')
@@ -233,7 +233,7 @@ def main():
     outside_l = []
 
     unique_partitions = np.sort(partitions.unique())
-    logger.info('fino a qui tutto bene...')
+    logger.info('fino a qui tutto bene 2')
     
     # for cluster in unique_partitions:
     cluster = unique_partitions[0]

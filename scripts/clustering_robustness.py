@@ -78,14 +78,14 @@ my_parser.add_argument(
 # Parse arguments
 args = my_parser.parse_args()
 
-# path_main = '/Users/IEO5505/Desktop/cellula_example/'
-# version = 'default'
-# chosen = '15_NN_0.66'
-# n_replicates = 15
-# chosen_l = chosen.split('_')
-# k = int(chosen_l[0])
-# resolution = float(chosen_l[2])
-# fraction = 0.8
+path_main = '/Users/IEO5505/Desktop/cellula_example/'
+version = 'default'
+chosen = '15_NN_0.66'
+n_replicates = 2
+chosen_l = chosen.split('_')
+k = int(chosen_l[0])
+resolution = float(chosen_l[2])
+fraction = 0.3
 
 path_main = args.path_main
 version = args.version
@@ -215,6 +215,8 @@ def main():
     del sampled_together
     del assignments
     consensus[np.isnan(consensus)] = 0
+    diag_idx = np.diag_indices(consensus.shape[0])[0] 
+    consensus[np.ix_(diag_idx, diag_idx)] = 1                       # For incomplete sampling   
 
     logger.info('Consensus matrix done!')
 

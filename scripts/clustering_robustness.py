@@ -200,14 +200,16 @@ def main():
         labels = leiden_clustering(conn, res=resolution)
 
         a_ = (labels[:, np.newaxis] == labels).astype(int)
-        a_ = pd.DataFrame(a_, index=a_sample.obs_names, columns=a_sample.obs_names)
         assignments.loc[a_sample.obs_names, a_sample.obs_names] += a_
 
         logger.info(f'Sample {i+1}/{n_replicates}: {t.stop()}')
 
 
     # Normalize and save consensus matrix
-    assignments /= n_replicates
+    # assignments /= n_replicates
+
+
+    
     # assignments.to_csv(os.path.join(path_results, f'{chosen}_consensus_matrix.csv'))
 
 

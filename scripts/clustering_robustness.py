@@ -115,8 +115,8 @@ resolution = float(chosen_l[2])
 # Code
 import pickle
 import scanpy as sc
-import dask.array as da
-from scipy.cluster import hierarchy
+from fastcluster import linkage
+from scipy import hierarchy
 from Cellula._utils import *
 from Cellula.clustering._clustering import *
 from Cellula.clustering._clustering_metrics import *
@@ -214,53 +214,31 @@ def main():
 
     ##
 
-
     logger.info('fino a qui tutto bene 1')
+    del adata
+    del a_sample
 
     # Hclust and splitting into consensus clusters
-    # linkage_matrix = hierarchy.linkage(assignments, method='weighted')
-    # order = assignments.index[hierarchy.leaves_list(linkage_matrix)]
-    # clustered_cons_df = assignments.loc[order, order]
-    # cons_clusters = hierarchy.fcluster(
-    #     linkage_matrix, 
-    #     solutions[chosen].unique().size, 
-    #     criterion='maxclust'
-    # )
-    # cons_clusters = pd.Series(cons_clusters-1, index=assignments.index)
-
-    partitions = solutions[chosen]
-
-    n_cells_l = []
-    within_l = []
-    outside_l = []
-
-    unique_partitions = np.sort(partitions.unique())
+    linkage_matrix = linkage(assignments, method='weighted')
     logger.info('fino a qui tutto bene 2')
-    
-    # for cluster in unique_partitions:
-    cluster = unique_partitions[0]
-    within = np.where(partitions == cluster)[0]
-    outside = np.where(partitions != cluster)[0]
+    order = hierarchy.leaves_list(linkage_matrix)
     logger.info('fino a qui tutto bene 3')
-
-    n_cells_l.append(within.size)
-    within_l.append(assignments[np.ix_(within, within)].mean() / n_replicates)
+    clustered_cons_df = assignments[order, order]
     logger.info('fino a qui tutto bene 4')
-    outside_l.append(assignments[np.ix_(outside, outside)].mean() / n_replicates)
+    cons_clusters = hierarchy.fcluster(
+        linkage_matrix, 
+        solutions[chosen].unique().size, 
+        criterion='maxclust'
+    )
     logger.info('fino a qui tutto bene 5')
-
-    # df_partitions = (
-    #     pd.DataFrame({'n':n_cells_l, 'w':within_l, 'o':outside_l, 'cluster':unique_partitions})
-    #     .assign(log2_ratio=lambda x: np.log2(x['w']+1) - np.log2(x['o']+1))
-    #     .sort_values('n', ascending=False)
-    # )
-    # df_partitions['cluster'] = df_partitions['cluster'].astype('str')
-
+    # cons_clusters = pd.Series(cons_clusters-1, index=assignments.index)
 
     # Calculate support df and contingency table
     # df_support = pd.concat([
-    #     calculate_partitions_support(assignments, solutions[chosen]).assign(mode='chosen'),
-    #     # calculate_partitions_support(assignments, cons_clusters).assign(mode='consensus')
+    #     calculate_partitions_support(assignments, solutions[chosen])
+    #     .assign(mode='chosen'),
+    #     calculate_partitions_support(assignments, cons_clusters, n_replicates)
+    #     .assign(mode='consensus')
     # ])
     # cont_table = pd.crosstab(solutions[chosen], cons_clusters, normalize=0)
 

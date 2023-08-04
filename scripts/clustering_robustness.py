@@ -263,7 +263,7 @@ def main():
         os.path.join(
             path_viz, f'{chosen}_robustness.png',
         ),
-        dpi=350
+        # dpi=200
     )
     
     ##

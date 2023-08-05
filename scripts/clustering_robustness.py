@@ -286,7 +286,7 @@ def main():
         .query('mode == "chosen"')
         .sort_values('log2_ratio', ascending=False), 
         x='cluster', y='log2_ratio', by='cluster', c=colors, 
-        s='n', ax=axs[0], scale_x=1.3
+        s='n', ax=axs[0], scale_x=1.1
     )
     format_ax(title=f'{chosen} partitions support',
             ax=axs[0], xlabel='Clusters', ylabel='log2 within vs outside support ratio')

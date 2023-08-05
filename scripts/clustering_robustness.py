@@ -119,6 +119,7 @@ from fbpca import pca
 from scipy.spatial.distance import squareform
 from fastcluster import linkage
 from scipy.cluster import hierarchy
+from scanpy.pl import palettes
 from Cellula._utils import *
 from Cellula.preprocessing._neighbors import kNN_graph
 from Cellula.clustering._clustering import leiden_clustering
@@ -273,22 +274,24 @@ def main():
     # Viz
     fig, axs = plt.subplots(1,3, figsize=(15,5), constrained_layout=True)
 
+    # Colors
+    categories = [ str(x) for x in np.sort(chosen_clusters.unique())]
+    palette_cat = palettes.vega_20_scanpy if len(categories) <=20 else palettes.godsnot_102
+    colors = { k:v for k,v in zip(categories, palette_cat)}
+    cell_colors = chosen_clusters.astype('str').map(colors)
+
     # Plot partitions supports
     scatter(
-        df_support.query('mode == "chosen"').sort_values('log2_ratio', ascending=False), 
-        x='cluster', y='log2_ratio', s='n', ax=axs[0], scale_x=2, c='k'
+        df_support.query('mode == "chosen"')
+        .sort_values('log2_ratio', ascending=False), 
+        x='cluster', y='log2_ratio', by='cluster', c=colors, 
+        s='n', ax=axs[0], scale_x=1.3
     )
     format_ax(title=f'{chosen} partitions support',
             ax=axs[0], xlabel='Clusters', ylabel='log2 within vs outside support ratio')
 
     # Consensus matrix, clustered
-    im = axs[1].imshow(
-        consensus[np.ix_(order, order)], 
-        cmap='mako', interpolation='nearest', vmax=.9, vmin=.2
-    )
-    add_cbar(consensus.flatten(), palette='mako', ax=axs[1], label='Support', vmin=.2, vmax=.9)
-    format_ax(title='Consensus matrix', xticks='', yticks='', 
-            ax=axs[1], xlabel='Cells', ylabel='Cells')
+    plot_consensus_heatmap(consensus[np.ix_(order, order)], cell_colors[order], ax=axs[1])
     
     # Contingency table
     im = axs[2].imshow(cont_table.values, cmap='mako', interpolation='nearest', 
@@ -315,5 +318,7 @@ def main():
 # Run program
 if __name__ == "__main__":
     main()
+
+
 
 

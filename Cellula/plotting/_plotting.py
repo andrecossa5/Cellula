@@ -1026,3 +1026,40 @@ def volcano(df_, t=1, n=10, title=None, xlim=(-8,8), max_distance=0.5, pseudocou
 
 
 ##
+
+
+def plot_consensus_heatmap(X, row_colors, ax=None):
+    """
+    Utils to plot the consensus heatmap.
+    """
+    im = ax.imshow(X, cmap='mako', interpolation='nearest', vmax=.9, vmin=.2)
+
+    orientation = 'vertical'
+    pos, xticks_position = ((1.05, 0.25, 0.025, 0.5), 'right')
+    cmap = matplotlib.colormaps['mako']
+    norm = matplotlib.colors.Normalize(vmin=.2, vmax=.9)
+    axins = ax.inset_axes(pos) 
+    cb = plt.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap), 
+        cax=axins, orientation=orientation, ticklocation=xticks_position
+    )
+    cb.set_label(label='Support', size=7, loc='center')
+    cb.ax.tick_params(axis="y", labelsize=5)
+
+    ax.set(title='Consensus matrix', xlabel='Cells', xticks=[], yticks=[])
+    ax.set_ylabel(ylabel='Cells', labelpad=10)
+
+    orientation = 'vertical'
+    pos = (-.028, 0, 0.025, 1)
+    axins = ax.inset_axes(pos) 
+    cmap = matplotlib.colors.ListedColormap(row_colors)
+    cb = plt.colorbar(
+        matplotlib.cm.ScalarMappable(cmap=cmap), 
+        cax=axins, orientation=orientation
+    )
+    cb.ax.set(xticks=[], yticks=[])
+
+    return ax
+
+
+
+##

@@ -104,7 +104,12 @@ def calculate_partitions_support(consensus, partitions):
         outside_l.append(consensus[np.ix_(outside, outside)].mean())
 
     df_partitions = (
-        pd.DataFrame({'n':n_cells_l, 'w':within_l, 'o':outside_l, 'cluster':unique_partitions})
+        pd.DataFrame({
+            'n' : n_cells_l, 
+            'w' : within_l, 
+            'o' : outside_l, 
+            'cluster' : unique_partitions
+        })
         .assign(log2_ratio=lambda x: np.log2(x['w']+1) - np.log2(x['o']+1))
         .sort_values('n', ascending=False)
     )

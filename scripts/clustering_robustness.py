@@ -17,9 +17,15 @@ my_parser = argparse.ArgumentParser(
     '''
     Clustering robustness. 
     This scripts evaluates stability/robustness of a certain clustering solution of choice.
-    N.B.: This is NOT a clustering clustering script, per se:
-    we just want to know wheater at least the more basic pp choices that got us to a clustering
-    solution (i.e., HVGs selection, number of PCs, k in kNN and resolution hyper-parameters): 
+    N.B.: This is NOT a clustering clustering script, per se.
+    Two modes are implemented:
+
+    a) Bootstrapping is performed starting from the latent space. The question is how much
+    a clustering built on this is stable.
+    
+    b) Bootstrapping is performed from lognorm counts. Here, we just want to know wheater 
+    at least the more basic pp choices that got us to a clustering solution (i.e., HVGs
+    selection, number of PCs, k in kNN and resolution hyper-parameters): 
     1) are reasonably stable to cell subsampling;
     2) yield a clustering solution that is not entirely dependent on some pre-processing 
     combination. i.e. for each bootstap sample, the standard log-normalized HVGs expression layer
@@ -71,6 +77,13 @@ my_parser.add_argument(
     help='n of bootstrap replicates. Default: 100.'
 )
 
+# From lognorm
+my_parser.add_argument(
+    '--from_lognorm', 
+    action='store_true',
+    help='Skip analysis. Default: False.'
+)
+
 
 # Parse arguments
 args = my_parser.parse_args()
@@ -78,11 +91,12 @@ args = my_parser.parse_args()
 # path_main = '/Users/IEO5505/Desktop/cellula_example/'
 # version = 'default'
 # chosen = '15_NN_0.66'
-# n_replicates = 2
 # chosen_l = chosen.split('_')
 # k = int(chosen_l[0])
 # resolution = float(chosen_l[2])
-# fraction = 0.3
+# n_replicates = 100
+# fraction = 0.9
+# from_lognorm = False
 
 path_main = args.path_main
 version = args.version
@@ -158,7 +172,12 @@ def main():
     )
 
     # Extract data
-    X = adata[:, adata.var['highly_variable_features']].X.A     # Red, log-norm
+    if args.from_lognorm:
+        X = adata[:, adata.var['highly_variable_features']].X.A         # Red, log-norm
+        n_dims = adata.uns['NN']['n_dims']
+    else:
+        X = adata.obsm['X_reduced']
+    
     n = X.shape[0]
     cells = adata.obs_names
     n_dims = adata.uns['NN']['n_dims']
@@ -190,17 +209,22 @@ def main():
             .index.map(lambda x: x[1])
         )
         idx = cells.get_indexer(sampled_cells).astype(int)
-        scaled = scale(X[idx,:])
-        embs = pca(scaled, k=n_dims)[0]
-        conn = kNN_graph(embs, k=k)[2]
-        labels = leiden_clustering(conn, res=resolution)
+
+        if args.from_lognorm:
+            scaled = scale(X[idx,:])
+            embs = pca(scaled, k=n_dims)[0]
+        else:
+            conn = kNN_graph(X[idx, :], k=k)[2]
+            labels = leiden_clustering(conn, res=resolution)
 
         # Update assignments
         a_ = (labels[:, np.newaxis] == labels).astype(np.int8)
         assignments[np.ix_(idx, idx)] += a_
         sampled_together[np.ix_(idx, idx)] += 1
-        del scaled
-        del embs
+
+        if args.from_lognorm:
+            del scaled
+            del embs
         del conn
         del a_
 
@@ -216,9 +240,8 @@ def main():
     consensus = np.true_divide(assignments, sampled_together, dtype=np.float16)
     del sampled_together
     del assignments
-    consensus[np.isnan(consensus)] = 0                              # For incomplete sampling 
-    diag_idx = np.diag_indices(consensus.shape[0])[0] 
-    consensus[np.ix_(diag_idx, diag_idx)] = 1                       # For incomplete sampling   
+    consensus[np.isnan(consensus)] = 0                               
+    consensus[np.diag_indices(consensus.shape[0])] = 1              # For incomplete sampling 
 
     logger.info(f'Consensus matrix done: {t.stop()}')
 
@@ -232,7 +255,7 @@ def main():
         n_partitions,                   # We split the consensus matrix to get flat clusters
         criterion='maxclust'
     )
-    cons_clusters = pd.Series(cons_clusters-1, index=cells)     # 0-based notation
+    cons_clusters = pd.Series(cons_clusters-1, index=cells)               # 0-based notation
 
     logger.info(f'Hclust done: {t.stop()}')
 
@@ -274,7 +297,6 @@ def main():
             ax=axs[2], label='Fraction chosen cluster', vmin=.1, vmax=.9)
     format_ax(title='Chosen solution vs consensus clusters',
             xlabel='Consensus', ylabel='Chosen', ax=axs[2])
-    
     fig.suptitle(f'{chosen} solution robustness')
     fig.savefig(
         os.path.join(
@@ -282,7 +304,6 @@ def main():
         ),
         dpi=200
     )
-
 
     ##
 

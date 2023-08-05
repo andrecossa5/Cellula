@@ -282,7 +282,8 @@ def main():
 
     # Plot partitions supports
     scatter(
-        df_support.query('mode == "chosen"')
+        df_support
+        .query('mode == "chosen"')
         .sort_values('log2_ratio', ascending=False), 
         x='cluster', y='log2_ratio', by='cluster', c=colors, 
         s='n', ax=axs[0], scale_x=1.3

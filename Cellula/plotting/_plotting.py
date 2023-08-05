@@ -1045,7 +1045,10 @@ def plot_consensus_heatmap(X, row_colors, ax=None):
     cb.set_label(label='Support', size=7, loc='center')
     cb.ax.tick_params(axis="y", labelsize=5)
 
-    ax.set(title='Consensus matrix', xlabel='Cells', xticks=[], yticks=[])
+    ax.set(
+        title=f'Consensus matrix: average support {X.mean():.2f}', 
+        xlabel='Cells', xticks=[], yticks=[]
+    )
     ax.set_ylabel(ylabel='Cells', labelpad=10)
 
     orientation = 'vertical'

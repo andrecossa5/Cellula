@@ -267,6 +267,11 @@ def main():
     ])
     cont_table = pd.crosstab(chosen_clusters, cons_clusters, normalize=0)
 
+    # Save
+    cons_clusters.to_csv(os.path.join(path_results, f'{chosen}_cons_clusters.csv'))
+    df_support.to_csv(os.path.join(path_results, f'{chosen}_support.csv'))
+    cont_table.to_csv(os.path.join(path_results, f'{chosen}_cont_table.csv'))
+
 
     ##
 
@@ -285,11 +290,12 @@ def main():
         df_support
         .query('mode == "chosen"')
         .sort_values('log2_ratio', ascending=False), 
-        x='cluster', y='log2_ratio', by='cluster', c=colors, 
-        s='n', ax=axs[0], scale_x=1.1
+        x='cluster', y='log2_ratio', by='cluster', c=colors, ax=axs[0]
     )
-    format_ax(title=f'{chosen} partitions support',
-            ax=axs[0], xlabel='Clusters', ylabel='log2 within vs outside support ratio')
+    format_ax(
+        title=f'{chosen} partitions support', ax=axs[0], 
+        xlabel='Clusters', ylabel='log2 within vs outside support ratio'
+    )
 
     # Consensus matrix, clustered
     plot_consensus_heatmap(consensus[np.ix_(order, order)], cell_colors[order], ax=axs[1])

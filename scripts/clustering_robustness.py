@@ -290,7 +290,7 @@ def main():
         df_support
         .query('mode == "chosen"')
         .sort_values('log2_ratio', ascending=False), 
-        x='cluster', y='log2_ratio', by='cluster', c=colors, ax=axs[0]
+        x='cluster', y='log2_ratio', by='cluster', c=colors, ax=axs[0], s=100
     )
 
     n = len(categories)
@@ -310,12 +310,15 @@ def main():
     plot_consensus_heatmap(consensus[np.ix_(order, order)], cell_colors[order], ax=axs[1])
     
     # Contingency table
-    im = axs[2].imshow(cont_table.values, cmap='mako', interpolation='nearest', 
-                       vmax=.9, vmin=.1)
+    im = axs[2].imshow(
+        cont_table.values, cmap='mako', interpolation='nearest', 
+        vmax=.9, vmin=.1
+    )
     add_cbar(cont_table.values.flatten(), palette='mako', 
             ax=axs[2], label='Fraction chosen cluster', vmin=.1, vmax=.9)
     
     n = cont_table.shape[0]
+    ticks = [ str(x) for x in range(n) ]
     if n>25:
         size = 5
     elif n>15 and n<=25:
@@ -324,7 +327,8 @@ def main():
         size = 10
     format_ax(
         title='Chosen solution vs consensus clusters', ax=axs[2],
-        xlabel='Consensus', ylabel='Chosen', xticks_size=size, yticks_size=size
+        xticks=ticks, yticks=ticks, xticks_size=size, yticks_size=size,
+        xlabel='Consensus', ylabel='Chosen'
     )
     fig.suptitle(f'{chosen} solution robustness')
     fig.savefig(

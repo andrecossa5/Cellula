@@ -292,9 +292,18 @@ def main():
         .sort_values('log2_ratio', ascending=False), 
         x='cluster', y='log2_ratio', by='cluster', c=colors, ax=axs[0]
     )
+
+    n = len(categories)
+    if n>25:
+        size = n/5
+    elif n>15 and n<=25:
+        size = n/3
+    else:
+        size=9
     format_ax(
         title=f'{chosen} partitions support', ax=axs[0], 
-        xlabel='Clusters', ylabel='log2 within vs outside support ratio'
+        xlabel='Clusters', ylabel='log2 within vs outside support ratio',
+        xticks_size=size
     )
 
     # Consensus matrix, clustered
@@ -305,8 +314,18 @@ def main():
                        vmax=.9, vmin=.1)
     add_cbar(cont_table.values.flatten(), palette='mako', 
             ax=axs[2], label='Fraction chosen cluster', vmin=.1, vmax=.9)
-    format_ax(title='Chosen solution vs consensus clusters',
-            xlabel='Consensus', ylabel='Chosen', ax=axs[2])
+    
+    n = cont_table.shape[0]
+    if n>25:
+        size = 5
+    elif n>15 and n<=25:
+        size = 8
+    else:
+        size = 10
+    format_ax(
+        title='Chosen solution vs consensus clusters', ax=axs[2],
+        xlabel='Consensus', ylabel='Chosen', xticks_size=size, yticks_size=size
+    )
     fig.suptitle(f'{chosen} solution robustness')
     fig.savefig(
         os.path.join(
@@ -325,7 +344,3 @@ def main():
 # Run program
 if __name__ == "__main__":
     main()
-
-
-
-

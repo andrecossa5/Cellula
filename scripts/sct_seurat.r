@@ -9,8 +9,8 @@ tmp <- args[1]
 n <- args[2] 
 
 # Read files
-tmp <- '/Users/IEO5505/Desktop/example_cellula/data/tmp'
-n <- 5000
+# tmp <- '/Users/IEO5505/Desktop/example_cellula/data/tmp'
+# n <- 5000
 
 counts <- fread(paste0(tmp, '/counts.csv')) %>% as.data.frame()
 row.names(counts) <- counts[,1]

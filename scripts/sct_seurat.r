@@ -38,3 +38,6 @@ df_var <- seurat@assays$SCT@SCTModel.list$model1@feature.attributes
 # Write
 fwrite(residuals, paste0(tmp, '/residuals.csv'))
 write.csv(df_var, paste0(tmp, '/df_var.csv'))
+
+# RDS
+saveRDS(seurat, paste0(tmp, 'seurat.rds'))

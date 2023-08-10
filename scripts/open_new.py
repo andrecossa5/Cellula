@@ -127,13 +127,13 @@ def main():
         if isinstance(d[step], list):
             for x in d[step]:
                 if os.path.exists(os.path.join(path_from, x)):
-                   os.system(f'cp {os.path.join(path_from, x)} {os.path.join(path_to, x)}')
+                   copy(os.path.join(path_from, x), os.path.join(path_to, x))
                 else:
                     raise ValueError(f'{os.path.join(path_from, x)} does not exist!')
         else:
             x = d[step]
             if os.path.exists(os.path.join(path_from, x)):
-                os.system(f'cp {os.path.join(path_from, x)} {os.path.join(path_to, x)}')
+                copy(os.path.join(path_from, x), os.path.join(path_to, x))
             else:
                 raise ValueError(f'{os.path.join(path_from, x)} does not exist!')
 
@@ -142,18 +142,18 @@ def main():
         # Results and logs
         if step == 'QC':
             cp_QC(path_main, from_branch, name_new)
-            cp_logs(os.path.join(path_main, 'runs', name_new), from_branch)
+            cp_logs(os.path.join(path_main, 'runs'), from_branch, name_new)
 
         elif step == 'pp' or step == 'integration':
             cp_QC(path_main, from_branch, name_new)
             cp_other(path_main, 'pp', from_branch, name_new)
-            cp_logs(os.path.join(path_main, 'runs', name_new), from_branch)
+            cp_logs(os.path.join(path_main, 'runs'), from_branch, name_new)
 
         elif step == 'clustering':
             cp_QC(path_main, from_branch, name_new)
             cp_other(path_main, 'pp', from_branch, name_new)
             cp_other(path_main, 'clustering', from_branch, name_new)
-            cp_logs(os.path.join(path_main, 'runs', name_new), from_branch)
+            cp_logs(os.path.join(path_main, 'runs'), from_branch, name_new)
 
         else:
             sys.exit(f'Supported steps to start from are QC, pp, integration and clustering...')

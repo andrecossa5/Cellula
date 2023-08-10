@@ -8,7 +8,7 @@ import os
 import logging 
 import time 
 from joblib import cpu_count 
-from shutil import rmtree 
+from shutil import rmtree, copy, copytree
 import pandas as pd 
 import numpy as np 
 from scipy.special import binom
@@ -255,38 +255,47 @@ def custom_ARI(g1, g2):
 
 def cp_QC(path_main, from_branch, name_new):
     path_QC = os.path.join(path_main, 'results_and_plots', 'vizualization', 'QC')
-    make_folder(path_QC, name_new, overwrite=True)
-    os.chdir(os.path.join(path_QC, name_new))
-    os.system(f'cp ../{from_branch}/* .')
+    copytree(
+        os.path.join(path_QC, from_branch), 
+        os.path.join(path_QC, name_new),
+        dirs_exist_ok=True
+    )
 
 
 ##
 
 
 def cp_other(path_main, step, from_branch, name_new):
+
     path_step = os.path.join(path_main, 'results_and_plots', step)
     path_ = os.path.join(path_main, 'results_and_plots', step, from_branch)
 
     if not os.path.exists(path_):
         raise ValueError(f'{path_} not available!')
-                         
-    make_folder(path_step, name_new, overwrite=True)
-    os.chdir(os.path.join(path_step, name_new))
-    os.system(f'ln -s ../{from_branch}/* .')
-
+    
+    copytree(
+        os.path.join(path_step, from_branch), 
+        os.path.join(path_step, name_new), 
+        dirs_exist_ok=True
+    )
+    
     path_viz = os.path.join(path_main, 'results_and_plots', 'vizualization', step)
-    make_folder(path_viz, name_new, overwrite=True)
-    os.chdir(os.path.join(path_viz, name_new))
-    os.system(f'cp -r ../{from_branch}/* .')
+    copytree(
+        os.path.join(path_viz, from_branch), 
+        os.path.join(path_viz, name_new),
+        dirs_exist_ok=True
+    )
 
 
 ##
 
 
-def cp_logs(path_runs, from_branch):
-    os.chdir(path_runs)
-    make_folder(os.getcwd(), f'old_{from_branch}_logs', overwrite=True)
-    os.system(f'cp ../{from_branch}/* ./old_{from_branch}_logs/')
+def cp_logs(path_runs, from_branch, name_new):
+    copytree(
+        os.path.join(path_runs, from_branch), 
+        os.path.join(path_runs, name_new, f'old_{from_branch}_logs'),
+        dirs_exist_ok=True
+    )
 
 
 ##

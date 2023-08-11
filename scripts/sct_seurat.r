@@ -26,18 +26,20 @@ seurat <- SCTransform(
     return.only.var.genes=TRUE
 )
 
-# Extract residuals of HVGs and their attributes
-residuals <- seurat@assays$SCT@scale.data %>% t() %>% as.data.frame()
-print(dim(residuals))
-residuals <- residuals %>% mutate(
-                cells=row.names(residuals), 
-                .before=colnames(residuals)[1]
+# Extract residuals of HVGs and theirz attributes
+HVGs <- seurat@assays$SCT@scale.data@var.features[1:n]
+X <- seurat@assays$SCT@scale.data[HVGs,] %>% t() %>% as.data.frame()
+print(dim(X))
+X <- X %>% mutate(
+                cells=row.names(X), 
+                .before=colnames(X)[1]
             )
 df_var <- seurat@assays$SCT@SCTModel.list$model1@feature.attributes
+df_var$HVG <- row.names(df_var) %in% HVGs
 
 # Write
 fwrite(residuals, paste0(tmp, '/residuals.csv'))
 write.csv(df_var, paste0(tmp, '/df_var.csv'))
 
 # RDS
-saveRDS(seurat, paste0(tmp, 'seurat.rds'))
+# saveRDS(seurat, paste0(tmp, 'seurat.rds'))

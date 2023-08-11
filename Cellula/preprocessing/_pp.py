@@ -436,9 +436,12 @@ def format_seurat(adata, path_tmp=None, path_viz=None, remove_messy=True, organi
     # path_tmp = os.path.join(path_main, 'data', 'tmp')
     residuals = pd.read_csv(os.path.join(path_tmp, 'residuals.csv'), index_col=0)
     df_var = pd.read_csv(os.path.join(path_tmp, 'df_var.csv'), index_col=0)
-    cols = df_var.columns.isin(['detection_rate', 'gmean', 'variance', 'residual_mean', 'residual_variance'])
-    df_var = df_var.loc[:, cols]
-    adata.var['highly_variable_features'] = adata.var.index.isin(residuals.columns)
+    cols = df_var.columns.isin(
+        ['detection_rate', 'gmean', 'variance', 
+        'residual_mean', 'residual_variance', 'HVG']
+    )
+    df_var = df_var.loc[:,cols]
+    adata.var['highly_variable_features'] = adata.var.index.map(lambda x: x in df_var['HVG'])
     adata.var = (
         adata.var
         .join(df_var)
@@ -448,8 +451,6 @@ def format_seurat(adata, path_tmp=None, path_viz=None, remove_messy=True, organi
             'residual_variance': 'residual_variances'
         })
     )
-
-    
 
     # Viz
     if path_viz is not None:

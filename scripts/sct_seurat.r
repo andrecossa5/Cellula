@@ -34,7 +34,7 @@ df_var <- seurat@assays$SCT@SCTModel.list$model1@feature.attributes
 df_var$HVG <- row.names(df_var) %in% HVGs
 
 # Write
-fwrite(residuals, paste0(tmp, '/residuals.csv'))
+fwrite(X, paste0(tmp, '/residuals.csv'))
 write.csv(df_var, paste0(tmp, '/df_var.csv'))
 
 # RDS

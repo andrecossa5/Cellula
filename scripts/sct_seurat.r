@@ -26,14 +26,10 @@ seurat <- SCTransform(
     return.only.var.genes=TRUE
 )
 
-# Extract residuals of HVGs and theirz attributes
+# Extract residuals of HVGs and their attributes
 HVGs <- seurat@assays$SCT@scale.data@var.features[1:n]
 X <- seurat@assays$SCT@scale.data[HVGs,] %>% t() %>% as.data.frame()
-print(dim(X))
-X <- X %>% mutate(
-                cells=row.names(X), 
-                .before=colnames(X)[1]
-            )
+X <- X %>% mutate(cells=row.names(X), .before=colnames(X)[1])
 df_var <- seurat@assays$SCT@SCTModel.list$model1@feature.attributes
 df_var$HVG <- row.names(df_var) %in% HVGs
 

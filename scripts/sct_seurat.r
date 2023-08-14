@@ -6,7 +6,7 @@ library(tidyverse)
 # Parse args
 args <- commandArgs(TRUE)
 tmp <- args[1] 
-n <- args[2] 
+n <- as.numeric(args[2])
 
 # Read files
 # tmp <- '/Users/IEO5505/Desktop/example_cellula/data/tmp'
@@ -27,7 +27,7 @@ seurat <- SCTransform(
 )
 
 # Extract residuals of HVGs and their attributes
-HVGs <- seurat@assays$SCT@scale.data@var.features[1:n]
+HVGs <- seurat@assays$SCT@var.features
 X <- seurat@assays$SCT@scale.data[HVGs,] %>% t() %>% as.data.frame()
 X <- X %>% mutate(cells=row.names(X), .before=colnames(X)[1])
 df_var <- seurat@assays$SCT@SCTModel.list$model1@feature.attributes

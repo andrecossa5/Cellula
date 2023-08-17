@@ -181,10 +181,8 @@ def red(adata):
     HVGs = adata.var['highly_variable_features'].loc[lambda x: x].index
     adata = adata[:, HVGs].copy()
 
-    if adata.raw is not None and not 'raw' in adata.layers:
-        adata.layers['raw'] = adata.raw.to_adata()[:, adata.var_names].X
-    elif adata.raw is None and 'raw' in adata.layers:
-        pass
+    if adata.raw is not None or 'raw' in adata.layers:
+        adata.layers['raw'] = adata.raw.to_adata()[:, HVGs].X
     else:
         sys.exit('Provide either an AnnData object with a raw layer or .raw slot!')
         

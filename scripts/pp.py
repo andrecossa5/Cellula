@@ -134,6 +134,16 @@ my_parser.add_argument(
 # Parse arguments
 args = my_parser.parse_args()
 
+# path_main = '/Users/IEO5505/Desktop/example_cellula'
+# version = 'SCT' 
+# recipe = 'SCT_seurat'
+# n_HVGs = 5000
+# cc_covariate = 'cycling'
+# organism = 'human'
+# biplot = True
+# auto_pcs = True
+# custom_meta = False
+
 path_main = args.path_main
 version = args.version
 recipe = args.recipe
@@ -280,8 +290,7 @@ def main():
                 adata, 
                 path_main=path_main, 
                 path_viz=path_viz, 
-                organism=organism,
-                rm_tmp=False
+                organism=organism
             )
         logger.info(f'Pre-processing with recipe {recipe} finished: {t.stop()}')
 
@@ -296,9 +305,10 @@ def main():
     # Create a summary of median QC metrics per sample 
     t.start()
     logger.info('Cell QC, merged samples...')
+    adata.obs.columns
     QC_covariates = [
                         'nUMIs', 'detected_genes', 'mito_perc', \
-                        'cell_complexity', 'cycle_diff', 'cycling', \
+                        's_seurat', 'g2m_seurat', 'cycle_diff', 'cycling', \
                         'ribo_genes', 'apoptosis'
                     ]
     QC_df = adata.obs.loc[:, QC_covariates + ['sample']]
@@ -306,8 +316,8 @@ def main():
     summary.to_csv(os.path.join(path_results, 'QC_results.csv'))
 
     # Visualize QC metrics 
-    fig = QC_plot(adata.obs, 'sample', QC_covariates, colors, labels=False, figsize=(12, 10))
-    fig.savefig(os.path.join(path_viz, 'QC.png'))
+    fig = QC_plot(adata.obs, 'sample', QC_covariates, colors)
+    fig.savefig(os.path.join(path_viz, 'QC.png'), dpi=300)
     logger.info(f'Cell QC, merged samples: {t.stop()}')
 
     #-----------------------------------------------------------------#
@@ -316,7 +326,7 @@ def main():
     logger.info('PCA...')
     t.start()
     adata_red = compute_pca_all(
-        adata_red,
+        adata_red
         auto=args.auto_pcs,
         biplot=args.biplot, 
         path_viz=path_viz, 
@@ -328,19 +338,16 @@ def main():
     #-----------------------------------------------------------------#
 
     # Compute original cell embeddings
-    # Visualize QC covariates in cell embeddings (umap only here)
     logger.info(f'Original cell embeddings visualization...')
     for layer in adata_red.layers:
         if layer in ['scaled', 'regressed', 'sct']:
-           pass
            t.start()
-           adata_red = compute_kNN(adata_red, layer=layer, int_method='original') # Already parallel
+           adata_red = compute_kNN(adata_red, layer=layer, int_method='original')
            logger.info(f'kNN graph computation for the {layer} layer: {t.stop()}')
            t.start()
            fig = plot_embeddings(adata_red, layer=layer, with_paga=False)
            logger.info(f'Draw default UMAP embeddings for the {layer} layer: {t.stop()}')
-           fig.suptitle(layer)
-           fig.savefig(os.path.join(path_viz, f'{layer}_original_embeddings.png'))
+           fig.savefig(os.path.join(path_viz, f'{layer}_original_embeddings.png'), dpi=300)
     
     # Save
     logger.info(f'Save adata with processed metrices, original PCA spaces and kNN graphs...')

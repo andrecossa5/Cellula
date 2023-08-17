@@ -7,10 +7,12 @@ library(tidyverse)
 args <- commandArgs(TRUE)
 tmp <- args[1] 
 n <- as.numeric(args[2])
+cov <- args[3]
 
 # Read files
 # tmp <- '/Users/IEO5505/Desktop/example_cellula/data/tmp'
 # n <- 5000
+# cov <- 'cycle_diff'
 
 counts <- fread(paste0(tmp, '/counts.csv')) %>% as.data.frame()
 row.names(counts) <- counts[,1]
@@ -21,7 +23,7 @@ meta <- read.csv(paste0(tmp, '/meta.csv'), row.names=1)
 seurat <- CreateSeuratObject(counts=counts, meta.data=meta)
 seurat <- SCTransform(
     seurat, 
-    vars.to.regress=c("cycle_diff", "nUMIs", "mito_perc"),
+    vars.to.regress=c(cov, "nUMIs", "mito_perc"),
     variable.features.n=n,
     return.only.var.genes=TRUE
 )

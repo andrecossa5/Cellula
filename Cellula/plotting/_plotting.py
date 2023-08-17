@@ -139,36 +139,42 @@ def plot_rankings(df, df_rankings, df_summary, feature='rescaled_score',
 ##
 
 
-def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), 
+def QC_plot(meta, grouping, QC_covariates, colors, figsize=(14,7), 
             labels=False, rotate=False, legend=True):
     """
     Plot boxplot of QC covariates, by some cell grouping.
     """
-    # Figure
+
     fig = plt.figure(figsize=figsize)
+
     # Axes
     for i, x in enumerate(QC_covariates):
+        
         ax = plt.subplot(3, 3, i+1)
+        xticks = '' if not labels else None
+        rotx = 0 if not rotate else 90
+        legend = False if i != 2 else True
+        cats = meta[grouping].cat.categories
+        ncols = 1 if len(cats) <=8 else round(len(cats)/8)+1
+
         box(meta, grouping, x, c=colors[grouping], ax=ax)
-        if not labels: 
-            ax.tick_params(axis='x', which='both', bottom=False, labelbottom=False) 
-        if rotate:
-            ax.set_xticklabels(ax.get_xticks(), rotation=90)
-    if legend:
-        add_legend(
-            label=grouping,
-            colors=colors[grouping],
-            ax=ax,
-            bbox_to_anchor=(1.05,1),
-            loc='upper left',
-            ncols=1 if len(meta[grouping].cat.categories) <=8 else 2,
-            only_top=20,
-            label_size=8,
-            artists_size=8,
-            ticks_size=6
-        )
+        format_ax(ax, ylabel=x, xticks=xticks, rotx=rotx)
+        if legend:
+            add_legend(
+                label=grouping,
+                colors=colors[grouping],
+                ax=ax,
+                bbox_to_anchor=(1.05,1),
+                loc='upper left',
+                ncols=ncols,
+                only_top=30,
+                label_size=8,
+                artists_size=8,
+                ticks_size=6
+            )
     
-    fig.tight_layout()
+    fig.subplots_adjust(left=.1, right=.7, wspace=.35)
+    fig.suptitle(f'QC covariates, by {grouping}')
     
     return fig
 
@@ -250,47 +256,43 @@ def plot_biplot_PCs(adata, embs, covariate='sample', colors=None):
     """
     Plot a biplot of the first 5 PCs, colored by a cell attribute.
     """
+    
     # Data
     df_ = pd.DataFrame(
         data=embs[:,:5], 
         columns=[f'PC{i}' for i in range(1,6)],
         index=adata.obs_names
     )
-
     df_[covariate] = adata.obs[covariate] 
 
     # Figure
-    fig, axs = plt.subplots(5, 5, figsize=(10, 10), sharex=True, sharey=True)
+    fig, axs = plt.subplots(5, 5, figsize=(10, 8), sharex=True, sharey=True)
+    
     # Axes
     for i, x in enumerate(df_.columns[:-1]):
         for j, y in enumerate(df_.columns[:-1]):
-            if not(i == 2 and j == 2):
-                if colors is not None and covariate in colors:
-                    scatter(df_, x, y, by=covariate, c=colors[covariate], a=1, s=0.1, ax=axs[i,j])
-                else:
-                    scatter(df_, x, y, by=covariate, c='viridis', a=1, s=0.1, ax=axs[i,j])
-                format_ax(axs[i, j], xlabel=x, ylabel=y)
+            
+            format_ax(axs[i,j], xlabel=x, ylabel=y)
+            if colors is not None and covariate in colors:
+                scatter(df_, x, y, by=covariate, c=colors[covariate], s=.1, ax=axs[i,j])
+            else:
+                scatter(df_, x, y, by=covariate, c='viridis', s=.1, ax=axs[i,j])
 
-    # Legend/colorbar
+    # Legend/cbar
     if colors is not None and covariate in colors:
         cats = df_[covariate].unique()
-        handles = create_handles(cats, colors=colors[covariate].values())
-        axs[2,2].legend(handles, cats, frameon=False, fontsize='x-small', loc='center')
+        ncols = 1 if len(cats) <=8 else round(len(cats)/8+1)
+        add_legend(
+            label=covariate, colors=colors[covariate], ax=axs[0,4], 
+            loc='upper left', bbox_to_anchor=(1.05,1), 
+            ncols=ncols, only_top=30
+        )
     else:
-        viridis = matplotlib.colormaps['viridis']
-        norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
-        axins = inset_axes(
-            axs[2,2],
-            width="75%",  # width: 50% of parent_bbox width
-            height="10%",  # height: 5%
-            loc="center",
-        )
-        axins.xaxis.set_ticks_position("bottom")
-        fig.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=viridis), 
-            cax=axins, orientation="horizontal", label=covariate
-        )
+        add_cbar(df_[covariate], ax=axs[2,4], label=covariate, 
+                layout=( (1.5,-.5,.25,2), 'right' ))
 
-    fig.tight_layout()
+    fig.subplots_adjust(left=.1, right=.7, wspace=.5, hspace=.5)
+    fig.suptitle(f'First 5 PCs: {covariate}')
 
     return fig
 
@@ -299,7 +301,7 @@ def plot_biplot_PCs(adata, embs, covariate='sample', colors=None):
 
 
 def PCA_gsea_loadings_plot(df, genes_meta, organism='human', 
-                        collection='GO_Biological_Process_2021', i=1):
+                           collection='GO_Biological_Process_2021', i=1):
     """
     Plot stem-plots of top 5 PCs GSEA-enriched pathways, and genes.
     """
@@ -341,20 +343,31 @@ def plot_embeddings(adata, layer=None, rep='original', with_paga=True):
         adata, 
         with_paga=with_paga,
         paga_groups='sample', 
-        rep=rep, # rep = 'scVI'
-        layer=layer, # layer = 'raw'
+        rep=rep, # rep = 'original'
+        layer=layer, # layer = 'sct'
         umap_only=True
     )
     covariates = ['nUMIs', 'cycling', 'seq_run', 'sample']
-    fig, axs = plt.subplots(1, len(covariates), figsize=(4.5*len(covariates), 5))
+
+    # Figure
+    fig, axs = plt.subplots(1, len(covariates), figsize=(20, 5))
+
     for i, c in enumerate(covariates):
-        if c == 'nUMIs' or c == 'cycling':
+
+        if c in ['nUMIs', 'cycling']:
             draw_embeddings(df, cont=c, ax=axs[i])
         else:
-            kwargs = {'bbox_to_anchor':(1,1), 'loc':'upper left'} if c == 'sample' else {}
+            cats = df[c].unique()
+            ncols = 1 if len(cats) <=8 else round(len(cats)/8)+1
+            kwargs = {
+                'bbox_to_anchor' : (1,1), 
+                'loc' : 'upper left',
+                'ncols' : ncols
+            }
             draw_embeddings(df, cat=c, ax=axs[i], legend_kwargs=kwargs)
-    # Fig
-    plt.subplots_adjust(right=.85, bottom=.2, top=.8, left=.05, wspace=.4)
+
+    fig.subplots_adjust(right=.7, bottom=.25, top=.75, left=.05, wspace=.6)
+    fig.suptitle(f'{layer} layer, {rep} representation')
 
     return fig
 

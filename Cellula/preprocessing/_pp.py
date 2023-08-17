@@ -322,7 +322,7 @@ def pca(adata, n_pcs=50, layer='scaled', auto=True, GSEA=True, random_seed=1234,
         make_folder(path_viz, layer, overwrite=False)
         for cov in ['seq_run', 'sample', 'nUMIs', 'cycle_diff']:
             fig = plot_biplot_PCs(adata, X_pca, covariate=cov, colors=colors)
-            fig.savefig(os.path.join(path_viz, layer, f'PCs_{cov}.png'))
+            fig.savefig(os.path.join(path_viz, layer, f'PCs_{cov}.png'), dpi=200)
             
     if GSEA and path_viz is not None:
         make_folder(path_viz, layer, overwrite=False)
@@ -333,7 +333,7 @@ def pca(adata, n_pcs=50, layer='scaled', auto=True, GSEA=True, random_seed=1234,
         )
         for i in range(1,6):
             fig = PCA_gsea_loadings_plot(df, adata.var, organism=organism, i=i)
-            fig.savefig(os.path.join(path_viz, layer, f'PC{i}_loadings.png'))
+            fig.savefig(os.path.join(path_viz, layer, f'PC{i}_loadings.png'), dpi=300)
 
     # Return
     if return_adata:
@@ -371,20 +371,20 @@ def compute_pca_all(adata, **kwargs):
     Apply pca() in parallel to all the processed layers.
     """
 
-    # Parallel PCA on all processed layers
-    processed_layers = [ l for l in adata.layers if l in ['scaled', 'regressed', 'sct'] ]
+    options = ['scaled', 'regressed', 'sct']
+    processed_layers = [ l for l in adata.layers if l in options ]
 
     for layer in processed_layers:
-        pca(adata, n_pcs=50, layer=layer, **kwargs)
 
-    # Put back in adata
-    for x in results:
-        key = x['key_to_add']
-        adata.obsm[key + '|X_pca'] = x['X_pca']
-        adata.varm[key + '|pca_loadings'] = x['pca_loadings']
-        adata.uns[key + '|PCA'] = x['PCA']
-    
-    del results
+        d = pca(adata, layer=layer, **kwargs)
+
+        # Add to adata
+        key = d['key_to_add']
+        adata.obsm[key + '|X_pca'] = d['X_pca']
+        adata.varm[key + '|pca_loadings'] = d['pca_loadings']
+        adata.uns[key + '|PCA'] = d['PCA']
+
+        del d
 
     return adata
 
@@ -460,7 +460,10 @@ def format_seurat(adata, path_main=None, path_viz=None, remove_messy=True,
     if path_viz is not None:
         
         fig = mean_variance_plot(adata, recipe='sct')
-        fig.savefig(os.path.join(path_viz, 'mean_variance_plot.png'))
+        fig.savefig(
+            os.path.join(path_viz, 'mean_variance_plot.png'),
+            dpi=300
+        )
 
         fig, axs = plt.subplots(1,2,figsize=(9,4.5))
         HVGs = adata.var['highly_variable_features'].loc[lambda x:x].index
@@ -469,7 +472,10 @@ def format_seurat(adata, path_main=None, path_viz=None, remove_messy=True,
         rank_plot(df_, cov='residual_variances', ylabel='Residual variance', ax=axs[1], fig=fig)
         fig.suptitle(f'SCTransform workflow, top {HVGs.size} HVGs')
         fig.tight_layout()
-        fig.savefig(os.path.join(path_viz, 'mean_variance_compare_ranks.png'))
+        fig.savefig(
+            os.path.join(path_viz, 'mean_variance_compare_ranks.png'),
+            dpi=300
+        )
 
     # Red and add sct layer
     adata_red = red(adata)

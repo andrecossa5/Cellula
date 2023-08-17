@@ -161,7 +161,8 @@ def remove_cc_genes(adata, organism='human', corr_threshold=0.1):
 
 def red(adata):
     """
-    Reduce the input AnnData object to highly variable features and store the resulting expression matrices.
+    Reduce the input AnnData object to highly variable features and store the 
+    resulting expression matrices.
 
     Parameters
     ----------
@@ -176,13 +177,15 @@ def red(adata):
         expression matrix, respectively.
         The matrix is reduced to the highly variable features only.
     """
-    adata = adata[:, adata.var['highly_variable_features']].copy()
-    if adata.raw is not None:
+
+    HVGs = adata.var['highly_variable_features'].loc[lambda x: x].index
+    adata = adata[:, HVGs].copy()
+
+    if adata.raw is not None and not 'raw' in adata.layers:
         adata.layers['raw'] = adata.raw.to_adata()[:, adata.var_names].X
-    elif 'raw' in adata.layers:
-        print('Raw counts already present, but no .raw slot found...')
     else:
         sys.exit('Provide either an AnnData object with a raw layer or .raw slot!')
+        
     adata.layers['lognorm'] = adata.X
 
     return adata
@@ -430,7 +433,7 @@ def format_seurat(adata, path_tmp=None, path_viz=None, remove_messy=True, organi
     
     # Add raw and lognorm layers
     adata.layers['raw'] = adata.raw.to_adata()[:,adata.var_names].X
-    adata.layers['lognorm'] = adata.X.A.copy()
+    adata.layers['lognorm'] = adata.X.copy()
 
     # Read from tmp and format
     # path_tmp = os.path.join(path_main, 'data', 'tmp')
@@ -441,7 +444,10 @@ def format_seurat(adata, path_tmp=None, path_viz=None, remove_messy=True, organi
         'residual_mean', 'residual_variance', 'HVG']
     )
     df_var = df_var.loc[:,cols]
-    adata.var['highly_variable_features'] = adata.var.index.map(lambda x: x in df_var['HVG'])
+    adata.var['highly_variable_features'] = (
+        adata.var_names
+        .map(lambda x: df_var.loc[x,'HVG'])
+    )
     adata.var = (
         adata.var
         .join(df_var)

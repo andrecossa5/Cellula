@@ -326,7 +326,7 @@ def main():
     logger.info('PCA...')
     t.start()
     adata_red = compute_pca_all(
-        adata_red
+        adata_red,
         auto=args.auto_pcs,
         biplot=args.biplot, 
         path_viz=path_viz, 

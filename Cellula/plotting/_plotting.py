@@ -155,7 +155,7 @@ def QC_plot(meta, grouping, QC_covariates, colors, figsize=(14,7),
         rotx = 0 if not rotate else 90
         legend = False if i != 2 else True
         cats = meta[grouping].cat.categories
-        ncols = 1 if len(cats) <=8 else round(len(cats)/8)+1
+        ncols = 1 if len(cats) <=8 else round(len(cats)/8)
 
         box(meta, grouping, x, c=colors[grouping], ax=ax)
         format_ax(ax, ylabel=x, xticks=xticks, rotx=rotx)
@@ -281,7 +281,7 @@ def plot_biplot_PCs(adata, embs, covariate='sample', colors=None):
     # Legend/cbar
     if colors is not None and covariate in colors:
         cats = df_[covariate].unique()
-        ncols = 1 if len(cats) <=8 else round(len(cats)/8+1)
+        ncols = 1 if len(cats) <=8 else round(len(cats)/8)
         add_legend(
             label=covariate, colors=colors[covariate], ax=axs[0,4], 
             loc='upper left', bbox_to_anchor=(1.05,1), 
@@ -358,7 +358,7 @@ def plot_embeddings(adata, layer=None, rep='original', with_paga=True):
             draw_embeddings(df, cont=c, ax=axs[i])
         else:
             cats = df[c].unique()
-            ncols = 1 if len(cats) <=8 else round(len(cats)/8)+1
+            ncols = 1 if len(cats) <=8 else round(len(cats)/8)
             kwargs = {
                 'bbox_to_anchor' : (1,1), 
                 'loc' : 'upper left',

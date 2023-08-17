@@ -8,6 +8,7 @@ import numpy as np
 import scanpy as sc 
 import pegasus as pg
 import fbpca
+from shutil import rmtree
 from anndata import AnnData
 from pegasus.tools import predefined_signatures, load_signatures_from_file 
 from scipy.sparse import issparse
@@ -178,15 +179,14 @@ def red(adata):
         The matrix is reduced to the highly variable features only.
     """
 
-    HVGs = adata.var['highly_variable_features'].loc[lambda x: x].index
+    HVGs = adata.var['highly_variable_features'].loc[lambda x:x].index
     adata = adata[:, HVGs].copy()
+    adata.layers['lognorm'] = adata.X
 
-    if adata.raw is not None or 'raw' in adata.layers:
+    if adata.raw is not None:
         adata.layers['raw'] = adata.raw.to_adata()[:, HVGs].X
     else:
-        sys.exit('Provide either an AnnData object with a raw layer or .raw slot!')
-        
-    adata.layers['lognorm'] = adata.X
+        sys.exit('Provide either an AnnData object with a .raw slot!')
 
     return adata
 
@@ -414,40 +414,41 @@ def remove_unwanted(a):
 ##
 
 
-def format_seurat(adata, path_tmp=None, path_viz=None, remove_messy=True, organism='human'):
+def format_seurat(adata, path_main=None, path_viz=None, remove_messy=True, 
+                rm_tmp=True, organism='human'):
     """
     Util to format an existing anndata with its SCTransform slots, derived from 
     external script calling.
     """ 
 
-    # Repeat first adata processes
+    # Path tmp
+    path_tmp = os.path.join(path_main, 'data', 'tmp')
+
+    # Repeat first adata processes: robust genes, lognorm (size...), 
+    # scores (based on size lognorm)
     pg.identify_robust_genes(adata, percent_cells=0.05) 
     adata = adata[:, adata.var['robust']]
     sc.pp.normalize_total(adata, target_sum=1e4)
     sc.pp.log1p(adata)
-    adata.obs = adata.obs.join(sig_scores(adata, score_method='scanpy', organism=organism))
+    adata.obs = (
+        adata.obs
+        .join(sig_scores(adata, score_method='scanpy', organism=organism))
+    )   
     
-    # HVGs
+    # Remove messy genes
     if remove_messy:
         adata = remove_unwanted(adata)
-    
-    # Add raw and lognorm layers
-    adata.layers['raw'] = adata.raw.to_adata()[:,adata.var_names].X
-    adata.layers['lognorm'] = adata.X.copy()
 
-    # Read from tmp and format
-    # path_tmp = os.path.join(path_main, 'data', 'tmp')
+    # Read from tmp and format adata 
     residuals = pd.read_csv(os.path.join(path_tmp, 'residuals.csv'), index_col=0)
     df_var = pd.read_csv(os.path.join(path_tmp, 'df_var.csv'), index_col=0)
+    HVGs = df_var['HVG'].loc[lambda x:x].index
     cols = df_var.columns.isin(
         ['detection_rate', 'gmean', 'variance', 
-        'residual_mean', 'residual_variance', 'HVG']
+        'residual_mean', 'residual_variance']
     )
     df_var = df_var.loc[:,cols]
-    adata.var['highly_variable_features'] = (
-        adata.var_names
-        .map(lambda x: df_var.loc[x,'HVG'])
-    )
+    adata.var['highly_variable_features'] = adata.var_names.isin(HVGs)
     adata.var = (
         adata.var
         .join(df_var)
@@ -477,12 +478,9 @@ def format_seurat(adata, path_tmp=None, path_viz=None, remove_messy=True, organi
     adata_red = red(adata)
     adata_red.layers['sct'] = residuals.loc[:, adata_red.var_names].values
 
-    # Sanitize full adata: lognorm in .X, remove other layers
-    del adata.layers['raw']
-    del adata.layers['lognorm']
-
     # Remove path_tmp
-    os.system(f'rm -r {path_tmp}')
+    if rm_tmp:
+        rmtree(os.path.join(path_main, 'data', 'tmp'))
 
     return adata, adata_red
 

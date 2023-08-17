@@ -278,18 +278,16 @@ def main():
         else:
             adata, adata_red = format_seurat(         # Reading and formatting SCTransform scripts outputs
                 adata, 
-                path_tmp=os.path.join(path_main, 'data', 'tmp'), 
+                path_main=path_main, 
                 path_viz=path_viz, 
-                organism=organism
+                organism=organism,
+                rm_tmp=False
             )
         logger.info(f'Pre-processing with recipe {recipe} finished: {t.stop()}')
 
     # Save adata and adata_red
     adata.write(os.path.join(path_data, 'lognorm.h5ad'))
     adata_red.write(os.path.join(path_data, 'reduced.h5ad'))
-
-    adata = sc.read(os.path.join(path_data, 'lognorm.h5ad'))
-    adata_red = sc.read(os.path.join(path_data, 'reduced.h5ad'))
 
     #-----------------------------------------------------------------#
 

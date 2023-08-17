@@ -287,9 +287,6 @@ def sct_pp_original(adata, n_HVGs=2000, organism='human', path_viz=None, remove_
 
     # Read rscript output and visualize it
 
-
-
-
     # Visualization mean variance trend (and HVGs selection) upon normalization
     # if path_viz is not None:
     #     

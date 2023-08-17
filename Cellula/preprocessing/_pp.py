@@ -374,11 +374,8 @@ def compute_pca_all(adata, **kwargs):
     # Parallel PCA on all processed layers
     processed_layers = [ l for l in adata.layers if l in ['scaled', 'regressed', 'sct'] ]
 
-    with parallel_backend("loky"):
-        results = Parallel(n_jobs=cpu_count())(
-            delayed(pca)(adata, n_pcs=50, layer=layer, **kwargs)
-            for layer in processed_layers
-        ) 
+    for layer in processed_layers:
+        pca(adata, n_pcs=50, layer=layer, **kwargs)
 
     # Put back in adata
     for x in results:
@@ -462,7 +459,7 @@ def format_seurat(adata, path_main=None, path_viz=None, remove_messy=True,
     # Viz
     if path_viz is not None:
         
-        fig = mean_variance_plot(adata)
+        fig = mean_variance_plot(adata, recipe='sct')
         fig.savefig(os.path.join(path_viz, 'mean_variance_plot.png'))
 
         fig, axs = plt.subplots(1,2,figsize=(9,4.5))
@@ -470,7 +467,7 @@ def format_seurat(adata, path_main=None, path_viz=None, remove_messy=True,
         df_ = adata.var.loc[HVGs, ['residual_mean', 'residual_variances']]
         rank_plot(df_, cov='residual_mean', ylabel='Residual mean', ax=axs[0], fig=fig)
         rank_plot(df_, cov='residual_variances', ylabel='Residual variance', ax=axs[1], fig=fig)
-        fig.suptitle(f'SCTransform workflow, top {residuals.shape[0]} HVGs')
+        fig.suptitle(f'SCTransform workflow, top {HVGs.size} HVGs')
         fig.tight_layout()
         fig.savefig(os.path.join(path_viz, 'mean_variance_compare_ranks.png'))
 

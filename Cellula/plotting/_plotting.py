@@ -142,7 +142,7 @@ def plot_rankings(df, df_rankings, df_summary, feature='rescaled_score',
 def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), 
             labels=False, rotate=False, legend=True):
     """
-    Plot boxplot of QC covariates, by some cell goruping.
+    Plot boxplot of QC covariates, by some cell grouping.
     """
     # Figure
     fig = plt.figure(figsize=figsize)
@@ -282,7 +282,7 @@ def plot_biplot_PCs(adata, embs, covariate='sample', colors=None):
         axins = inset_axes(
             axs[2,2],
             width="75%",  # width: 50% of parent_bbox width
-            height="5%",  # height: 5%
+            height="10%",  # height: 5%
             loc="center",
         )
         axins.xaxis.set_ticks_position("bottom")
@@ -974,8 +974,11 @@ def mean_variance_plot(adata, recipe='standard', figsize=(5,4.5)):
     scatter(df.query('HVG == "Non-HVG"'), x='mean', y='var', c='black', ax=ax, s=1)
     scatter(df.query('HVG == "HVG"'), x='mean', y='var', c='red', ax=ax, s=2)
     format_ax(ax, title='Mean-variance trend', xlabel='mean', ylabel=ylabel)
-    add_legend(label='HVG status', colors={'HVG':'red', 'Non-HVG':'black'}, ax=ax, 
-        loc='upper right', bbox_to_anchor=(.95,.95), ncols=1, artists_size=8, label_size=10, ticks_size=7)
+    add_legend(
+        label='HVG status', ax=ax, colors={'HVG':'red', 'Non-HVG':'black'}, 
+        loc='upper right', bbox_to_anchor=(.95,.95), ncols=1, artists_size=8, 
+        label_size=10, ticks_size=7
+    )
     fig.tight_layout()
 
     return fig

@@ -183,6 +183,8 @@ def red(adata):
 
     if adata.raw is not None and not 'raw' in adata.layers:
         adata.layers['raw'] = adata.raw.to_adata()[:, adata.var_names].X
+    elif adata.raw is None and 'raw' in adata.layers:
+        pass
     else:
         sys.exit('Provide either an AnnData object with a raw layer or .raw slot!')
         

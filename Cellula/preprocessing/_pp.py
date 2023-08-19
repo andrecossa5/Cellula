@@ -183,10 +183,11 @@ def red(adata):
     adata = adata[:, HVGs].copy()
     adata.layers['lognorm'] = adata.X
 
-    if adata.raw is not None:
+    if adata.raw is not None and 'raw' not in adata.layers:
         adata.layers['raw'] = adata.raw.to_adata()[:, HVGs].X
-    else:
-        sys.exit('Provide either an AnnData object with a .raw slot!')
+    
+    if 'raw' not in adata.layers:
+        raise ValueError('Cannot find "raw" layer or slot...')
 
     return adata
 

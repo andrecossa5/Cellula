@@ -409,8 +409,6 @@ def format_draw_embeddings(
     return ax
 
 
-add_labels_on_loc
-
 ##
 
 
@@ -544,7 +542,9 @@ def draw_embeddings(
 
 def faceted_draw_embedding(
     df, x='UMAP1', y='UMAP2', figsize=None, n_cols=None,
-    cont=None, cat=None, query=None, facet=None, legend=True, **kwargs):
+    cont=None, cat=None, query=None, facet=None, legend=True,
+    idx_annot=0, lables_on_loc=False, axis=True,
+    tight_layout=True, s=10, **kwargs):
     """
     Draw embeddings with faceting.
     """
@@ -560,11 +560,11 @@ def faceted_draw_embedding(
     for i, (idx, name) in enumerate(zip(idxs, names)):
         
         if legend:
-            draw_legend = True if i == 0 else False
-            draw_cbar = True if i == 0 else False
+            draw_legend = True if i == idx_annot else False
+            draw_cbar = True if i == idx_annot else False
         else:
             draw_legend = False
-            draw_cbar = True if i == 0 else False
+            draw_cbar = True if i == idx_annot else False
 
         ax = plt.subplot(n_rows, n_cols, i+1)
         draw_embeddings(
@@ -579,9 +579,17 @@ def faceted_draw_embedding(
         )
         format_ax(ax, title=name)
 
+        if not axis:
+            ax.axis('off')
+        
+        if lables_on_loc:
+            add_labels_on_loc(df.loc[idx, :], x, y, cat, ax, s)
+
     fig.supxlabel(x)
     fig.supylabel(y)
-    fig.tight_layout()
+
+    if tight_layout:
+        fig.tight_layout()
 
     return fig
 

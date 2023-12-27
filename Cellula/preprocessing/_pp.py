@@ -448,15 +448,12 @@ def remove_unwanted(a):
 ##
 
 
-def format_seurat(adata, path_main=None, path_viz=None, remove_messy=True, 
+def format_seurat(adata, path_tmp=None, path_viz=None, remove_messy=True, 
                 rm_tmp=True, organism='human'):
     """
     Util to format an existing anndata with its SCTransform slots, derived from 
     external script calling.
     """ 
-
-    # Path tmp
-    path_tmp = os.path.join(path_main, 'data', 'tmp')
 
     # Repeat first adata processes: robust genes, lognorm (size...), 
     # scores (based on size lognorm)
@@ -520,7 +517,7 @@ def format_seurat(adata, path_main=None, path_viz=None, remove_messy=True,
 
     # Remove path_tmp
     if rm_tmp:
-        rmtree(os.path.join(path_main, 'data', 'tmp'))
+        rmtree(path_tmp)
 
     return adata, adata_red
 

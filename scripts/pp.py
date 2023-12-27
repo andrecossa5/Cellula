@@ -135,7 +135,7 @@ my_parser.add_argument(
 args = my_parser.parse_args()
 
 # path_main = '/Users/IEO5505/Desktop/example_cellula'
-# version = 'SCT' 
+# version = 'default' 
 # recipe = 'SCT_seurat'
 # n_HVGs = 5000
 # cc_covariate = 'cycling'
@@ -194,6 +194,7 @@ path_viz = os.path.join(path_viz, version)
 #-----------------------------------------------------------------#
 
 # Set logger 
+
 logger = set_logger(path_runs, 'logs_pp.txt')
 
 ########################################################################
@@ -274,12 +275,17 @@ def main():
 
     else:
         logger.info(f'Pre-processing: {recipe}')
-        if not os.path.exists(os.path.join(path_main, 'data', 'tmp')):
-            sct_pp_original(adata, organism=organism) # Just prepping a temporary folder with inputs to external r script
+        path_tmp = os.path.join(path_main, 'data', 'tmp')
+        if not os.path.exists(path_tmp):
+            logger.info('Prepping data for SCT_seurat script...')
+            sct_pp_original(adata, organism=organism, path_tmp=path_tmp) 
+            logger.info(f'Call SCT_transform script on data at {path_tmp}')
+            sys.exit()
         else:
+            logger.info('Reading data from SCT_seurat script...')
             adata, adata_red = format_seurat(         # Reading and formatting SCTransform scripts outputs
                 adata, 
-                path_main=path_main, 
+                path_tmp=path_tmp, 
                 path_viz=path_viz, 
                 organism=organism
             )

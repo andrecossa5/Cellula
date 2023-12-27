@@ -240,19 +240,7 @@ def main():
 
     # Format adata.obs
     if args.custom_meta:
-        try:
-            meta = pd.read_csv(os.path.join(path_data, 'cells_meta.csv'), index_col=0)
-            for x in meta.columns:
-                test = meta[x].dtype in ['int64', 'int32', 'int8'] and meta[x].unique().size < 50
-                if meta[x].dtype == 'object' or test:
-                    meta[x] = pd.Categorical(meta[x]) # Reformat as pd.Categoricals
-            if not 'seq_run' in meta.columns:
-                adata.obs['seq_run'] = 'run_1'
-                adata.obs['seq_run'] = pd.Categorical(adata.obs['seq_run'])
-            adata.obs = meta        
-        except:
-            logger.info('Cannot read cells_meta file. Format .csv or .tsv file correctly!')
-            sys.exit()
+        adata = handle_custom_meta(adata, path_data=path_data)
     else:
         adata.obs['seq_run'] = 'run_1' # Assumed only one run of sequencing
         adata.obs['seq_run'] = pd.Categorical(adata.obs['seq_run'])

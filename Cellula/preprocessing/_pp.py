@@ -50,6 +50,42 @@ seurat_g2m = [
 ##
 
 
+def handle_custom_meta(adata, path_data=None):
+    """
+    Handle custom meta annotation to reannotate (and possibly filter...) cells, post QC.
+    """
+    try:
+
+        # Reformat columns
+        meta = pd.read_csv(os.path.join(path_data, 'cells_meta.csv'), index_col=0)
+        for x in meta.columns:
+            test = meta[x].dtype in ['int64', 'int32', 'int8'] and meta[x].unique().size < 50
+            if meta[x].dtype == 'object' or test:
+                meta[x] = pd.Categorical(meta[x]) # Reformat as pd.Categoricals
+        if not 'seq_run' in meta.columns:
+            meta['seq_run'] = 'run_1'
+            meta['seq_run'] = pd.Categorical(meta['seq_run'])
+
+        # Filter original cells if necessary
+        if all(meta.index == adata.obs_names):
+            adata.obs = meta        
+        else:
+            cells = meta.index
+            if all(cells.isin(adata.obs_names)):
+                adata = adata[cells,:].copy()
+                adata.obs = meta
+            else:
+                raise Exception('cells in provided meta_cells.csv file are not in original QC.h5ad adata!')
+
+        return adata
+    
+    except:
+        raise Exception('Cannot read cells_meta file. Format .csv or .tsv file correctly!')
+
+
+##
+    
+
 def sig_scores(adata, layer=None, score_method='scanpy', organism='human', with_categories=False):
     """
     Calculate pegasus scores for cell cycle, ribosomal and apoptotic genes.

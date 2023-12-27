@@ -23,9 +23,10 @@ from .._utils import *
 ##
 
 
-def plot_clustermap(df, row_colors=None, palette='mako', title=None, label=None,
-    row_names=True, col_names=False, no_cluster=False, figsize=(11, 10), annot=False, 
-    annot_size=5, colors_ratio=0.5
+def plot_clustermap(df, row_colors=None, palette='mako', title=None, xlabel=None,
+    cb_label=None, row_names=True, col_names=False, no_cluster=False, 
+    figsize=(11, 10), annot=False, annot_size=5, colors_ratio=0.5, 
+    cbar_position=(0.085, 0.05, 0.25, 0.02), orientation='horizontal',
     ):
     '''
     Clustered heatmap.
@@ -35,18 +36,20 @@ def plot_clustermap(df, row_colors=None, palette='mako', title=None, label=None,
     else:
         row_cluster=True; col_cluster=True
 
-    fig = sns.clustermap(df, cmap=palette, yticklabels=row_names, xticklabels=col_names, 
-        dendrogram_ratio=(.1, .04), figsize=figsize, row_cluster=row_cluster, col_cluster=col_cluster, 
-        annot=True, cbar_kws={'use_gridspec' : False, 'orientation': 'horizontal'}, 
+    g = sns.clustermap(
+        df, cmap=palette, yticklabels=row_names, xticklabels=col_names, 
+        dendrogram_ratio=(.1, .04), figsize=figsize, row_cluster=row_cluster, 
+        col_cluster=col_cluster,
+        annot=True, cbar_kws={'use_gridspec' : False, 'orientation': orientation}, 
         colors_ratio=colors_ratio, annot_kws={'size':annot_size}, row_colors=row_colors
     )
-    fig.ax_col_dendrogram.set_visible(False) 
-    fig.fig.subplots_adjust(bottom=0.1)
-    fig.fig.suptitle(title)
-    fig.ax_cbar.set_position((0.098, 0.05, 0.75, 0.02))
-    fig.ax_cbar.set(xlabel=label)
+    g.ax_col_dendrogram.set_visible(False) 
+    g.fig.subplots_adjust(bottom=0.1)
+    g.ax_cbar.set_position(cbar_position)
+    g.ax_heatmap.set(title=title, xlabel=xlabel)
+    g.ax_heatmap.text(.47,-.06, cb_label, transform=g.ax_heatmap.transAxes)
 
-    return fig
+    return g
 
     # IMPORTANTTT!!
     # handles = create_handles(v, colors=colors.values())
@@ -1008,44 +1011,87 @@ def mean_variance_plot(adata, recipe='standard', figsize=(5,4.5)):
 ##
 
 
-# Utils
-def volcano(df_, t=1, n=10, title=None, xlim=(-8,8), max_distance=0.5, pseudocount=0):
+def get_genes_to_annotate(df_, evidence, effect_size, n):
     
+    # High
+    percentile = 99.99
+    n_high = 0
+
+    while n_high<n:
+        p_high_es = np.percentile(df_[effect_size], percentile)
+        p_low_ev = np.percentile(df_[evidence], 100-percentile)
+        high_genes = df_.loc[ 
+            (df_[effect_size]>p_high_es) & (df_[evidence]<p_low_ev) 
+        ].index
+        n_high = high_genes.size
+        percentile -= .01
+
+    # Low
+    percentile = .01
+    n_low = 0
+
+    while n_low<n:
+        p_low_es = np.percentile(df_[effect_size], percentile)
+        p_low_ev = np.percentile(df_[evidence], percentile)
+        low_genes = df_.loc[ 
+            (df_[effect_size]<p_low_es) & (df_[evidence]<p_low_ev) 
+        ].index
+        n_low = low_genes.size
+        percentile += .01
+
+    genes = low_genes.tolist() + high_genes.tolist()
+
+    return genes
+
+
+##
+
+
+def volcano(
+    df, effect_size='effect_size', evidence='evidence',
+    t_logFC=1, t_FDR=.1, n=10, title=None, xlim=(-8,8), max_distance=0.5, pseudocount=0,
+    figsize=(5,5), annotate=False
+    ):
+    """
+    Volcano plot
+    """    
+
+    df_ = df.copy()    
     choices = [
-        (df_['effect_size'] >= t) & (df_['evidence'] <= 0.1),
-        (df_['effect_size'] <= -t) & (df_['evidence'] <= 0.1),
+        (df_[effect_size] >= t_logFC) & (df_[evidence] <= t_FDR),
+        (df_[effect_size] <= -t_logFC) & (df_[evidence] <= t_FDR),
     ]
     df_['type'] = np.select(choices, ['up', 'down'], default='other')
     df_['to_annotate'] = False
-    df_['to_annotate'][:n] = True
-    df_['to_annotate'][-n:] = True
-    df_['evidence'] = -np.log10(df_['evidence']+pseudocount)
+    genes_to_annotate = get_genes_to_annotate(df_, evidence, effect_size, n)
+    df_.loc[genes_to_annotate, 'to_annotate'] = True
+    df_[evidence] = -np.log10(df_[evidence]+pseudocount)
 
-    fig, ax = plt.subplots(figsize=(5,5))
-    scatter(df_.query('type == "other"'), 'effect_size', 'evidence',  c='darkgrey', s=5, ax=ax)
-    scatter(df_.query('type == "up"'), 'effect_size', 'evidence',  c='red', s=10, ax=ax)
-    scatter(df_.query('type == "down"'), 'effect_size', 'evidence',  c='b', s=10, ax=ax)
+    fig, ax = plt.subplots(figsize=figsize)
+    scatter(df_.query('type == "other"'), effect_size, evidence,  c='darkgrey', s=5, ax=ax)
+    scatter(df_.query('type == "up"'), effect_size, evidence,  c='red', s=10, ax=ax)
+    scatter(df_.query('type == "down"'), effect_size, evidence,  c='b', s=10, ax=ax)
 
     ax.set(xlim=xlim)
 
-    ax.vlines(1, df_['evidence'].min(), df_['evidence'].max(), linestyles='dashed', colors='r')
-    ax.vlines(-1, df_['evidence'].min(), df_['evidence'].max(), linestyles='dashed', colors='b')
-    ax.hlines(-np.log10(0.1), -6, 6, linestyles='dashed', colors='k')
+    ax.vlines(1, df_[evidence].min(), df_[evidence].max(), colors='r')
+    ax.vlines(-1, df_[evidence].min(), df_[evidence].max(), colors='b')
+    ax.hlines(-np.log10(0.1), xlim[0], xlim[1], colors='k')
 
     format_ax(ax, title=title, xlabel=f'log2FC', ylabel=f'-log10(FDR)')
+    ax.spines[['top', 'right', 'left']].set_visible(False)
 
-    ax.spines[['top', 'right']].set_visible(False)
+    if annotate:
+        ta.allocate_text(
+            fig, ax, 
+            df_.loc[lambda x: x['to_annotate']][effect_size],
+            df_.loc[lambda x: x['to_annotate']][evidence],
+            df_.loc[lambda x: x['to_annotate']].index,
+            x_scatter=df_[effect_size], y_scatter=df_[evidence], 
+            linecolor='black', textsize=8, 
+            max_distance=max_distance, linewidth=0.5, nbr_candidates=100
+        )
 
-    ta.allocate_text(
-        fig, ax, 
-        df_.loc[lambda x: x['to_annotate']]['effect_size'],
-        df_.loc[lambda x: x['to_annotate']]['evidence'],
-        df_.loc[lambda x: x['to_annotate']].index,
-        x_scatter=df_['effect_size'], y_scatter=df_['evidence'], 
-        linecolor='black', textsize=8, 
-        max_distance=max_distance, linewidth=0.5, nbr_candidates=100
-    )
-    
     return fig
 
 

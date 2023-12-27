@@ -299,3 +299,26 @@ def cp_logs(path_runs, from_branch, name_new):
 
 
 ##
+
+
+def sanitize_neighbors(adata, nn_key='NN', n_neighbors=30):
+    """
+    Sanitize a Cellula clustered adata for scanpy sc.pp.neighbors dependent compatibility.
+    """
+    adata.obsp['nn_distances'] = adata.obsp['NN_dist']
+    adata.obsp['nn_connectivities'] = adata.obsp['NN_conn']
+    adata.uns['nn'] = {
+        'connectivities_key': 'nn_connectivities',
+        'distances_key': 'nn_distances', 
+        'params' : { 
+            'n_neighbors' : n_neighbors, 
+            'method' : 'umap', 
+            'use_rep' : 'X_latent_space', 
+            'n_pcs' : '' # Even if they may not PCs..
+        }
+    }
+
+    return adata
+
+
+##

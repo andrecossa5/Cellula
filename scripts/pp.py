@@ -246,6 +246,9 @@ def main():
                 test = meta[x].dtype in ['int64', 'int32', 'int8'] and meta[x].unique().size < 50
                 if meta[x].dtype == 'object' or test:
                     meta[x] = pd.Categorical(meta[x]) # Reformat as pd.Categoricals
+            if not 'seq_run' in meta.columns:
+                adata.obs['seq_run'] = 'run_1'
+                adata.obs['seq_run'] = pd.Categorical(adata.obs['seq_run'])
             adata.obs = meta        
         except:
             logger.info('Cannot read cells_meta file. Format .csv or .tsv file correctly!')

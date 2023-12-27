@@ -67,8 +67,8 @@ def handle_custom_meta(adata, path_data=None):
             meta['seq_run'] = pd.Categorical(meta['seq_run'])
 
         # Filter original cells if necessary
-        if all(meta.index == adata.obs_names):
-            adata.obs = meta        
+        if all(meta.index.size == adata.obs_names.size):
+            adata.obs = meta.loc[adata.obs_names]     
         else:
             cells = meta.index
             if all(cells.isin(adata.obs_names)):

@@ -25,9 +25,9 @@ from .._utils import *
 
 def plot_clustermap(df, row_colors=None, palette='mako', title=None, xlabel=None,
     cb_label=None, row_names=True, col_names=False, no_cluster=False, 
-    figsize=(11, 10), annot=False, annot_size=5, colors_ratio=0.5, 
+    figsize=(11, 10), annot=True, annot_size=5, colors_ratio=0.5, 
     cbar_position=(0.085, 0.05, 0.25, 0.02), orientation='horizontal',
-    ):
+    ):      
     '''
     Clustered heatmap.
     '''
@@ -40,7 +40,7 @@ def plot_clustermap(df, row_colors=None, palette='mako', title=None, xlabel=None
         df, cmap=palette, yticklabels=row_names, xticklabels=col_names, 
         dendrogram_ratio=(.1, .04), figsize=figsize, row_cluster=row_cluster, 
         col_cluster=col_cluster,
-        annot=True, cbar_kws={'use_gridspec' : False, 'orientation': orientation}, 
+        annot=annot, cbar_kws={'use_gridspec' : False, 'orientation': orientation}, 
         colors_ratio=colors_ratio, annot_kws={'size':annot_size}, row_colors=row_colors
     )
     g.ax_col_dendrogram.set_visible(False) 

@@ -98,7 +98,7 @@ def prep_archive():
     os.system(f'tar -zcvf {name}.tar.gz ./{name}/')
 
     # rm to_share
-    os.system(f'rm -r {name}')
+    # os.system(f'rm -r {name}')
     
 
 

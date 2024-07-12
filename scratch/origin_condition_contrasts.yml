@@ -1,0 +1,15 @@
+classic:
+        lung_double_vs_NT: 
+                query: 
+                        g0: condition == "lung, double-treated" 
+                        g1: condition == "lung, untreated" 
+                methods: 
+                        DE: wilcoxon 
+                        ML: 
+                                features: 
+                                        - PCs
+                                        - signatures
+                                models: 
+                                      - logit
+                                      - xgboost
+                                mode: full

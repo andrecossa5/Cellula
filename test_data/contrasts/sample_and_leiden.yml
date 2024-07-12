@@ -1,10 +1,10 @@
 classic:
-        sample: 
-                query: sample
+	sample:
+		query: sample
                 methods: 
                         DE: wilcoxon 
-                        ML: 
-                                features: 
+                        ML:
+				features: 
                                         - PCs
                                         - signatures
                                 models: 

@@ -84,7 +84,7 @@ def read_matrix(path, sample_name=None, mode='tenx'):
             raise ValueError(f'{path_cell_annotation} is not valid for mode "gbc".')
         if cells.index.str.contains('_').any():
             annotated_cells = cells.index.map(lambda x: x.split('_')[0])
-        common_cells = list(set(a.obs.names) & set(annotated_cells))
+        common_cells = list(set(a.obs_names) & set(annotated_cells))
         cells = cells.loc[common_cells,:]
         a = a[common_cells,:].copy()
         a.obs = a.obs.assign(GBC=cells['GBC'], sample=sample_name)

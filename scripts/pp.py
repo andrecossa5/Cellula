@@ -134,6 +134,16 @@ my_parser.add_argument(
 # Parse arguments
 args = my_parser.parse_args()
 
+# path_main = '/Users/IEO5505/Desktop/example_cellula'
+# version = 'default' 
+# recipe = 'SCT_seurat'
+# n_HVGs = 5000
+# cc_covariate = 'cycling'
+# organism = 'human'
+# biplot = True
+# auto_pcs = True
+# custom_meta = False
+
 path_main = args.path_main
 version = args.version
 recipe = args.recipe
@@ -184,6 +194,7 @@ path_viz = os.path.join(path_viz, version)
 #-----------------------------------------------------------------#
 
 # Set logger 
+
 logger = set_logger(path_runs, 'logs_pp.txt')
 
 ########################################################################
@@ -230,16 +241,7 @@ def main():
 
     # Format adata.obs
     if args.custom_meta:
-        try:
-            meta = pd.read_csv(os.path.join(path_data, 'cells_meta.csv'), index_col=0)
-            for x in meta.columns:
-                test = meta[x].dtype in ['int64', 'int32', 'int8'] and meta[x].unique().size < 50
-                if meta[x].dtype == 'object' or test:
-                    meta[x] = pd.Categorical(meta[x]) # Reformat as pd.Categoricals
-            adata.obs = meta        
-        except:
-            logger.info('Cannot read cells_meta file. Format .csv or .tsv file correctly!')
-            sys.exit()
+        adata = handle_custom_meta(adata, path_data=path_data)
     else:
         adata.obs['seq_run'] = 'run_1' # Assumed only one run of sequencing
         adata.obs['seq_run'] = pd.Categorical(adata.obs['seq_run'])
@@ -273,12 +275,17 @@ def main():
 
     else:
         logger.info(f'Pre-processing: {recipe}')
-        if not os.path.exists(os.path.join(path_main, 'data', 'tmp')):
-            sct_pp_original(adata, organism=organism) # Just prepping a temporary folder with inputs to external r script
+        path_tmp = os.path.join(path_main, 'data', 'tmp')
+        if not os.path.exists(path_tmp):
+            logger.info('Prepping data for SCT_seurat script...')
+            sct_pp_original(adata, organism=organism, path_tmp=path_tmp) 
+            logger.info(f'Call SCT_transform script on data at {path_tmp}')
+            sys.exit()
         else:
+            logger.info('Reading data from SCT_seurat script...')
             adata, adata_red = format_seurat(         # Reading and formatting SCTransform scripts outputs
                 adata, 
-                path_tmp=os.path.join(path_main, 'data', 'tmp'), 
+                path_tmp=path_tmp, 
                 path_viz=path_viz, 
                 organism=organism
             )
@@ -288,9 +295,6 @@ def main():
     adata.write(os.path.join(path_data, 'lognorm.h5ad'))
     adata_red.write(os.path.join(path_data, 'reduced.h5ad'))
 
-    adata = sc.read(os.path.join(path_data, 'lognorm.h5ad'))
-    adata_red = sc.read(os.path.join(path_data, 'reduced.h5ad'))
-
     #-----------------------------------------------------------------#
 
     # Cell QC on merged samples
@@ -298,9 +302,10 @@ def main():
     # Create a summary of median QC metrics per sample 
     t.start()
     logger.info('Cell QC, merged samples...')
+    adata.obs.columns
     QC_covariates = [
                         'nUMIs', 'detected_genes', 'mito_perc', \
-                        'cell_complexity', 'cycle_diff', 'cycling', \
+                        's_seurat', 'g2m_seurat', 'cycle_diff', 'cycling', \
                         'ribo_genes', 'apoptosis'
                     ]
     QC_df = adata.obs.loc[:, QC_covariates + ['sample']]
@@ -308,8 +313,8 @@ def main():
     summary.to_csv(os.path.join(path_results, 'QC_results.csv'))
 
     # Visualize QC metrics 
-    fig = QC_plot(adata.obs, 'sample', QC_covariates, colors, labels=False, figsize=(12, 10))
-    fig.savefig(os.path.join(path_viz, 'QC.png'))
+    fig = QC_plot(adata.obs, 'sample', QC_covariates, colors)
+    fig.savefig(os.path.join(path_viz, 'QC.png'), dpi=300)
     logger.info(f'Cell QC, merged samples: {t.stop()}')
 
     #-----------------------------------------------------------------#
@@ -330,19 +335,16 @@ def main():
     #-----------------------------------------------------------------#
 
     # Compute original cell embeddings
-    # Visualize QC covariates in cell embeddings (umap only here)
     logger.info(f'Original cell embeddings visualization...')
     for layer in adata_red.layers:
         if layer in ['scaled', 'regressed', 'sct']:
-           pass
            t.start()
-           adata_red = compute_kNN(adata_red, layer=layer, int_method='original') # Already parallel
+           adata_red = compute_kNN(adata_red, layer=layer, int_method='original')
            logger.info(f'kNN graph computation for the {layer} layer: {t.stop()}')
            t.start()
            fig = plot_embeddings(adata_red, layer=layer, with_paga=False)
            logger.info(f'Draw default UMAP embeddings for the {layer} layer: {t.stop()}')
-           fig.suptitle(layer)
-           fig.savefig(os.path.join(path_viz, f'{layer}_original_embeddings.png'))
+           fig.savefig(os.path.join(path_viz, f'{layer}_original_embeddings.png'), dpi=300)
     
     # Save
     logger.info(f'Save adata with processed metrices, original PCA spaces and kNN graphs...')

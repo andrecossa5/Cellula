@@ -105,12 +105,6 @@ n = args.n
 organism = args.organism
 min_perc = args.min_perc
 
-# path_main = '/Users/IEO5505/Desktop/example_cellula'
-# version = 'default'
-# range_ = [0.5, 1.2]
-# n = 10
-# organism = 'human'
-
 ########################################################################
 
 # Preparing run: import code, prepare directories, set logger

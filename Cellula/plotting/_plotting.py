@@ -23,10 +23,11 @@ from .._utils import *
 ##
 
 
-def plot_clustermap(df, row_colors=None, palette='mako', title=None, label=None,
-    row_names=True, col_names=False, no_cluster=False, figsize=(11, 10), annot=False, 
-    annot_size=5, colors_ratio=0.5
-    ):
+def plot_clustermap(df, row_colors=None, palette='mako', title=None, xlabel=None,
+    cb_label=None, row_names=True, col_names=False, no_cluster=False, 
+    figsize=(11, 10), annot=True, annot_size=5, colors_ratio=0.5, 
+    cbar_position=(0.085, 0.05, 0.25, 0.02), orientation='horizontal',
+    ):      
     '''
     Clustered heatmap.
     '''
@@ -35,18 +36,20 @@ def plot_clustermap(df, row_colors=None, palette='mako', title=None, label=None,
     else:
         row_cluster=True; col_cluster=True
 
-    fig = sns.clustermap(df, cmap=palette, yticklabels=row_names, xticklabels=col_names, 
-        dendrogram_ratio=(.1, .04), figsize=figsize, row_cluster=row_cluster, col_cluster=col_cluster, 
-        annot=True, cbar_kws={'use_gridspec' : False, 'orientation': 'horizontal'}, 
+    g = sns.clustermap(
+        df, cmap=palette, yticklabels=row_names, xticklabels=col_names, 
+        dendrogram_ratio=(.1, .04), figsize=figsize, row_cluster=row_cluster, 
+        col_cluster=col_cluster,
+        annot=annot, cbar_kws={'use_gridspec' : False, 'orientation': orientation}, 
         colors_ratio=colors_ratio, annot_kws={'size':annot_size}, row_colors=row_colors
     )
-    fig.ax_col_dendrogram.set_visible(False) 
-    fig.fig.subplots_adjust(bottom=0.1)
-    fig.fig.suptitle(title)
-    fig.ax_cbar.set_position((0.098, 0.05, 0.75, 0.02))
-    fig.ax_cbar.set(xlabel=label)
+    g.ax_col_dendrogram.set_visible(False) 
+    g.fig.subplots_adjust(bottom=0.1)
+    g.ax_cbar.set_position(cbar_position)
+    g.ax_heatmap.set(title=title, xlabel=xlabel)
+    g.ax_heatmap.text(.47,-.06, cb_label, transform=g.ax_heatmap.transAxes)
 
-    return fig
+    return g
 
     # IMPORTANTTT!!
     # handles = create_handles(v, colors=colors.values())
@@ -139,36 +142,42 @@ def plot_rankings(df, df_rankings, df_summary, feature='rescaled_score',
 ##
 
 
-def QC_plot(meta, grouping, QC_covariates, colors, figsize=(12, 10), 
+def QC_plot(meta, grouping, QC_covariates, colors, figsize=(14,7), 
             labels=False, rotate=False, legend=True):
     """
-    Plot boxplot of QC covariates, by some cell goruping.
+    Plot boxplot of QC covariates, by some cell grouping.
     """
-    # Figure
+
     fig = plt.figure(figsize=figsize)
+
     # Axes
     for i, x in enumerate(QC_covariates):
+        
         ax = plt.subplot(3, 3, i+1)
+        xticks = '' if not labels else None
+        rotx = 0 if not rotate else 90
+        legend = False if i != 2 else True
+        cats = meta[grouping].cat.categories
+        ncols = 1 if len(cats) <=8 else round(len(cats)/8)
+
         box(meta, grouping, x, c=colors[grouping], ax=ax)
-        if not labels: 
-            ax.tick_params(axis='x', which='both', bottom=False, labelbottom=False) 
-        if rotate:
-            ax.set_xticklabels(ax.get_xticks(), rotation=90)
-    if legend:
-        add_legend(
-            label=grouping,
-            colors=colors[grouping],
-            ax=ax,
-            bbox_to_anchor=(1.05,1),
-            loc='upper left',
-            ncols=1 if len(meta[grouping].cat.categories) <=8 else 2,
-            only_top=20,
-            label_size=8,
-            artists_size=8,
-            ticks_size=6
-        )
+        format_ax(ax, ylabel=x, xticks=xticks, rotx=rotx)
+        if legend:
+            add_legend(
+                label=grouping,
+                colors=colors[grouping],
+                ax=ax,
+                bbox_to_anchor=(1.05,1),
+                loc='upper left',
+                ncols=ncols,
+                only_top=30,
+                label_size=8,
+                artists_size=8,
+                ticks_size=6
+            )
     
-    fig.tight_layout()
+    fig.subplots_adjust(left=.1, right=.7, wspace=.35)
+    fig.suptitle(f'QC covariates, by {grouping}')
     
     return fig
 
@@ -250,47 +259,43 @@ def plot_biplot_PCs(adata, embs, covariate='sample', colors=None):
     """
     Plot a biplot of the first 5 PCs, colored by a cell attribute.
     """
+    
     # Data
     df_ = pd.DataFrame(
         data=embs[:,:5], 
         columns=[f'PC{i}' for i in range(1,6)],
         index=adata.obs_names
     )
-
     df_[covariate] = adata.obs[covariate] 
 
     # Figure
-    fig, axs = plt.subplots(5, 5, figsize=(10, 10), sharex=True, sharey=True)
+    fig, axs = plt.subplots(5, 5, figsize=(10, 8), sharex=True, sharey=True)
+    
     # Axes
     for i, x in enumerate(df_.columns[:-1]):
         for j, y in enumerate(df_.columns[:-1]):
-            if not(i == 2 and j == 2):
-                if colors is not None and covariate in colors:
-                    scatter(df_, x, y, by=covariate, c=colors[covariate], a=1, s=0.1, ax=axs[i,j])
-                else:
-                    scatter(df_, x, y, by=covariate, c='viridis', a=1, s=0.1, ax=axs[i,j])
-                format_ax(axs[i, j], xlabel=x, ylabel=y)
+            
+            format_ax(axs[i,j], xlabel=x, ylabel=y)
+            if colors is not None and covariate in colors:
+                scatter(df_, x, y, by=covariate, c=colors[covariate], s=.1, ax=axs[i,j])
+            else:
+                scatter(df_, x, y, by=covariate, c='viridis', s=.1, ax=axs[i,j])
 
-    # Legend/colorbar
+    # Legend/cbar
     if colors is not None and covariate in colors:
         cats = df_[covariate].unique()
-        handles = create_handles(cats, colors=colors[covariate].values())
-        axs[2,2].legend(handles, cats, frameon=False, fontsize='x-small', loc='center')
+        ncols = 1 if len(cats) <=8 else round(len(cats)/8)
+        add_legend(
+            label=covariate, colors=colors[covariate], ax=axs[0,4], 
+            loc='upper left', bbox_to_anchor=(1.05,1), 
+            ncols=ncols, only_top=30
+        )
     else:
-        viridis = matplotlib.colormaps['viridis']
-        norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
-        axins = inset_axes(
-            axs[2,2],
-            width="75%",  # width: 50% of parent_bbox width
-            height="5%",  # height: 5%
-            loc="center",
-        )
-        axins.xaxis.set_ticks_position("bottom")
-        fig.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=viridis), 
-            cax=axins, orientation="horizontal", label=covariate
-        )
+        add_cbar(df_[covariate], ax=axs[2,4], label=covariate, 
+                layout=( (1.5,-.5,.25,2), 'right' ))
 
-    fig.tight_layout()
+    fig.subplots_adjust(left=.1, right=.7, wspace=.5, hspace=.5)
+    fig.suptitle(f'First 5 PCs: {covariate}')
 
     return fig
 
@@ -299,7 +304,7 @@ def plot_biplot_PCs(adata, embs, covariate='sample', colors=None):
 
 
 def PCA_gsea_loadings_plot(df, genes_meta, organism='human', 
-                        collection='GO_Biological_Process_2021', i=1):
+                           collection='GO_Biological_Process_2021', i=1):
     """
     Plot stem-plots of top 5 PCs GSEA-enriched pathways, and genes.
     """
@@ -341,20 +346,31 @@ def plot_embeddings(adata, layer=None, rep='original', with_paga=True):
         adata, 
         with_paga=with_paga,
         paga_groups='sample', 
-        rep=rep, # rep = 'scVI'
-        layer=layer, # layer = 'raw'
+        rep=rep, # rep = 'original'
+        layer=layer, # layer = 'sct'
         umap_only=True
     )
     covariates = ['nUMIs', 'cycling', 'seq_run', 'sample']
-    fig, axs = plt.subplots(1, len(covariates), figsize=(4.5*len(covariates), 5))
+
+    # Figure
+    fig, axs = plt.subplots(1, len(covariates), figsize=(20, 5))
+
     for i, c in enumerate(covariates):
-        if c == 'nUMIs' or c == 'cycling':
+
+        if c in ['nUMIs', 'cycling']:
             draw_embeddings(df, cont=c, ax=axs[i])
         else:
-            kwargs = {'bbox_to_anchor':(1,1), 'loc':'upper left'} if c == 'sample' else {}
+            cats = df[c].unique()
+            ncols = 1 if len(cats) <=8 else round(len(cats)/8)
+            kwargs = {
+                'bbox_to_anchor' : (1,1), 
+                'loc' : 'upper left',
+                'ncols' : ncols
+            }
             draw_embeddings(df, cat=c, ax=axs[i], legend_kwargs=kwargs)
-    # Fig
-    plt.subplots_adjust(right=.85, bottom=.2, top=.8, left=.05, wspace=.4)
+
+    fig.subplots_adjust(right=.7, bottom=.25, top=.75, left=.05, wspace=.6)
+    fig.suptitle(f'{layer} layer, {rep} representation')
 
     return fig
 
@@ -396,8 +412,6 @@ def format_draw_embeddings(
     return ax
 
 
-add_labels_on_loc
-
 ##
 
 
@@ -422,7 +436,7 @@ def handle_colors(df, cat, legend_params, query=None):
         palette_cat = sc.pl.palettes.godsnot_102
         legend_params['colors'] = create_palette(df_, cat, palette_cat)
     elif isinstance(legend_params['colors'], dict):
-        assert all([ k in categories for k in legend_params['colors']])
+        assert all([ k in legend_params['colors'] for k in categories ])
         print('Provided colors are OK...')
     else:
         raise ValueError('Provide a correctly formatted palette for your categorical labels!')
@@ -531,7 +545,9 @@ def draw_embeddings(
 
 def faceted_draw_embedding(
     df, x='UMAP1', y='UMAP2', figsize=None, n_cols=None,
-    cont=None, cat=None, query=None, facet=None, legend=True, **kwargs):
+    cont=None, cat=None, query=None, facet=None, legend=True,
+    idx_annot=0, lables_on_loc=False, axis=True,
+    tight_layout=True, s=10, **kwargs):
     """
     Draw embeddings with faceting.
     """
@@ -547,11 +563,11 @@ def faceted_draw_embedding(
     for i, (idx, name) in enumerate(zip(idxs, names)):
         
         if legend:
-            draw_legend = True if i == 0 else False
-            draw_cbar = True if i == 0 else False
+            draw_legend = True if i == idx_annot else False
+            draw_cbar = True if i == idx_annot else False
         else:
             draw_legend = False
-            draw_cbar = True if i == 0 else False
+            draw_cbar = True if i == idx_annot else False
 
         ax = plt.subplot(n_rows, n_cols, i+1)
         draw_embeddings(
@@ -566,9 +582,17 @@ def faceted_draw_embedding(
         )
         format_ax(ax, title=name)
 
+        if not axis:
+            ax.axis('off')
+        
+        if lables_on_loc:
+            add_labels_on_loc(df.loc[idx, :], x, y, cat, ax, s)
+
     fig.supxlabel(x)
     fig.supylabel(y)
-    fig.tight_layout()
+
+    if tight_layout:
+        fig.tight_layout()
 
     return fig
 
@@ -974,8 +998,11 @@ def mean_variance_plot(adata, recipe='standard', figsize=(5,4.5)):
     scatter(df.query('HVG == "Non-HVG"'), x='mean', y='var', c='black', ax=ax, s=1)
     scatter(df.query('HVG == "HVG"'), x='mean', y='var', c='red', ax=ax, s=2)
     format_ax(ax, title='Mean-variance trend', xlabel='mean', ylabel=ylabel)
-    add_legend(label='HVG status', colors={'HVG':'red', 'Non-HVG':'black'}, ax=ax, 
-        loc='upper right', bbox_to_anchor=(.95,.95), ncols=1, artists_size=8, label_size=10, ticks_size=7)
+    add_legend(
+        label='HVG status', ax=ax, colors={'HVG':'red', 'Non-HVG':'black'}, 
+        loc='upper right', bbox_to_anchor=(.95,.95), ncols=1, artists_size=8, 
+        label_size=10, ticks_size=7
+    )
     fig.tight_layout()
 
     return fig
@@ -984,45 +1011,129 @@ def mean_variance_plot(adata, recipe='standard', figsize=(5,4.5)):
 ##
 
 
-# Utils
-def volcano(df_, t=1, n=10, title=None, xlim=(-8,8), max_distance=0.5, pseudocount=0):
+def get_genes_to_annotate(df_, evidence, effect_size, n):
     
+    # High
+    percentile = 99.99
+    n_high = 0
+
+    while n_high<n:
+        p_high_es = np.percentile(df_[effect_size], percentile)
+        p_low_ev = np.percentile(df_[evidence], 100-percentile)
+        high_genes = df_.loc[ 
+            (df_[effect_size]>p_high_es) & (df_[evidence]<p_low_ev) 
+        ].index
+        n_high = high_genes.size
+        percentile -= .01
+
+    # Low
+    percentile = .01
+    n_low = 0
+
+    while n_low<n:
+        p_low_es = np.percentile(df_[effect_size], percentile)
+        p_low_ev = np.percentile(df_[evidence], percentile)
+        low_genes = df_.loc[ 
+            (df_[effect_size]<p_low_es) & (df_[evidence]<p_low_ev) 
+        ].index
+        n_low = low_genes.size
+        percentile += .01
+
+    genes = low_genes.tolist() + high_genes.tolist()
+
+    return genes
+
+
+##
+
+
+def volcano(
+    df, effect_size='effect_size', evidence='evidence',
+    t_logFC=1, t_FDR=.1, n=10, title=None, xlim=(-8,8), max_distance=0.5, pseudocount=0,
+    figsize=(5,5), annotate=False, s=5, lines=False
+    ):
+    """
+    Volcano plot
+    """    
+
+    df_ = df.copy()    
     choices = [
-        (df_['effect_size'] >= t) & (df_['evidence'] <= 0.1),
-        (df_['effect_size'] <= -t) & (df_['evidence'] <= 0.1),
+        (df_[effect_size] >= t_logFC) & (df_[evidence] <= t_FDR),
+        (df_[effect_size] <= -t_logFC) & (df_[evidence] <= t_FDR),
     ]
     df_['type'] = np.select(choices, ['up', 'down'], default='other')
     df_['to_annotate'] = False
-    df_['to_annotate'][:n] = True
-    df_['to_annotate'][-n:] = True
-    df_['evidence'] = -np.log10(df_['evidence']+pseudocount)
+    genes_to_annotate = get_genes_to_annotate(df_, evidence, effect_size, n)
+    df_.loc[genes_to_annotate, 'to_annotate'] = True
+    df_[evidence] = -np.log10(df_[evidence]+pseudocount)
 
-    fig, ax = plt.subplots(figsize=(5,5))
-    scatter(df_.query('type == "other"'), 'effect_size', 'evidence',  c='darkgrey', s=5, ax=ax)
-    scatter(df_.query('type == "up"'), 'effect_size', 'evidence',  c='red', s=10, ax=ax)
-    scatter(df_.query('type == "down"'), 'effect_size', 'evidence',  c='b', s=10, ax=ax)
+    fig, ax = plt.subplots(figsize=figsize)
+    scatter(df_.query('type == "other"'), effect_size, evidence,  c='darkgrey', s=s, ax=ax)
+    scatter(df_.query('type == "up"'), effect_size, evidence,  c='red', s=s*2, ax=ax)
+    scatter(df_.query('type == "down"'), effect_size, evidence,  c='b', s=s*2, ax=ax)
 
     ax.set(xlim=xlim)
 
-    ax.vlines(1, df_['evidence'].min(), df_['evidence'].max(), linestyles='dashed', colors='r')
-    ax.vlines(-1, df_['evidence'].min(), df_['evidence'].max(), linestyles='dashed', colors='b')
-    ax.hlines(-np.log10(0.1), -6, 6, linestyles='dashed', colors='k')
+    if lines:
+        ax.vlines(1, df_[evidence].min(), df_[evidence].max(), colors='r')
+        ax.vlines(-1, df_[evidence].min(), df_[evidence].max(), colors='b')
+        ax.hlines(-np.log10(0.1), xlim[0], xlim[1], colors='k')
 
     format_ax(ax, title=title, xlabel=f'log2FC', ylabel=f'-log10(FDR)')
-
     ax.spines[['top', 'right']].set_visible(False)
 
-    ta.allocate_text(
-        fig, ax, 
-        df_.loc[lambda x: x['to_annotate']]['effect_size'],
-        df_.loc[lambda x: x['to_annotate']]['evidence'],
-        df_.loc[lambda x: x['to_annotate']].index,
-        x_scatter=df_['effect_size'], y_scatter=df_['evidence'], 
-        linecolor='black', textsize=8, 
-        max_distance=max_distance, linewidth=0.5, nbr_candidates=100
-    )
-    
+    if annotate:
+        ta.allocate_text(
+            fig, ax, 
+            df_.loc[lambda x: x['to_annotate']][effect_size],
+            df_.loc[lambda x: x['to_annotate']][evidence],
+            df_.loc[lambda x: x['to_annotate']].index,
+            x_scatter=df_[effect_size], y_scatter=df_[evidence], 
+            linecolor='black', textsize=8, 
+            max_distance=max_distance, linewidth=0.5, nbr_candidates=100
+        )
+
     return fig
+
+
+##
+
+
+def plot_consensus_heatmap(X, row_colors, ax=None):
+    """
+    Utils to plot the consensus heatmap.
+    """
+    im = ax.imshow(X, cmap='mako', interpolation='nearest', vmax=.9, vmin=.2)
+
+    orientation = 'vertical'
+    pos, xticks_position = ((1.05, 0.25, 0.025, 0.5), 'right')
+    cmap = matplotlib.colormaps['mako']
+    norm = matplotlib.colors.Normalize(vmin=.2, vmax=.9)
+    axins = ax.inset_axes(pos) 
+    cb = plt.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap), 
+        cax=axins, orientation=orientation, ticklocation=xticks_position
+    )
+    cb.set_label(label='Support', size=7, loc='center')
+    cb.ax.tick_params(axis="y", labelsize=5)
+
+    ax.set(
+        title=f'Consensus matrix: average support {X.mean():.2f}', 
+        xlabel='Cells', xticks=[], yticks=[]
+    )
+    ax.set_ylabel(ylabel='Cells', labelpad=10)
+
+    orientation = 'vertical'
+    pos = (-.028, 0, 0.025, 1)
+    axins = ax.inset_axes(pos) 
+    cmap = matplotlib.colors.ListedColormap(row_colors)
+    cb = plt.colorbar(
+        matplotlib.cm.ScalarMappable(cmap=cmap), 
+        cax=axins, orientation=orientation
+    )
+    cb.ax.set(xticks=[], yticks=[])
+
+    return ax
+
 
 
 ##

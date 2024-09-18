@@ -235,7 +235,7 @@ def add_labels_on_loc(df, x, y, by, ax=None, s=10):
     coords = df.loc[:, [x, y, by]].groupby(by).median()
     for label in coords.index:
         x, y = coords.loc[label, :].tolist()
-        ax.text(x, y, label, fontsize=s, weight="bold")
+        ax.text(x, y, label, fontsize=s)
 
 
 ##

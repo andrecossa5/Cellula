@@ -388,8 +388,9 @@ class Dist_features:
                         score=score, n_combos=n_combos, cores_model=self.n_cores, cores_GS=1)
                 df = df.assign(comparison=comparison, feature_type=feat_type)          
                 df = df.loc[:,
-                    ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'effect_size_rescaled',
-                    'effect_type', 'comparison', 'precision', 'recall', 'accuracy', 'balanced_accuracy']
+                    ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 
+                    'effect_size_rescaled', 'effect_type', 'comparison', 'precision', 
+                    'recall', 'accuracy', 'balanced_accuracy']
                 ]
                 d = self.gs_from_ML(df, feat_type)
 
@@ -406,8 +407,9 @@ class Dist_features:
 
             df = df.assign(comparison=comparison_ab, feature_type=feat_type)
             df = df.loc[:,
-                ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'effect_size_rescaled',
-                'effect_type', 'comparison', 'precision', 'recall', 'accuracy', 'balanced_accuracy']
+                ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 
+                'effect_size_rescaled', 'effect_type', 'comparison', 'precision', 
+                'recall', 'accuracy', 'balanced_accuracy']
             ]
             d = self.gs_from_ML(df, feat_type)
 
@@ -422,8 +424,9 @@ class Dist_features:
 
             df = df.assign(comparison=comparison_ba, feature_type=feat_type)
             df = df.loc[:,
-                ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 'effect_size_rescaled',
-                'effect_type', 'comparison', 'precision', 'recall', 'accuracy', 'balanced_accuracy']
+                ['feature_type', 'rank', 'evidence', 'evidence_type', 'effect_size', 
+                'effect_size_rescaled', 'effect_type', 'comparison', 'precision', 
+                'recall', 'accuracy', 'balanced_accuracy']
             ]
             d = self.gs_from_ML(df, feat_type)
 

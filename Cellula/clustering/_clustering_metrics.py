@@ -81,3 +81,38 @@ def kNN_purity(index, solution):
         purity.append(np.sum(labels == ref) / labels.size)
     
     return np.median(purity)
+
+
+##
+
+
+def calculate_partitions_support(consensus, partitions):
+    """
+    Given a consensus matrix and a partitionings of its objects, calculate a df
+    od summary statistics for each partition.
+    """
+    n_cells_l = []
+    within_l = []
+    outside_l = []
+    unique_partitions = np.sort(partitions.unique())
+
+    for cluster in unique_partitions:
+        within = np.where(partitions == cluster)[0]
+        outside = np.where(partitions != cluster)[0]
+        n_cells_l.append(within.size)
+        within_l.append(consensus[np.ix_(within, within)].mean())
+        outside_l.append(consensus[np.ix_(outside, outside)].mean())
+
+    df_partitions = (
+        pd.DataFrame({
+            'n' : n_cells_l, 
+            'w' : within_l, 
+            'o' : outside_l, 
+            'cluster' : unique_partitions
+        })
+        .assign(log2_ratio=lambda x: np.log2(x['w']+1) - np.log2(x['o']+1))
+        .sort_values('n', ascending=False)
+    )
+    df_partitions['cluster'] = df_partitions['cluster'].astype('str')
+
+    return df_partitions

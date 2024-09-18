@@ -24,21 +24,6 @@ from .._utils import *
 ##
 
 
-def adata_name_formatter(adata):
-    """
-    A function to reformat the cell names in of a certain adata, 
-    adding sample name suffixes to individual CBCs.
-    """
-    sample_name = adata.obs['sample'].unique()[0]
-    new_names = [ n[:16] + '_' + sample_name for n in adata.obs_names ]
-    adata.obs_names = new_names
-
-    return adata
-
-
-##
-
-
 def read_matrices(path, mode='tenx'):
     """
     Reads 10x Genomics matrices from a specified path and returns a dictionary of AnnData objects.
@@ -92,25 +77,21 @@ def read_matrix(path, sample_name=None, mode='tenx'):
     """
     a = sc.read_10x_mtx(os.path.join(path, sample_name, 'filtered'))
     if mode == 'gbc':
-        try:
-            cells = pd.read_csv(
-                os.path.join(path, sample_name, 'cells_summary_table_refined.csv'),
-                index_col=0
-            )
-        except:
-            cells = pd.read_csv(
-                os.path.join(path, sample_name, 'cells_summary_table.csv'),
-                index_col=0
-            )
-        cells = cells.loc[:, ['GBC']]
-        cells_to_retain = [ x for x in cells.index if x in a.obs_names ]
-        cells = cells.loc[cells_to_retain, :]
-        a = a[cells_to_retain, :].copy()
+        path_cell_annotation = os.path.join(path, sample_name, 'cells_summary_table.csv')
+        if os.path.exists(path_cell_annotation):
+            cells = pd.read_csv(path_cell_annotation, index_col=0)[['GBC']]
+        else:
+            raise ValueError(f'{path_cell_annotation} is not valid for mode "gbc".')
+        if cells.index.str.contains('_').any():
+            cells.index = cells.index.map(lambda x: x.split('_')[0])
+        common_cells = list(set(a.obs_names) & set(cells.index))
+        cells = cells.loc[common_cells,:]
+        a = a[common_cells,:].copy()
         a.obs = a.obs.assign(GBC=cells['GBC'], sample=sample_name)
-        a = adata_name_formatter(a)
+        a.obs_names = a.obs_names.map(lambda x: f'{x}_{sample_name}')
     else:
         a.obs = a.obs.assign(sample=sample_name)
-        a = adata_name_formatter(a)
+        a.obs_names = a.obs_names.map(lambda x: f'{x}_{sample_name}')
     
     return a
 

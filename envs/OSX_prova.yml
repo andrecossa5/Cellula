@@ -27,12 +27,13 @@ dependencies:
   - pip
   - python-annoy
   - python-igraph=0.9.10
+  - tensorflow
+  - tensorflow-probability
   - pip:
     - altair==4.0.0
     - textalloc==0.0.6
     - dadapy==0.2.0
     - gseapy==0.13.0
-    - jaxlib==0.4.11
     - bbknn==1.5.1
     - cython==0.29.32
     - harmony-pytorch==0.1.7
@@ -49,7 +50,7 @@ dependencies:
     - scanorama==1.7.2
     - scib==1.0.3
     - scikit-misc==0.1.4
-    - scvi-tools==0.17.1
+    - scvi-tools
     - statannotations==0.4.4
     - torch==1.12.1
     - torchmetrics==0.9.3

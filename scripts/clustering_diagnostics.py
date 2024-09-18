@@ -222,7 +222,7 @@ def clustering_diagnostics():
             df_ARI, 
             palette='mako', 
             title='ARI among solutions', 
-            label='ARI', 
+            cb_label='ARI', 
             annot_size=3,
             figsize=(11, 10)
         )
@@ -319,7 +319,6 @@ def clustering_diagnostics():
             pdf.savefig()  
             # JI
             fig = top_3_ji_cells(markers_top3, clustering_solutions.loc[:, top_3])
-            plt.show()
             pdf.savefig()  
             # Dot plots
             for s in top_3:

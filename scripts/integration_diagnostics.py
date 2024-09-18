@@ -215,14 +215,14 @@ def choose_preprocessing_option():
     elif os.path.exists(os.path.join(path_data, 'integration.h5ad')) and chosen is not None:
         pp = sc.read(os.path.join(path_data, 'integration.h5ad'))
     else:
-        raise ValueError('No reduced or integration adatas available.')
+        raise ValueError('No reduced or integration matrices available.')
 
     # Assemble final adata
 
     # Cells and gene metadata, log-normalized (size) and raw counts metrices
+    assert (lognorm.obs_names == pp.obs_names).all()
     adata = sc.AnnData(X=lognorm.X, obs=pp.obs, var=lognorm.var)
-    adata.X = lognorm.X
-    adata.layers['raw'] = pp.raw.to_adata()[:, adata.var_names].X
+    adata.layers['raw'] = lognorm.raw.to_adata()[:, adata.var_names].X
 
     # Chosen, cleaned dimension reduced embeddings
     adata.obsm['X_reduced'] = get_representation(pp, layer=layer, method=chosen_method)

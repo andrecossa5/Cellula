@@ -1,6 +1,6 @@
 # Cellula
 
-Single-cell and single-cell lineage tracing analysis in python (soon a Nextflow pipeline.
+Single-cell and single-cell lineage tracing analysis in python (soon a Nextflow pipeline).
 
 Aim of this project is to provide a toolkit for the exploration of scRNA-seq. These tools perform common single-cell analysis tasks (i.e., data pre-processing and integration, cell clustering and annotation (*)) with the following features:
 

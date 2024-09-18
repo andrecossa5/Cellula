@@ -436,7 +436,7 @@ def handle_colors(df, cat, legend_params, query=None):
         palette_cat = sc.pl.palettes.godsnot_102
         legend_params['colors'] = create_palette(df_, cat, palette_cat)
     elif isinstance(legend_params['colors'], dict):
-        assert all([ k in categories for k in legend_params['colors']])
+        assert all([ k in legend_params['colors'] for k in categories ])
         print('Provided colors are OK...')
     else:
         raise ValueError('Provide a correctly formatted palette for your categorical labels!')
@@ -1050,7 +1050,7 @@ def get_genes_to_annotate(df_, evidence, effect_size, n):
 def volcano(
     df, effect_size='effect_size', evidence='evidence',
     t_logFC=1, t_FDR=.1, n=10, title=None, xlim=(-8,8), max_distance=0.5, pseudocount=0,
-    figsize=(5,5), annotate=False
+    figsize=(5,5), annotate=False, s=5, lines=False
     ):
     """
     Volcano plot
@@ -1068,18 +1068,19 @@ def volcano(
     df_[evidence] = -np.log10(df_[evidence]+pseudocount)
 
     fig, ax = plt.subplots(figsize=figsize)
-    scatter(df_.query('type == "other"'), effect_size, evidence,  c='darkgrey', s=5, ax=ax)
-    scatter(df_.query('type == "up"'), effect_size, evidence,  c='red', s=10, ax=ax)
-    scatter(df_.query('type == "down"'), effect_size, evidence,  c='b', s=10, ax=ax)
+    scatter(df_.query('type == "other"'), effect_size, evidence,  c='darkgrey', s=s, ax=ax)
+    scatter(df_.query('type == "up"'), effect_size, evidence,  c='red', s=s*2, ax=ax)
+    scatter(df_.query('type == "down"'), effect_size, evidence,  c='b', s=s*2, ax=ax)
 
     ax.set(xlim=xlim)
 
-    ax.vlines(1, df_[evidence].min(), df_[evidence].max(), colors='r')
-    ax.vlines(-1, df_[evidence].min(), df_[evidence].max(), colors='b')
-    ax.hlines(-np.log10(0.1), xlim[0], xlim[1], colors='k')
+    if lines:
+        ax.vlines(1, df_[evidence].min(), df_[evidence].max(), colors='r')
+        ax.vlines(-1, df_[evidence].min(), df_[evidence].max(), colors='b')
+        ax.hlines(-np.log10(0.1), xlim[0], xlim[1], colors='k')
 
     format_ax(ax, title=title, xlabel=f'log2FC', ylabel=f'-log10(FDR)')
-    ax.spines[['top', 'right', 'left']].set_visible(False)
+    ax.spines[['top', 'right']].set_visible(False)
 
     if annotate:
         ta.allocate_text(

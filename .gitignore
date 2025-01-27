@@ -139,4 +139,4 @@ dmypy.json
 envs/batchglm
 
 # Scratch
-./scratch
+scratch/

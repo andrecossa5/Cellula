@@ -256,8 +256,7 @@ class Dist_features:
                 comparison = f'{cat}_vs_rest'
 
             # Collect info and reformat
-            test = lambda x: bool(re.search(f'^{cat}:', x))
-            columns = de_raw.columns[list(map(test, de_raw.columns))]
+            columns = de_raw.columns[de_raw.columns.str.startswith(cat)]
             exclude = [f'{cat}:mwu_U', f'{cat}:mwu_pval', f'{cat}:log2Mean', f'{cat}:log2Mean_other']
             columns = [ x for x in columns if x not in exclude]
 
@@ -310,7 +309,7 @@ class Dist_features:
         X, feature_names, y, contrast_type = self.get_XY(contrast_key=contrast_key, which=which)
 
         # Compute pegasus Wilcoxon's test
-        X = csr_matrix(X) # Last check matrix
+        # X = csr_matrix(X) # Last check matrix
 
         # DE
         de_raw = DE(
